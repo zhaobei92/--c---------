@@ -8,7 +8,9 @@ from app.db import get_db
 from app.gateway import get_model_gateway
 from app.models import DecisionCase, HardConstraint, User
 from app.services import (
+    compute_service,
     decision_service,
+    evaluation_service,
     intake_service,
     orchestrator,
     preference_service,
@@ -21,6 +23,9 @@ from shared_schemas import (
     ComparisonState,
     NextComparisonResponse,
     ConstraintCreateRequest,
+    DecisionRunOut,
+    EvaluationOut,
+    EvaluationUpsertRequest,
     ConstraintUpdateRequest,
     DecisionCaseDetail,
     DecisionCaseSummary,
@@ -145,6 +150,64 @@ def stream_decision(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ---------- 评估与计算（阶段4） ----------
+
+
+@router.get("/{decision_id}/evaluations", response_model=list[EvaluationOut])
+def list_evaluations(
+    decision_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[EvaluationOut]:
+    case = _get_case_or_404(db, decision_id, user)
+    return [EvaluationOut.model_validate(e) for e in case.evaluations]
+
+
+@router.put("/{decision_id}/evaluations", response_model=list[EvaluationOut])
+def upsert_evaluations(
+    decision_id: str,
+    body: EvaluationUpsertRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[EvaluationOut]:
+    case = _get_case_or_404(db, decision_id, user)
+    try:
+        touched = evaluation_service.upsert_evaluations(
+            db, case, [item.model_dump() for item in body.evaluations]
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return [EvaluationOut.model_validate(e) for e in touched]
+
+
+@router.post("/{decision_id}/compute", response_model=DecisionRunOut)
+def compute_decision(
+    decision_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> DecisionRunOut:
+    """运行确定性决策引擎（MAUT + 蒙特卡洛 + 后悔 + 敏感性）。"""
+    case = _get_case_or_404(db, decision_id, user)
+    try:
+        run = compute_service.run_compute(db, case)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return DecisionRunOut.model_validate(run)
+
+
+@router.get("/{decision_id}/runs/latest", response_model=DecisionRunOut)
+def get_latest_run(
+    decision_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> DecisionRunOut:
+    case = _get_case_or_404(db, decision_id, user)
+    run = compute_service.latest_run(case)
+    if run is None:
+        raise HTTPException(status_code=404, detail="no decision run yet")
+    return DecisionRunOut.model_validate(run)
 
 
 # ---------- 成对偏好比较（阶段3） ----------

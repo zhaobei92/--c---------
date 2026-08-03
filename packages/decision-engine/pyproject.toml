@@ -3,7 +3,7 @@ name = "decision-engine"
 version = "0.1.0"
 description = "Deterministic decision algorithms (constraints, MAUT, Monte Carlo, reopen gate) — no LLM dependency"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = ["numpy>=1.26"]
 
 [build-system]
 requires = ["setuptools>=68"]

@@ -21,6 +21,12 @@ from shared_schemas.decision import (
     OptionCreateRequest,
     OptionUpdateRequest,
 )
+from shared_schemas.compute import (
+    DecisionRunOut,
+    EvaluationItem,
+    EvaluationOut,
+    EvaluationUpsertRequest,
+)
 from shared_schemas.diagnosis import AdvanceResponse, NextQuestion, StuckTypeDiagnosis
 from shared_schemas.intake import ExtractedConstraint, ExtractedOption, IntakeExtraction
 from shared_schemas.preference import (
@@ -34,6 +40,10 @@ from shared_schemas.preference import (
 
 __all__ = [
     "AdvanceResponse",
+    "DecisionRunOut",
+    "EvaluationItem",
+    "EvaluationOut",
+    "EvaluationUpsertRequest",
     "ComparisonCreateRequest",
     "ComparisonState",
     "CriteriaGeneration",

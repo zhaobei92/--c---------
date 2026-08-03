@@ -5,7 +5,9 @@ from app.models.decision import (
     DecisionCriterion,
     DecisionMessage,
     DecisionOption,
+    DecisionRun,
     HardConstraint,
+    OptionEvaluation,
     PairwiseComparison,
 )
 from app.models.user import User
@@ -17,8 +19,10 @@ __all__ = [
     "DecisionCriterion",
     "DecisionMessage",
     "DecisionOption",
+    "DecisionRun",
     "HardConstraint",
     "ModelInvocation",
+    "OptionEvaluation",
     "PairwiseComparison",
     "User",
 ]

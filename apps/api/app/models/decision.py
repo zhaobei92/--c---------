@@ -64,6 +64,16 @@ class DecisionCase(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         cascade="all, delete-orphan",
         order_by="PairwiseComparison.created_at",
     )
+    evaluations: Mapped[list["OptionEvaluation"]] = relationship(
+        back_populates="decision_case",
+        cascade="all, delete-orphan",
+        order_by="OptionEvaluation.created_at",
+    )
+    runs: Mapped[list["DecisionRun"]] = relationship(
+        back_populates="decision_case",
+        cascade="all, delete-orphan",
+        order_by="DecisionRun.created_at",
+    )
 
 
 class DecisionOption(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -167,3 +177,49 @@ class PairwiseComparison(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     strength: Mapped[float] = mapped_column(Float, default=0.5, nullable=False)
 
     decision_case: Mapped[DecisionCase] = relationship(back_populates="comparisons")
+
+
+class OptionEvaluation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """选项在某标准上的评估。以期望值+不确定度保存，不保存伪精确单值。"""
+
+    __tablename__ = "option_evaluations"
+
+    decision_case_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("decision_cases.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    option_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("decision_options.id", ondelete="CASCADE"), nullable=False
+    )
+    criterion_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("decision_criteria.id", ondelete="CASCADE"), nullable=False
+    )
+    expected_value: Mapped[float] = mapped_column(Float, nullable=False)  # 0-1
+    uncertainty: Mapped[float] = mapped_column(Float, default=0.15, nullable=False)
+    distribution: Mapped[str] = mapped_column(String(20), default="normal", nullable=False)
+    source: Mapped[str] = mapped_column(String(40), default="user_rating", nullable=False)
+
+    decision_case: Mapped[DecisionCase] = relationship(back_populates="evaluations")
+
+
+class DecisionRun(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """每次决策计算的版本化快照：算法升级后仍能解释历史结论。"""
+
+    __tablename__ = "decision_runs"
+
+    decision_case_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("decision_cases.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    algorithm_version: Mapped[str] = mapped_column(String(40), nullable=False)
+    seed: Mapped[int] = mapped_column(default=42, nullable=False)
+    input_snapshot: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    result_snapshot: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    ranking_stability: Mapped[float | None] = mapped_column(Float, nullable=True)
+    winning_option_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+    decision_case: Mapped[DecisionCase] = relationship(back_populates="runs")
