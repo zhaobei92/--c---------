@@ -1,6 +1,7 @@
 from app.models.audit import AuditEvent, ModelInvocation
 from app.models.base import Base
 from app.models.decision import (
+    ClosureContract,
     DecisionCase,
     DecisionCriterion,
     DecisionMessage,
@@ -9,6 +10,7 @@ from app.models.decision import (
     HardConstraint,
     Recommendation,
     OptionEvaluation,
+    ReopenRequest,
     PairwiseComparison,
 )
 from app.models.user import User
@@ -16,6 +18,8 @@ from app.models.user import User
 __all__ = [
     "AuditEvent",
     "Base",
+    "ClosureContract",
+    "ReopenRequest",
     "DecisionCase",
     "DecisionCriterion",
     "DecisionMessage",

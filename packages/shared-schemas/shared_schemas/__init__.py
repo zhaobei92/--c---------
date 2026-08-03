@@ -21,6 +21,12 @@ from shared_schemas.decision import (
     OptionCreateRequest,
     OptionUpdateRequest,
 )
+from shared_schemas.closure import (
+    ClosureContractOut,
+    CommitRequest,
+    ReopenCreateRequest,
+    ReopenResponse,
+)
 from shared_schemas.compute import (
     DecisionRunOut,
     EvaluationItem,
@@ -45,6 +51,10 @@ from shared_schemas.preference import (
 
 __all__ = [
     "AdvanceResponse",
+    "ClosureContractOut",
+    "CommitRequest",
+    "ReopenCreateRequest",
+    "ReopenResponse",
     "ChallengeResult",
     "RecommendationExplanation",
     "RecommendationOut",

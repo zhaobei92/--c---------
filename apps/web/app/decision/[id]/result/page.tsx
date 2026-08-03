@@ -1,11 +1,12 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   DecisionDetail,
   DecisionRun,
   Recommendation,
+  commitDecision,
   getDecision,
   getLatestRun,
   getRecommendation,
@@ -13,9 +14,12 @@ import {
 
 export default function ResultPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [detail, setDetail] = useState<DecisionDetail | null>(null);
   const [run, setRun] = useState<DecisionRun | null>(null);
   const [rec, setRec] = useState<Recommendation | null>(null);
+  const [accepted, setAccepted] = useState(false);
+  const [committing, setCommitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -137,13 +141,50 @@ export default function ResultPage() {
         <p className="text-sm">{rec.next_action}</p>
       </section>
 
-      <button
-        disabled
-        className="rounded-xl bg-neutral-300 px-8 py-4 text-lg text-white"
-        title="决策契约与锁定将在下个版本开放"
-      >
-        我理解并接受这个选择（即将开放）
-      </button>
+      {detail.status === "READY_TO_COMMIT" ? (
+        <section className="flex flex-col gap-3 rounded-xl border-2 border-neutral-900 bg-white p-4">
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={accepted}
+              onChange={(e) => setAccepted(e.target.checked)}
+              className="mt-1 accent-neutral-900"
+            />
+            <span>
+              我已阅读并接受上面列出的代价，理解在什么情况下可以重新评估、
+              什么情况不构成重开理由。
+            </span>
+          </label>
+          <button
+            disabled={!accepted || committing}
+            onClick={async () => {
+              setCommitting(true);
+              setError(null);
+              try {
+                await commitDecision(params.id, rec.recommended_option_id);
+                router.push(`/decision/${params.id}/conversation`);
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "提交失败");
+                setCommitting(false);
+              }
+            }}
+            className="rounded-xl bg-neutral-900 px-8 py-4 text-lg text-white disabled:opacity-40"
+          >
+            {committing ? "锁定中……" : "我决定了：就选它"}
+          </button>
+        </section>
+      ) : detail.status === "COMMITTED" || detail.status === "FOLLOW_UP" ? (
+        <section className="rounded-xl border border-green-300 bg-green-50 p-4 text-sm text-green-900">
+          该决定已锁定。若出现新情况，可以
+          <button
+            className="mx-1 underline"
+            onClick={() => router.push(`/decision/${params.id}/reopen`)}
+          >
+            申请重新评估
+          </button>
+          。
+        </section>
+      ) : null}
       <p className="pb-8 text-center text-xs text-neutral-400">
         算法版本 {run.algorithm_version} · 结果可复现（seed={run.seed}）
       </p>

@@ -79,6 +79,16 @@ class DecisionCase(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         cascade="all, delete-orphan",
         order_by="Recommendation.created_at",
     )
+    contracts: Mapped[list["ClosureContract"]] = relationship(
+        back_populates="decision_case",
+        cascade="all, delete-orphan",
+        order_by="ClosureContract.created_at",
+    )
+    reopen_requests: Mapped[list["ReopenRequest"]] = relationship(
+        back_populates="decision_case",
+        cascade="all, delete-orphan",
+        order_by="ReopenRequest.created_at",
+    )
 
 
 class DecisionOption(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -256,3 +266,50 @@ class Recommendation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     source: Mapped[str] = mapped_column(String(20), default="deterministic", nullable=False)
 
     decision_case: Mapped[DecisionCase] = relationship(back_populates="recommendations")
+
+
+class ClosureContract(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """决策契约（方案 10.7）：用户确认接受选择及其代价后生成，锁定决定。"""
+
+    __tablename__ = "closure_contracts"
+
+    decision_case_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("decision_cases.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    selected_option_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    accepted_tradeoffs: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    main_reasons: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    reopen_conditions: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    non_reopen_conditions: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    next_action: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    followed_recommendation: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    user_confirmed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    decision_case: Mapped[DecisionCase] = relationship(back_populates="contracts")
+
+
+class ReopenRequest(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """重开请求：每次都记录评分与结果（验收要求：所有重开都有原因记录）。"""
+
+    __tablename__ = "reopen_requests"
+
+    decision_case_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("decision_cases.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    new_information: Mapped[str] = mapped_column(Text, nullable=False)
+    novelty: Mapped[float] = mapped_column(Float, nullable=False)
+    credibility: Mapped[float] = mapped_column(Float, nullable=False)
+    relevance: Mapped[float] = mapped_column(Float, nullable=False)
+    flip_probability: Mapped[float] = mapped_column(Float, nullable=False)
+    info_value: Mapped[float] = mapped_column(Float, nullable=False)
+    reopen_score: Mapped[float] = mapped_column(Float, nullable=False)
+    outcome: Mapped[str] = mapped_column(String(30), nullable=False)
+    is_rumination: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    decision_case: Mapped[DecisionCase] = relationship(back_populates="reopen_requests")

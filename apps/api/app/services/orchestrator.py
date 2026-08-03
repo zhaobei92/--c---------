@@ -136,6 +136,11 @@ def advance(db: Session, case: DecisionCase, gateway: ModelGateway) -> AdvanceRe
             message="信息已足够，可以运行决策分析了。",
         )
 
+    if status == DecisionStatus.MORE_CLARIFICATION:
+        # 完整重开后的回归路径：回到信息缺口分析重新走流程
+        _transition(db, case, DecisionStatus.EVIDENCE_GAP_ANALYSIS)
+        return advance(db, case, gateway)
+
     if status in (
         DecisionStatus.DECISION_COMPUTE,
         DecisionStatus.SENSITIVITY_ANALYSIS,
@@ -146,6 +151,13 @@ def advance(db: Session, case: DecisionCase, gateway: ModelGateway) -> AdvanceRe
             kind="recommendation_ready",
             status=case.status,
             message="分析已完成，请查看结果页。",
+        )
+
+    if status in (DecisionStatus.COMMITTED, DecisionStatus.FOLLOW_UP):
+        return AdvanceResponse(
+            kind="noop",
+            status=case.status,
+            message="该决定已锁定。如出现新情况，请走重开判定（/reopen）。",
         )
 
     return AdvanceResponse(kind="noop", status=case.status)

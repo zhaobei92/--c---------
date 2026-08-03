@@ -8,6 +8,7 @@ from app.db import get_db
 from app.gateway import get_model_gateway
 from app.models import DecisionCase, HardConstraint, User
 from app.services import (
+    closure_service,
     compute_service,
     decision_service,
     evaluation_service,
@@ -15,11 +16,16 @@ from app.services import (
     orchestrator,
     preference_service,
     recommendation_service,
+    reopen_service,
 )
 from app.services.audit import record_event
 from model_gateway import ModelGateway
 from shared_schemas import (
     AdvanceResponse,
+    ClosureContractOut,
+    CommitRequest,
+    ReopenCreateRequest,
+    ReopenResponse,
     ComparisonCreateRequest,
     ComparisonState,
     NextComparisonResponse,
@@ -151,6 +157,66 @@ def stream_decision(
         event_stream(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# ---------- 决策锁与重开（阶段6） ----------
+
+
+@router.post("/{decision_id}/commit", response_model=ClosureContractOut, status_code=201)
+def commit_decision(
+    decision_id: str,
+    body: CommitRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ClosureContractOut:
+    """接受代价并锁定决定，生成决策契约。"""
+    case = _get_case_or_404(db, decision_id, user)
+    try:
+        contract = closure_service.commit_decision(
+            db, case, body.selected_option_id, body.accepted_tradeoffs
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return ClosureContractOut.model_validate(contract)
+
+
+@router.get("/{decision_id}/contract", response_model=ClosureContractOut)
+def get_contract(
+    decision_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ClosureContractOut:
+    case = _get_case_or_404(db, decision_id, user)
+    contract = closure_service.latest_contract(case)
+    if contract is None:
+        raise HTTPException(status_code=404, detail="no contract yet")
+    return ClosureContractOut.model_validate(contract)
+
+
+@router.post("/{decision_id}/reopen", response_model=ReopenResponse)
+def reopen_decision(
+    decision_id: str,
+    body: ReopenCreateRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ReopenResponse:
+    """重开判定：无新事实时不重复跑完整流程。"""
+    case = _get_case_or_404(db, decision_id, user)
+    try:
+        request, message = reopen_service.request_reopen(db, case, body.new_information)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return ReopenResponse(
+        outcome=request.outcome,
+        reopen_score=request.reopen_score,
+        novelty=request.novelty,
+        credibility=request.credibility,
+        relevance=request.relevance,
+        flip_probability=request.flip_probability,
+        is_rumination=request.is_rumination,
+        message=message,
+        status=case.status,
     )
 
 

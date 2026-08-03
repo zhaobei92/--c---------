@@ -281,3 +281,45 @@ export function getRecommendation(id: string) {
 export function getLatestRun(id: string) {
   return request<DecisionRun>(`/api/v1/decisions/${id}/runs/latest`);
 }
+
+export interface ClosureContract {
+  id: string;
+  selected_option_id: string;
+  accepted_tradeoffs: string[];
+  main_reasons: string[];
+  reopen_conditions: string[];
+  non_reopen_conditions: string[];
+  next_action: string;
+  followed_recommendation: boolean;
+  user_confirmed: boolean;
+}
+
+export interface ReopenResult {
+  outcome: string;
+  reopen_score: number;
+  novelty: number;
+  is_rumination: boolean;
+  message: string;
+  status: string;
+}
+
+export function commitDecision(id: string, selectedOptionId: string) {
+  return request<ClosureContract>(`/api/v1/decisions/${id}/commit`, {
+    method: "POST",
+    body: JSON.stringify({
+      selected_option_id: selectedOptionId,
+      accepted_tradeoffs: true,
+    }),
+  });
+}
+
+export function getContract(id: string) {
+  return request<ClosureContract>(`/api/v1/decisions/${id}/contract`);
+}
+
+export function reopenDecision(id: string, newInformation: string) {
+  return request<ReopenResult>(`/api/v1/decisions/${id}/reopen`, {
+    method: "POST",
+    body: JSON.stringify({ new_information: newInformation }),
+  });
+}
