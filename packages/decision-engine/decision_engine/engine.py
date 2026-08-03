@@ -4,6 +4,7 @@
 """
 
 from decision_engine.constraints.eligibility import filter_eligible
+from decision_engine.constraints.lexicographic import lexicographic_order
 from decision_engine.monte_carlo.simulate import (
     DEFAULT_ITERATIONS,
     deterministic_utilities,
@@ -17,7 +18,8 @@ from decision_engine.types import (
     OptionSpec,
 )
 
-ALGORITHM_VERSION = "engine-0.1.0"
+# 0.2.0：按分布类型逐单元采样（beta/triangular/categorical）+ lexicographic 规则
+ALGORITHM_VERSION = "engine-0.2.0"
 
 
 def run_analysis(
@@ -30,7 +32,25 @@ def run_analysis(
     eligible, eliminated, warnings = filter_eligible(options, criteria, evaluations)
 
     utils = deterministic_utilities(eligible, criteria, evaluations)
-    ranking = sorted(utils, key=utils.get, reverse=True)
+    lex_criteria = [
+        c
+        for c in sorted(criteria, key=lambda c: -max(c.weight, 0.0))
+        if c.criterion_type == "lexicographic"
+    ]
+    if lex_criteria:
+        eval_map = {(e.option_key, e.criterion_key): e for e in evaluations}
+
+        def effective(o_key: str, c: CriterionSpec) -> float:
+            ev = eval_map.get((o_key, c.key))
+            raw = ev.expected_value if ev else 0.5
+            return 1.0 - raw if c.direction == "lower_better" else raw
+
+        lex_values = {
+            o.key: [effective(o.key, c) for c in lex_criteria] for o in eligible
+        }
+        ranking = lexicographic_order([o.key for o in eligible], lex_values, utils)
+    else:
+        ranking = sorted(utils, key=utils.get, reverse=True)
 
     mc = simulate(eligible, criteria, evaluations, n_iterations=n_iterations, seed=seed)
     flips = find_flips(eligible, criteria, evaluations)

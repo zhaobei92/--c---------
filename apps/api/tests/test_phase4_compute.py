@@ -74,7 +74,7 @@ def test_full_flow_reaches_evaluations_then_compute(client):
     assert run["winning_option_id"] == detail["options"][0]["id"]
     assert run["ranking_stability"] > 0.9
     result = run["result_snapshot"]
-    assert result["algorithm_version"] == "engine-0.1.0"
+    assert result["algorithm_version"] == "engine-0.2.0"
     assert set(result["winner_probability"].keys()) == {
         o["id"] for o in detail["options"]
     }

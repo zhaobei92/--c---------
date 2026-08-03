@@ -78,3 +78,34 @@ def test_gateway_structured_requires_credentials():
     gw = ModelGateway(ModelGatewaySettings(MODEL_FAST="fast-model"))
     with pytest.raises(ModelCallError):
         gw.structured(ModelRole.FAST, "system", "user", Answer)
+
+
+def test_retries_once_on_server_error_then_succeeds():
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(503, json={"error": "overloaded"})
+        return httpx.Response(
+            200,
+            json={"choices": [{"message": {"content": json.dumps({"value": "ok", "score": 1.0})}}]},
+        )
+
+    client = LLMClient(make_settings(), transport=canned_transport(handler))
+    result = client.structured_completion("fast-model", "s", "u", Answer)
+    assert result.value == "ok"
+    assert calls["n"] == 2
+
+
+def test_retries_on_timeout_then_fails_cleanly():
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        raise httpx.ConnectTimeout("boom")
+
+    client = LLMClient(make_settings(), transport=canned_transport(handler))
+    with pytest.raises(ModelCallError):
+        client.structured_completion("fast-model", "s", "u", Answer)
+    assert calls["n"] == 2

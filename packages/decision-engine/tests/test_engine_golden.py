@@ -39,17 +39,18 @@ def test_golden_regression_seed_42():
     options, criteria, evaluations = golden_case()
     r = run_analysis(options, criteria, evaluations, seed=42)
 
-    assert ALGORITHM_VERSION == "engine-0.1.0"
+    # 黄金值对应 engine-0.2.0（分布感知采样 + lexicographic）
+    assert ALGORITHM_VERSION == "engine-0.2.0"
     assert r.winner == "b"
     assert r.ranking == ["b", "a"]
     assert r.deterministic_utilities["a"] == pytest.approx(0.6021337323, abs=1e-9)
     assert r.deterministic_utilities["b"] == pytest.approx(0.7701699195, abs=1e-9)
-    assert r.winner_probability == {"a": 0.085, "b": 0.915}
-    assert r.ranking_stability == 0.915
-    assert r.expected_utility_gap == pytest.approx(0.1332516603, abs=1e-9)
+    assert r.winner_probability == {"a": 0.069, "b": 0.931}
+    assert r.ranking_stability == 0.931
+    assert r.expected_utility_gap == pytest.approx(0.1384988695, abs=1e-9)
     assert r.minimax_regret_option == "b"
-    assert r.max_regret["a"] == pytest.approx(0.4018995599, abs=1e-9)
-    assert r.max_regret["b"] == pytest.approx(0.1794206039, abs=1e-9)
+    assert r.max_regret["a"] == pytest.approx(0.3789286176, abs=1e-9)
+    assert r.max_regret["b"] == pytest.approx(0.1822087441, abs=1e-9)
     assert r.critical_variables == [
         "score:方案A:价格",
         "score:方案B:价格",

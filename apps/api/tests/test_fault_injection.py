@@ -122,7 +122,10 @@ def test_intermittent_failures_recover_midway(client):
 
     def handler(request: httpx.Request) -> httpx.Response:
         call_count["n"] += 1
-        if call_count["n"] == 1:
+        payload = json.loads(request.content)
+        schema_name = payload["response_format"]["json_schema"]["name"]
+        # 只有 Intake 提取成功，其余调用全部失败 → 间歇性故障
+        if schema_name == "IntakeExtraction":
             return httpx.Response(
                 200,
                 json={

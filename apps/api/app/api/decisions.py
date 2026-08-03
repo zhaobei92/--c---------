@@ -129,6 +129,60 @@ def advance_decision(
     return orchestrator.advance(db, case, gateway)
 
 
+@router.post("/{decision_id}/fast-track", response_model=AdvanceResponse)
+def fast_track_decision(
+    decision_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    gateway: ModelGateway = Depends(get_model_gateway),
+) -> AdvanceResponse:
+    """快速模式（方案14.3：用户可以随时说"直接给结论"）。
+
+    跳过剩余的比较与追问，用当前已有信息（未比较时为均匀权重、
+    高不确定度）直接进入可计算状态。不适用于高风险决策。
+    """
+    from app.services.audit import record_event as _record
+    from app.services.state_machine import validate_transition
+    from shared_schemas import DecisionStatus as S
+
+    case = _get_case_or_404(db, decision_id, user)
+    status = S(case.status)
+    if status == S.GUIDED_ONLY:
+        raise HTTPException(status_code=409, detail="高风险决策不提供快速结论")
+    if status not in (S.PREFERENCE_ELICITATION, S.EVIDENCE_GAP_ANALYSIS, S.MORE_CLARIFICATION):
+        raise HTTPException(status_code=409, detail=f"当前状态 {status} 不能快速跳转")
+
+    preference_service.ensure_criteria(db, case, gateway)
+    preference_service.fit_and_store(db, case)
+    if status != S.EVIDENCE_GAP_ANALYSIS:
+        validate_transition(status, S.EVIDENCE_GAP_ANALYSIS)
+        case.status = S.EVIDENCE_GAP_ANALYSIS
+        _record(
+            db, case.id, "state_transition",
+            {"from": status, "to": S.EVIDENCE_GAP_ANALYSIS, "fast_track": True},
+            user.id,
+        )
+    _record(db, case.id, "fast_track_requested", {}, user.id)
+    db.flush()
+    return AdvanceResponse(
+        kind="ready_to_compute",
+        status=case.status,
+        message="快速模式：将用当前信息直接计算。跳过的比较和追问会让结论的不确定性更高。",
+    )
+
+
+@router.delete("/{decision_id}", status_code=204)
+def delete_decision(
+    decision_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> None:
+    """删除决策及其全部关联记录（上线清单：用户可以删除记录）。"""
+    case = _get_case_or_404(db, decision_id, user)
+    db.delete(case)
+    db.flush()
+
+
 @router.post("/{decision_id}/analyze", response_model=DecisionCaseDetail)
 def analyze_decision(
     decision_id: str,

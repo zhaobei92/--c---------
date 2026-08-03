@@ -52,7 +52,7 @@ def _prepare_computed(client, favor_first=True, uncertainty=0.05, spread=True):
                 if i == 1 and j == len(detail["criteria"]) - 1:
                     value = 0.8
             else:
-                value = 0.55 if i == 0 else 0.5  # 势均力敌 → 不稳定
+                value = 0.51 if i == 0 else 0.5  # 势均力敌 → 效用差极小，必触发 Challenger
             items.append(
                 {
                     "option_id": option["id"],
@@ -137,7 +137,11 @@ def test_unstable_result_triggers_challenger_and_it_cannot_override(client):
     try:
         decision_id, _ = _prepare_computed(client, spread=False, uncertainty=0.3)
         run = client.get(f"/api/v1/decisions/{decision_id}/runs/latest").json()
-        assert run["ranking_stability"] < 0.9  # 确认确实不稳定
+        # 确认满足 Challenger 触发条件（稳定性低或效用差小）
+        assert (
+            run["ranking_stability"] < 0.55
+            or run["result_snapshot"]["expected_utility_gap"] < 0.05
+        )
         rec = client.post(f"/api/v1/decisions/{decision_id}/recommendation").json()
     finally:
         client.app.dependency_overrides.pop(get_model_gateway, None)

@@ -27,8 +27,45 @@ from shared_schemas import (
     ExtractedOption,
     IntakeExtraction,
     MessageRole,
+    RiskAssessment,
     RiskLevel,
 )
+
+_RISK_SEVERITY = [RiskLevel.LOW, RiskLevel.MEDIUM, RiskLevel.HIGH, RiskLevel.RESTRICTED]
+
+
+def refine_risk_with_llm(
+    db: Session, case: DecisionCase, text: str, deterministic: RiskLevel, gateway: ModelGateway
+) -> tuple[RiskLevel, str | None]:
+    """LLM 风险精细化：只允许把确定性等级调高，永不调低。"""
+    start = time.monotonic()
+    try:
+        assessment = gateway.structured(
+            ModelRole.FAST,
+            system_prompt=load_prompt("diagnosis/risk_triage.md"),
+            user_content=text,
+            schema=RiskAssessment,
+        )
+        success, error = True, None
+    except (ModelNotConfiguredError, ModelCallError) as exc:
+        assessment = None
+        success, error = False, str(exc)[:2000]
+    db.add(
+        ModelInvocation(
+            decision_case_id=case.id,
+            task_kind="risk_triage_refine",
+            model_role=ModelRole.FAST,
+            model_name=gateway.settings.MODEL_FAST,
+            success=success,
+            error=error,
+            latency_ms=(time.monotonic() - start) * 1000,
+        )
+    )
+    if assessment is None:
+        return deterministic, None
+    if _RISK_SEVERITY.index(assessment.risk_level) > _RISK_SEVERITY.index(deterministic):
+        return assessment.risk_level, assessment.rationale
+    return deterministic, None
 
 _PROMPTS_DIR = Path(
     os.environ.get("PROMPTS_DIR", Path(__file__).resolve().parents[4] / "prompts")
@@ -230,10 +267,22 @@ def run_intake_pipeline(
     _transition(db, case, DecisionStatus.RISK_TRIAGE)
     yield "state", {"status": case.status}
 
-    risk, hits = risk_triage.triage_text(first_user_text)
+    deterministic_risk, hits = risk_triage.triage_text(first_user_text)
+    risk, llm_rationale = refine_risk_with_llm(
+        db, case, first_user_text, deterministic_risk, gateway
+    )
     case.risk_level = risk
     record_event(
-        db, case.id, "risk_triage", payload={"risk_level": risk, "keyword_hits": hits},
+        db,
+        case.id,
+        "risk_triage",
+        payload={
+            "risk_level": risk,
+            "deterministic_level": deterministic_risk,
+            "keyword_hits": hits,
+            "llm_raised": risk != deterministic_risk,
+            "llm_rationale": llm_rationale,
+        },
         user_id=case.user_id,
     )
     yield "risk", {"risk_level": risk}

@@ -30,6 +30,7 @@ class EvaluationSpec:
     criterion_key: str
     expected_value: float  # 0-1（lower_better 也按原始值给，引擎负责翻转）
     uncertainty: float = 0.15
+    distribution: str = "normal"  # normal | beta | triangular | categorical
 
 
 @dataclass

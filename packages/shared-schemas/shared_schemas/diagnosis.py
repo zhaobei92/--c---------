@@ -2,7 +2,14 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from shared_schemas.enums import StuckType
+from shared_schemas.enums import RiskLevel, StuckType
+
+
+class RiskAssessment(BaseModel):
+    """LLM 风险精细化输出。系统只允许用它调高等级，永不调低。"""
+
+    risk_level: RiskLevel
+    rationale: str = ""
 
 
 class StuckTypeDiagnosis(BaseModel):

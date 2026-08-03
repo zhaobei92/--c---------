@@ -221,6 +221,12 @@ export function advanceDecision(id: string) {
   });
 }
 
+export function fastTrackDecision(id: string) {
+  return request<AdvanceResult>(`/api/v1/decisions/${id}/fast-track`, {
+    method: "POST",
+  });
+}
+
 export function getNextComparison(id: string) {
   return request<NextComparison>(`/api/v1/decisions/${id}/comparisons/next`);
 }

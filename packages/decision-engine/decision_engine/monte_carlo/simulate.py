@@ -12,14 +12,15 @@ def _matrices(
     options: list[OptionSpec],
     criteria: list[CriterionSpec],
     evaluations: list[EvaluationSpec],
-) -> tuple[np.ndarray, np.ndarray]:
-    """返回 (期望值矩阵, 不确定度矩阵)，形状 (n_options, n_criteria)。
+) -> tuple[np.ndarray, np.ndarray, list[list[str]]]:
+    """返回 (期望值矩阵, 不确定度矩阵, 分布类型矩阵)，形状 (n_options, n_criteria)。
 
-    缺失评估按中性 0.5、高不确定 0.3 处理。lower_better 已翻转。
+    缺失评估按中性 0.5、高不确定 0.3、normal 分布处理。lower_better 已翻转。
     """
     eval_map = {(e.option_key, e.criterion_key): e for e in evaluations}
     means = np.full((len(options), len(criteria)), 0.5)
     stds = np.full((len(options), len(criteria)), 0.3)
+    dists = [["normal"] * len(criteria) for _ in options]
     for i, option in enumerate(options):
         for j, criterion in enumerate(criteria):
             ev = eval_map.get((option.key, criterion.key))
@@ -30,7 +31,33 @@ def _matrices(
                 value = 1.0 - value
             means[i, j] = np.clip(value, 0.0, 1.0)
             stds[i, j] = np.clip(ev.uncertainty, 0.01, 0.5)
-    return means, stds
+            dists[i][j] = ev.distribution or "normal"
+    return means, stds, dists
+
+
+def _sample_cell(
+    rng: np.random.Generator, dist: str, mean: float, std: float, n: int
+) -> np.ndarray:
+    """按分布类型采样单个 (option, criterion) 单元（方案 6.5）。"""
+    if dist == "beta":
+        # 用 mean/std 匹配 Beta 分布矩；方差超界时收缩
+        var = min(std**2, mean * (1 - mean) * 0.95) if 0 < mean < 1 else None
+        if not var or var <= 0:
+            return np.full(n, np.clip(mean, 0.0, 1.0))
+        k = mean * (1 - mean) / var - 1
+        return rng.beta(max(mean * k, 1e-3), max((1 - mean) * k, 1e-3), size=n)
+    if dist == "triangular":
+        left = max(0.0, mean - 2 * std)
+        right = min(1.0, mean + 2 * std)
+        mode = np.clip(mean, left, right)
+        if right - left < 1e-9:
+            return np.full(n, mode)
+        return rng.triangular(left, mode, right, size=n)
+    if dist == "categorical":
+        # 离散等级：正态采样后量化到 5 档
+        raw = np.clip(rng.normal(mean, std, size=n), 0.0, 1.0)
+        return np.round(raw * 4) / 4
+    return np.clip(rng.normal(mean, std, size=n), 0.0, 1.0)
 
 
 def _apply_curves(criteria: list[CriterionSpec], raw: np.ndarray) -> np.ndarray:
@@ -52,12 +79,45 @@ def deterministic_utilities(
     """U(a) = Σ w_k · u_k(x_ak)，权重归一化。"""
     if not options or not criteria:
         return {o.key: 0.0 for o in options}
-    means, _ = _matrices(options, criteria, evaluations)
+    means, _, _ = _matrices(options, criteria, evaluations)
     utils = _apply_curves(criteria, means)
     weights = np.array([max(c.weight, 0.0) for c in criteria])
     weights = weights / weights.sum() if weights.sum() > 0 else np.full(len(criteria), 1 / len(criteria))
     scores = utils @ weights
     return {o.key: float(s) for o, s in zip(options, scores)}
+
+
+def _lex_beats(va, vb, ua: float, ub: float, lex_indices: list[int], eps: float) -> bool:
+    for j in lex_indices:
+        if va[j] - vb[j] > eps:
+            return True
+        if vb[j] - va[j] > eps:
+            return False
+    return ua > ub
+
+
+def _lexicographic_winners(
+    s_samples: np.ndarray,
+    utilities: np.ndarray,
+    lex_indices: list[int],
+    eps: float = 0.05,
+) -> np.ndarray:
+    n_iter, n_opt, _ = s_samples.shape
+    winners = np.empty(n_iter, dtype=int)
+    for t in range(n_iter):
+        best = 0
+        for cand in range(1, n_opt):
+            if _lex_beats(
+                s_samples[t, cand],
+                s_samples[t, best],
+                float(utilities[t, cand]),
+                float(utilities[t, best]),
+                lex_indices,
+                eps,
+            ):
+                best = cand
+        winners[t] = best
+    return winners
 
 
 def simulate(
@@ -80,7 +140,7 @@ def simulate(
             "minimax_regret_option": None,
         }
 
-    means, stds = _matrices(options, criteria, evaluations)
+    means, stds, dists = _matrices(options, criteria, evaluations)
     w_mean = np.array([max(c.weight, 1e-6) for c in criteria])
     w_mean = w_mean / w_mean.sum()
     w_std = np.array([np.clip(c.weight_uncertainty, 0.01, 0.5) for c in criteria])
@@ -93,14 +153,30 @@ def simulate(
     )
     w_samples = w_samples / w_samples.sum(axis=1, keepdims=True)
 
-    # 表现采样：截断正态到 [0,1]，再过效用曲线
-    s_samples = np.clip(
-        rng.normal(means, stds, size=(n_iterations, n_opt, n_crit)), 0.0, 1.0
-    )
+    # 表现采样：按各评估的分布类型采样到 [0,1]，再过效用曲线
+    s_samples = np.empty((n_iterations, n_opt, n_crit))
+    for i in range(n_opt):
+        for j in range(n_crit):
+            s_samples[:, i, j] = _sample_cell(
+                rng, dists[i][j], float(means[i, j]), float(stds[i, j]), n_iterations
+            )
+    s_samples = np.clip(s_samples, 0.0, 1.0)
     u_samples = _apply_curves(criteria, s_samples)
 
     utilities = np.einsum("iok,ik->io", u_samples, w_samples)  # (iter, option)
-    winners = utilities.argmax(axis=1)
+
+    # Lexicographic 非补偿规则：优先按规则比较，打平退回效用
+    lex_indices = [
+        j
+        for j, c in sorted(
+            enumerate(criteria), key=lambda jc: -max(jc[1].weight, 0.0)
+        )
+        if criteria[j].criterion_type == "lexicographic"
+    ]
+    if lex_indices:
+        winners = _lexicographic_winners(s_samples, utilities, lex_indices)
+    else:
+        winners = utilities.argmax(axis=1)
 
     counts = np.bincount(winners, minlength=n_opt)
     winner_probability = {

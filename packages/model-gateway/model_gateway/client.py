@@ -36,6 +36,9 @@ class LLMClient:
             transport=transport,
         )
 
+    # 5xx / 网络错误重试一次（方案 8.4 要求超时与重试）
+    MAX_ATTEMPTS = 2
+
     def structured_completion(
         self,
         model: str,
@@ -59,13 +62,21 @@ class LLMClient:
                 },
             },
         }
-        try:
-            resp = self._client.post("/chat/completions", json=payload)
-            resp.raise_for_status()
-            content = resp.json()["choices"][0]["message"]["content"]
-            return schema.model_validate_json(content)
-        except (httpx.HTTPError, ValidationError, KeyError, IndexError, ValueError) as exc:
-            raise ModelCallError(f"structured completion failed: {exc}") from exc
+        last_exc: Exception | None = None
+        for attempt in range(self.MAX_ATTEMPTS):
+            try:
+                resp = self._client.post("/chat/completions", json=payload)
+                if resp.status_code >= 500 and attempt < self.MAX_ATTEMPTS - 1:
+                    last_exc = ModelCallError(f"server error {resp.status_code}")
+                    continue
+                resp.raise_for_status()
+                content = resp.json()["choices"][0]["message"]["content"]
+                return schema.model_validate_json(content)
+            except (httpx.TimeoutException, httpx.TransportError) as exc:
+                last_exc = exc  # 网络类错误：可重试
+            except (httpx.HTTPError, ValidationError, KeyError, IndexError, ValueError) as exc:
+                raise ModelCallError(f"structured completion failed: {exc}") from exc
+        raise ModelCallError(f"structured completion failed after retries: {last_exc}")
 
     def close(self) -> None:
         self._client.close()

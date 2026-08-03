@@ -9,6 +9,7 @@ import {
   advanceDecision,
   deleteConstraint,
   deleteOption,
+  fastTrackDecision,
   getDecision,
   sendMessage,
   streamUrl,
@@ -171,6 +172,24 @@ export default function ConversationPage() {
           </button>
         )}
       </form>
+      {["PREFERENCE_ELICITATION", "EVIDENCE_GAP_ANALYSIS", "MORE_CLARIFICATION"].includes(
+        detail.status,
+      ) && (
+        <button
+          type="button"
+          onClick={async () => {
+            try {
+              await fastTrackDecision(params.id);
+              router.push(`/decision/${params.id}/analysis`);
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "快速模式失败");
+            }
+          }}
+          className="self-center text-sm text-neutral-400 underline"
+        >
+          不想回答了，直接给结论（不确定性会更高）
+        </button>
+      )}
       {error && <p className="text-sm text-red-600">{error}</p>}
     </main>
   );

@@ -33,7 +33,12 @@ from shared_schemas.compute import (
     EvaluationOut,
     EvaluationUpsertRequest,
 )
-from shared_schemas.diagnosis import AdvanceResponse, NextQuestion, StuckTypeDiagnosis
+from shared_schemas.diagnosis import (
+    AdvanceResponse,
+    NextQuestion,
+    RiskAssessment,
+    StuckTypeDiagnosis,
+)
 from shared_schemas.followup import (
     DueFollowupsResponse,
     FollowupCreateRequest,
@@ -57,6 +62,7 @@ from shared_schemas.preference import (
 
 __all__ = [
     "AdvanceResponse",
+    "RiskAssessment",
     "DueFollowupsResponse",
     "FollowupCreateRequest",
     "FollowupOut",

@@ -54,6 +54,7 @@ def _build_specs(
             criterion_key=e.criterion_id,
             expected_value=e.expected_value,
             uncertainty=e.uncertainty,
+            distribution=e.distribution,
         )
         for e in case.evaluations
     ]

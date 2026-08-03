@@ -83,5 +83,31 @@ python -m pytest apps/api/tests packages/model-gateway/tests -q
   - LLM 只润色措辞；若篡改 recommended_option_id 则整体作废并审计
   - Challenger 仅在稳定性低/差距小时调用，只提问题，永不覆盖推荐
   - 结果页：推荐卡、稳定性条、理由、代价、未知项、重开/非重开条件
-- [ ] 阶段6：决策契约、锁定与 Reopen Gate、反刍检测
-- [ ] 阶段7：回访与长期偏好（见实施计划）
+- [x] 阶段6：决策锁与重开
+  - 决策契约（接受代价必选、允许不采纳推荐并如实记录）
+  - Reopen Gate：0.20N+0.20C+0.25R+0.25F+0.10V，阈值 0.70/0.45
+  - 无新事实拒绝重开（规定话术）；反刍检测触发关闭干预；全部留痕
+- [x] 阶段7：回访与长期偏好
+  - h24/d7/d30/d90 回访；只有已执行的决定才更新偏好后验
+  - 后验伪先验锚定、std 有下限；证据≥2次才影响后续同类决策
+  - 用户可查看并删除偏好画像
+- [x] 阶段8：评测与加固
+  - 离线评测集（8类种子案例，runner 断言风险门控/提取/禁语）
+  - 算法黄金回归（改算法必须显式更新黄金值并 bump 版本）
+  - 故障注入（全挂/超时/间歇）；Prompt 版本回归；管理统计 API
+- [x] 审查修正：Lexicographic 规则、Beta/Triangular/Categorical 分布采样、
+  模型调用重试、LLM 风险精细化（只升不降）、快速模式（直接给结论）、
+  决策记录删除
+
+## 已知偏差（相对原始方案，有意为之）
+
+- evidence_items 表未建：V1 事实以 JSON 存于 decision_cases，证据分级
+  服务（来源A-E级）留待联网证据搜索阶段一并实现
+- 语义新颖度用字符 n-gram 近似（阈值0.5），接入 embedding 后换回 0.15
+- 追问措辞用确定性模板（选择逻辑符合方案6.8近似算法），LLM 润色待加
+- Redis+ARQ 后台任务未启用：回访到期目前是拉取式（/followups/due）
+- 认证为 dev 用户占位；/login、/settings 页面待接入真实 Auth
+- criterion_weights/simulation_results/challenge_results/intervention_events
+  分别并入 decision_criteria/decision_runs/recommendations/audit_events
+- 熔断、单次成本上限、用户日额度、trace_id 透传：上线加固项待做
+- 评测集为种子规模，扩充到方案要求的200例是内容标注工作
