@@ -18,7 +18,28 @@ export interface DecisionSummary {
   updated_at: string;
 }
 
+export interface DecisionOption {
+  id: string;
+  name: string;
+  description: string | null;
+  is_eligible: boolean;
+  elimination_reason: string | null;
+  source: string;
+}
+
+export interface HardConstraint {
+  id: string;
+  description: string;
+  is_hard: boolean;
+  source: string;
+}
+
 export interface DecisionDetail extends DecisionSummary {
+  facts: string[];
+  concerns: string[];
+  unknowns: string[];
+  options: DecisionOption[];
+  constraints: HardConstraint[];
   messages: DecisionMessage[];
 }
 
@@ -58,4 +79,59 @@ export function sendMessage(id: string, content: string) {
     method: "POST",
     body: JSON.stringify({ content }),
   });
+}
+
+export function streamUrl(id: string) {
+  return `${API_BASE}/api/v1/decisions/${id}/stream`;
+}
+
+export function analyzeDecision(id: string) {
+  return request<DecisionDetail>(`/api/v1/decisions/${id}/analyze`, {
+    method: "POST",
+  });
+}
+
+export function updateOption(
+  decisionId: string,
+  optionId: string,
+  patch: Partial<Pick<DecisionOption, "name" | "description">>,
+) {
+  return request<DecisionOption>(
+    `/api/v1/decisions/${decisionId}/options/${optionId}`,
+    { method: "PATCH", body: JSON.stringify(patch) },
+  );
+}
+
+export function addOption(decisionId: string, name: string) {
+  return request<DecisionOption>(`/api/v1/decisions/${decisionId}/options`, {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function deleteOption(decisionId: string, optionId: string) {
+  return fetch(`${API_BASE}/api/v1/decisions/${decisionId}/options/${optionId}`, {
+    method: "DELETE",
+  });
+}
+
+export function addConstraint(
+  decisionId: string,
+  description: string,
+  isHard: boolean,
+) {
+  return request<HardConstraint>(
+    `/api/v1/decisions/${decisionId}/constraints`,
+    {
+      method: "POST",
+      body: JSON.stringify({ description, is_hard: isHard }),
+    },
+  );
+}
+
+export function deleteConstraint(decisionId: string, constraintId: string) {
+  return fetch(
+    `${API_BASE}/api/v1/decisions/${decisionId}/constraints/${constraintId}`,
+    { method: "DELETE" },
+  );
 }

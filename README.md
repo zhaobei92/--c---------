@@ -56,6 +56,13 @@ python -m pytest apps/api/tests packages/model-gateway/tests -q
 ## 当前进度
 
 - [x] 阶段0：Monorepo、Docker Compose、CI、迁移系统、健康检查
-- [x] 阶段1（部分）：新建决策 API、决策详情、对话消息、基础对话页面、Smoke Test
-- [ ] 阶段1（剩余）：Intake Parser 接入 LLM、流式输出、选项/约束编辑、风险分级
-- [ ] 阶段2+：纠结诊断、偏好学习、决策计算引擎、决策锁与重开（见实施计划）
+- [x] 阶段1：决策录入与结构化
+  - 新建决策 / 详情 / 列表 / 对话消息 API 与页面
+  - Intake Parser：LLM 结构化提取（Structured Outputs + Pydantic 验证），
+    未配置或调用失败时自动降级为确定性启发式解析，流程不中断
+  - SSE 流式输出（`/decisions/{id}/stream`），前端自动连接
+  - 确定性风险分级（RESTRICTED/HIGH → GUIDED_ONLY，不直接拍板）
+  - 选项与约束的增删改（用户可纠正 AI 错误），全部写入审计日志
+  - audit_events / model_invocations 落库
+- [ ] 阶段2：纠结诊断与追问（标签、信息完整度、候选问题、问题价值排序）
+- [ ] 阶段3+：偏好学习、决策计算引擎、决策锁与重开（见实施计划）

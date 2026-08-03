@@ -6,6 +6,7 @@ COPY packages/shared-schemas /srv/packages/shared-schemas
 COPY packages/model-gateway /srv/packages/model-gateway
 COPY packages/decision-engine /srv/packages/decision-engine
 COPY apps/api /srv/apps/api
+COPY prompts /srv/prompts
 
 RUN pip install --no-cache-dir \
     -e /srv/packages/shared-schemas \

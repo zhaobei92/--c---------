@@ -1,7 +1,8 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import DecisionCase, DecisionMessage, User
+from app.models import DecisionCase, DecisionMessage, DecisionOption, User
+from app.services.audit import record_event
 from app.services.state_machine import validate_transition
 from shared_schemas import DecisionStatus, MessageRole
 
@@ -46,6 +47,13 @@ def create_decision(db: Session, user: User, input_text: str) -> DecisionCase:
     # DRAFT -> INTAKE：录入完成即进入结构化解析阶段
     validate_transition(DecisionStatus(case.status), DecisionStatus.INTAKE)
     case.status = DecisionStatus.INTAKE
+    record_event(
+        db,
+        case.id,
+        "state_transition",
+        payload={"from": DecisionStatus.DRAFT, "to": DecisionStatus.INTAKE},
+        user_id=user.id,
+    )
     db.flush()
     return case
 
@@ -66,6 +74,17 @@ def list_decisions(db: Session, user: User) -> list[DecisionCase]:
             .order_by(DecisionCase.updated_at.desc())
         )
     )
+
+
+def add_option(
+    db: Session, case: DecisionCase, name: str, description: str | None
+) -> DecisionOption:
+    option = DecisionOption(
+        decision_case_id=case.id, name=name, description=description, source="user_input"
+    )
+    db.add(option)
+    db.flush()
+    return option
 
 
 def append_message(

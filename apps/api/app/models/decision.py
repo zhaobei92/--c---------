@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Float, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin, UUIDPrimaryKeyMixin
@@ -30,6 +30,10 @@ class DecisionCase(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     committed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    # Intake 提取的非选项信息；阶段5起 facts 迁入 evidence_items 表
+    facts: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    concerns: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    unknowns: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
 
     options: Mapped[list["DecisionOption"]] = relationship(
         back_populates="decision_case",
@@ -40,6 +44,11 @@ class DecisionCase(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         back_populates="decision_case",
         cascade="all, delete-orphan",
         order_by="DecisionMessage.created_at",
+    )
+    constraints: Mapped[list["HardConstraint"]] = relationship(
+        back_populates="decision_case",
+        cascade="all, delete-orphan",
+        order_by="HardConstraint.created_at",
     )
 
 
@@ -74,3 +83,21 @@ class DecisionMessage(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     content: Mapped[str] = mapped_column(Text, nullable=False)
 
     decision_case: Mapped[DecisionCase] = relationship(back_populates="messages")
+
+
+class HardConstraint(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """约束条件。is_hard=True 的为不可补偿硬约束，参与阶段4的直接淘汰。"""
+
+    __tablename__ = "hard_constraints"
+
+    decision_case_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("decision_cases.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    is_hard: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    source: Mapped[str] = mapped_column(String(40), default="user_input", nullable=False)
+
+    decision_case: Mapped[DecisionCase] = relationship(back_populates="constraints")

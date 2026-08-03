@@ -14,9 +14,16 @@ def test_unconfigured_model_fails_explicitly():
         gw.resolve(ModelRole.DEEP)
 
 
-def test_is_configured_requires_default_and_key():
+def test_is_configured_requires_default_key_and_base_url():
     assert not ModelGateway(ModelGatewaySettings()).is_configured
-    gw = ModelGateway(
+    assert not ModelGateway(
         ModelGatewaySettings(MODEL_DEFAULT="some-model", LLM_API_KEY="sk-test")
+    ).is_configured
+    gw = ModelGateway(
+        ModelGatewaySettings(
+            MODEL_DEFAULT="some-model",
+            LLM_API_KEY="sk-test",
+            LLM_API_BASE_URL="https://llm.example.com/v1",
+        )
     )
     assert gw.is_configured
