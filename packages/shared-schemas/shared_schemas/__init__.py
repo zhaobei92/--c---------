@@ -21,9 +21,13 @@ from shared_schemas.decision import (
     OptionCreateRequest,
     OptionUpdateRequest,
 )
+from shared_schemas.diagnosis import AdvanceResponse, NextQuestion, StuckTypeDiagnosis
 from shared_schemas.intake import ExtractedConstraint, ExtractedOption, IntakeExtraction
 
 __all__ = [
+    "AdvanceResponse",
+    "NextQuestion",
+    "StuckTypeDiagnosis",
     "DecisionDomain",
     "DecisionStatus",
     "InputType",

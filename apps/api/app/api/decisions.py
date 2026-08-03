@@ -7,10 +7,11 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.gateway import get_model_gateway
 from app.models import DecisionCase, HardConstraint, User
-from app.services import decision_service, intake_service
+from app.services import decision_service, intake_service, orchestrator, question_service
 from app.services.audit import record_event
 from model_gateway import ModelGateway
 from shared_schemas import (
+    AdvanceResponse,
     ConstraintCreateRequest,
     ConstraintUpdateRequest,
     DecisionCaseDetail,
@@ -89,6 +90,18 @@ def create_message(
         assistant_message=assistant_msg,
         status=DecisionStatus(case.status),
     )
+
+
+@router.post("/{decision_id}/advance", response_model=AdvanceResponse)
+def advance_decision(
+    decision_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    gateway: ModelGateway = Depends(get_model_gateway),
+) -> AdvanceResponse:
+    """Orchestrator 单步推进：诊断 → 偏好比较 → 追问 → 就绪。"""
+    case = _get_case_or_404(db, decision_id, user)
+    return orchestrator.advance(db, case, gateway)
 
 
 @router.post("/{decision_id}/analyze", response_model=DecisionCaseDetail)

@@ -34,6 +34,10 @@ class DecisionCase(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     facts: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     concerns: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
     unknowns: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    # 阶段2：诊断分数分布与追问记录
+    stuck_type_scores: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    asked_questions: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    clarification_rounds: Mapped[int] = mapped_column(default=0, nullable=False)
 
     options: Mapped[list["DecisionOption"]] = relationship(
         back_populates="decision_case",

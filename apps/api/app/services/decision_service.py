@@ -8,12 +8,11 @@ from shared_schemas import DecisionStatus, MessageRole
 
 DEV_USER_EMAIL = "dev@dingle.local"
 
-# 阶段1没有 LLM 接入，助手回复用确定性占位文案，
-# 阶段2由 Intake Parser + Model Gateway 替换。
 _PLACEHOLDER_REPLY = (
-    "我已经记录你的纠结。当前版本还在搭建结构化解析能力，"
-    "下一步会自动提取选项、约束和担忧，并每轮只问你一个最关键的问题。"
+    "我已经记录。你可以点「继续推进」让我进行下一步，或继续补充信息。"
 )
+
+_ANSWER_ACK_REPLY = "收到，已记录这条信息。点「继续推进」我会看是否还需要问什么。"
 
 
 def get_or_create_dev_user(db: Session) -> User:
@@ -90,12 +89,31 @@ def add_option(
 def append_message(
     db: Session, case: DecisionCase, content: str
 ) -> tuple[DecisionMessage, DecisionMessage]:
+    from app.services.audit import record_event as _record
+    from app.services.question_service import record_answer
+
     user_msg = DecisionMessage(
         decision_case_id=case.id, role=MessageRole.USER, content=content
     )
+    case.messages.append(user_msg)
+
+    # 有未回答的追问时，把这条消息记为答案（写入 facts，消解 unknowns）
+    answered = record_answer(case, content)
+    if answered is not None:
+        _record(
+            db,
+            case.id,
+            "question_answered",
+            {"target_variable": answered["target_variable"]},
+            case.user_id,
+        )
+        reply = _ANSWER_ACK_REPLY
+    else:
+        reply = _PLACEHOLDER_REPLY
+
     assistant_msg = DecisionMessage(
-        decision_case_id=case.id, role=MessageRole.ASSISTANT, content=_PLACEHOLDER_REPLY
+        decision_case_id=case.id, role=MessageRole.ASSISTANT, content=reply
     )
-    db.add_all([user_msg, assistant_msg])
+    case.messages.append(assistant_msg)
     db.flush()
     return user_msg, assistant_msg
