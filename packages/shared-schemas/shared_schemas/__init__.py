@@ -29,6 +29,11 @@ from shared_schemas.compute import (
 )
 from shared_schemas.diagnosis import AdvanceResponse, NextQuestion, StuckTypeDiagnosis
 from shared_schemas.intake import ExtractedConstraint, ExtractedOption, IntakeExtraction
+from shared_schemas.recommendation import (
+    ChallengeResult,
+    RecommendationExplanation,
+    RecommendationOut,
+)
 from shared_schemas.preference import (
     ComparisonCreateRequest,
     ComparisonState,
@@ -40,6 +45,9 @@ from shared_schemas.preference import (
 
 __all__ = [
     "AdvanceResponse",
+    "ChallengeResult",
+    "RecommendationExplanation",
+    "RecommendationOut",
     "DecisionRunOut",
     "EvaluationItem",
     "EvaluationOut",

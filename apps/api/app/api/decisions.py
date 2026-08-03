@@ -14,6 +14,7 @@ from app.services import (
     intake_service,
     orchestrator,
     preference_service,
+    recommendation_service,
 )
 from app.services.audit import record_event
 from model_gateway import ModelGateway
@@ -26,6 +27,7 @@ from shared_schemas import (
     DecisionRunOut,
     EvaluationOut,
     EvaluationUpsertRequest,
+    RecommendationOut,
     ConstraintUpdateRequest,
     DecisionCaseDetail,
     DecisionCaseSummary,
@@ -208,6 +210,38 @@ def get_latest_run(
     if run is None:
         raise HTTPException(status_code=404, detail="no decision run yet")
     return DecisionRunOut.model_validate(run)
+
+
+@router.post("/{decision_id}/recommendation", response_model=RecommendationOut)
+def create_recommendation(
+    decision_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+    gateway: ModelGateway = Depends(get_model_gateway),
+) -> RecommendationOut:
+    """基于最新一次计算生成推荐解释（含 Challenger 审核）。"""
+    case = _get_case_or_404(db, decision_id, user)
+    run = compute_service.latest_run(case)
+    if run is None:
+        raise HTTPException(status_code=409, detail="请先运行 /compute")
+    try:
+        rec = recommendation_service.generate_recommendation(db, case, run, gateway)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return RecommendationOut.model_validate(rec)
+
+
+@router.get("/{decision_id}/recommendation", response_model=RecommendationOut)
+def get_recommendation(
+    decision_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> RecommendationOut:
+    case = _get_case_or_404(db, decision_id, user)
+    rec = recommendation_service.latest_recommendation(case)
+    if rec is None:
+        raise HTTPException(status_code=404, detail="no recommendation yet")
+    return RecommendationOut.model_validate(rec)
 
 
 # ---------- 成对偏好比较（阶段3） ----------

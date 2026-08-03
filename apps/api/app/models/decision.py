@@ -74,6 +74,11 @@ class DecisionCase(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         cascade="all, delete-orphan",
         order_by="DecisionRun.created_at",
     )
+    recommendations: Mapped[list["Recommendation"]] = relationship(
+        back_populates="decision_case",
+        cascade="all, delete-orphan",
+        order_by="Recommendation.created_at",
+    )
 
 
 class DecisionOption(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -223,3 +228,31 @@ class DecisionRun(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     winning_option_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
     decision_case: Mapped[DecisionCase] = relationship(back_populates="runs")
+
+
+class Recommendation(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """推荐解释。recommended_option_id 只能来自算法结果，模型只负责措辞。"""
+
+    __tablename__ = "recommendations"
+
+    decision_case_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("decision_cases.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    decision_run_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("decision_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    recommended_option_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    summary: Mapped[str] = mapped_column(Text, nullable=False)
+    main_reasons: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    accepted_tradeoffs: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    critical_unknowns: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    reopen_conditions: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    non_reopen_conditions: Mapped[list] = mapped_column(JSON, default=list, nullable=False)
+    next_action: Mapped[str] = mapped_column(Text, default="", nullable=False)
+    challenger_output: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    source: Mapped[str] = mapped_column(String(20), default="deterministic", nullable=False)
+
+    decision_case: Mapped[DecisionCase] = relationship(back_populates="recommendations")

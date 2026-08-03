@@ -1,11 +1,12 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DecisionDetail,
   addConstraint,
   addOption,
+  advanceDecision,
   deleteConstraint,
   deleteOption,
   getDecision,
@@ -19,15 +20,24 @@ const STATUS_LABELS: Record<string, string> = {
   INTAKE: "正在解析",
   RISK_TRIAGE: "风险评估",
   PROBLEM_NORMALIZATION: "问题梳理",
+  STUCK_TYPE_DIAGNOSIS: "纠结诊断",
+  PREFERENCE_ELICITATION: "偏好澄清",
+  EVIDENCE_GAP_ANALYSIS: "信息补齐",
+  DECISION_COMPUTE: "计算中",
+  SENSITIVITY_ANALYSIS: "敏感性分析",
+  CHALLENGE: "交叉审核",
+  READY_TO_COMMIT: "待确认",
   GUIDED_ONLY: "引导模式",
 };
 
 export default function ConversationPage() {
   const params = useParams<{ id: string }>();
+  const router = useRouter();
   const [detail, setDetail] = useState<DecisionDetail | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [streaming, setStreaming] = useState(false);
+  const [advancing, setAdvancing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const streamStarted = useRef(false);
 
@@ -58,6 +68,35 @@ export default function ConversationPage() {
     source.onerror = finish;
     return () => source.close();
   }, [detail, params.id, refresh]);
+
+  async function onAdvance() {
+    if (advancing) return;
+    setAdvancing(true);
+    setError(null);
+    try {
+      const result = await advanceDecision(params.id);
+      if (result.kind === "comparison_needed") {
+        router.push(`/decision/${params.id}/preferences`);
+        return;
+      }
+      if (
+        result.kind === "evaluations_needed" ||
+        result.kind === "ready_to_compute"
+      ) {
+        router.push(`/decision/${params.id}/analysis`);
+        return;
+      }
+      if (result.kind === "recommendation_ready") {
+        router.push(`/decision/${params.id}/result`);
+        return;
+      }
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "推进失败");
+    } finally {
+      setAdvancing(false);
+    }
+  }
 
   async function onSend(e: React.FormEvent) {
     e.preventDefault();
@@ -121,6 +160,16 @@ export default function ConversationPage() {
         >
           发送
         </button>
+        {!streaming && detail.status !== "INTAKE" && (
+          <button
+            type="button"
+            onClick={onAdvance}
+            disabled={advancing}
+            className="rounded-xl border-2 border-neutral-900 px-4 py-3 font-medium disabled:opacity-40"
+          >
+            {advancing ? "推进中…" : "继续推进 →"}
+          </button>
+        )}
       </form>
       {error && <p className="text-sm text-red-600">{error}</p>}
     </main>

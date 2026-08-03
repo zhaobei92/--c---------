@@ -7,6 +7,7 @@ from app.models.decision import (
     DecisionOption,
     DecisionRun,
     HardConstraint,
+    Recommendation,
     OptionEvaluation,
     PairwiseComparison,
 )
@@ -24,5 +25,6 @@ __all__ = [
     "ModelInvocation",
     "OptionEvaluation",
     "PairwiseComparison",
+    "Recommendation",
     "User",
 ]
