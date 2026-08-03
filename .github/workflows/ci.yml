@@ -1,0 +1,37 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install
+        run: |
+          pip install -e packages/shared-schemas -e packages/model-gateway \
+            -e packages/decision-engine -e "apps/api[dev]"
+      - name: Test api
+        run: python -m pytest apps/api/tests -q
+      - name: Test model-gateway
+        run: python -m pytest packages/model-gateway/tests -q
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install
+        working-directory: apps/web
+        run: npm install
+      - name: Typecheck & build
+        working-directory: apps/web
+        run: |
+          npm run build
