@@ -7,11 +7,19 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.gateway import get_model_gateway
 from app.models import DecisionCase, HardConstraint, User
-from app.services import decision_service, intake_service, orchestrator, question_service
+from app.services import (
+    decision_service,
+    intake_service,
+    orchestrator,
+    preference_service,
+)
 from app.services.audit import record_event
 from model_gateway import ModelGateway
 from shared_schemas import (
     AdvanceResponse,
+    ComparisonCreateRequest,
+    ComparisonState,
+    NextComparisonResponse,
     ConstraintCreateRequest,
     ConstraintUpdateRequest,
     DecisionCaseDetail,
@@ -137,6 +145,40 @@ def stream_decision(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ---------- 成对偏好比较（阶段3） ----------
+
+
+@router.get("/{decision_id}/comparisons/next", response_model=NextComparisonResponse)
+def next_comparison(
+    decision_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> NextComparisonResponse:
+    case = _get_case_or_404(db, decision_id, user)
+    return preference_service.comparison_progress(case)
+
+
+@router.post("/{decision_id}/comparisons", response_model=ComparisonState, status_code=201)
+def create_comparison(
+    decision_id: str,
+    body: ComparisonCreateRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> ComparisonState:
+    case = _get_case_or_404(db, decision_id, user)
+    try:
+        return preference_service.record_comparison(
+            db,
+            case,
+            left_id=body.left_criterion_id,
+            right_id=body.right_criterion_id,
+            choice=body.choice,
+            strength=body.strength,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 # ---------- 选项编辑（用户可纠正 AI 提取错误，全部落审计日志） ----------

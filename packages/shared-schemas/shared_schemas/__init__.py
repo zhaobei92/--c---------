@@ -23,9 +23,23 @@ from shared_schemas.decision import (
 )
 from shared_schemas.diagnosis import AdvanceResponse, NextQuestion, StuckTypeDiagnosis
 from shared_schemas.intake import ExtractedConstraint, ExtractedOption, IntakeExtraction
+from shared_schemas.preference import (
+    ComparisonCreateRequest,
+    ComparisonState,
+    CriteriaGeneration,
+    CriterionOut,
+    GeneratedCriterion,
+    NextComparisonResponse,
+)
 
 __all__ = [
     "AdvanceResponse",
+    "ComparisonCreateRequest",
+    "ComparisonState",
+    "CriteriaGeneration",
+    "CriterionOut",
+    "GeneratedCriterion",
+    "NextComparisonResponse",
     "NextQuestion",
     "StuckTypeDiagnosis",
     "DecisionDomain",

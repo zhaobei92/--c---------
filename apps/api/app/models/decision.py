@@ -54,6 +54,16 @@ class DecisionCase(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         cascade="all, delete-orphan",
         order_by="HardConstraint.created_at",
     )
+    criteria: Mapped[list["DecisionCriterion"]] = relationship(
+        back_populates="decision_case",
+        cascade="all, delete-orphan",
+        order_by="DecisionCriterion.created_at",
+    )
+    comparisons: Mapped[list["PairwiseComparison"]] = relationship(
+        back_populates="decision_case",
+        cascade="all, delete-orphan",
+        order_by="PairwiseComparison.created_at",
+    )
 
 
 class DecisionOption(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -105,3 +115,55 @@ class HardConstraint(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     source: Mapped[str] = mapped_column(String(40), default="user_input", nullable=False)
 
     decision_case: Mapped[DecisionCase] = relationship(back_populates="constraints")
+
+
+class DecisionCriterion(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """决策标准。权重只来自用户成对比较（learned_weight），初始权重仅为兜底。"""
+
+    __tablename__ = "decision_criteria"
+
+    decision_case_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("decision_cases.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    criterion_type: Mapped[str] = mapped_column(
+        String(20), default="compensatory", nullable=False
+    )  # compensatory | veto | threshold
+    direction: Mapped[str] = mapped_column(
+        String(20), default="higher_better", nullable=False
+    )
+    utility_curve_type: Mapped[str] = mapped_column(
+        String(20), default="linear", nullable=False
+    )
+    minimum_acceptable: Mapped[float | None] = mapped_column(Float, nullable=True)
+    veto_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
+    initial_weight: Mapped[float] = mapped_column(Float, default=0.2, nullable=False)
+    learned_weight: Mapped[float | None] = mapped_column(Float, nullable=True)
+    weight_uncertainty: Mapped[float | None] = mapped_column(Float, nullable=True)
+    source: Mapped[str] = mapped_column(String(40), default="ai_generated", nullable=False)
+
+    decision_case: Mapped[DecisionCase] = relationship(back_populates="criteria")
+
+
+class PairwiseComparison(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "pairwise_comparisons"
+
+    decision_case_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("decision_cases.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    left_criterion_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("decision_criteria.id", ondelete="CASCADE"), nullable=False
+    )
+    right_criterion_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("decision_criteria.id", ondelete="CASCADE"), nullable=False
+    )
+    choice: Mapped[str] = mapped_column(String(20), nullable=False)
+    strength: Mapped[float] = mapped_column(Float, default=0.5, nullable=False)
+
+    decision_case: Mapped[DecisionCase] = relationship(back_populates="comparisons")

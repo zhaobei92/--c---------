@@ -13,6 +13,24 @@ def _prepare(client, text=INPUT_TEXT):
     return decision_id
 
 
+def _complete_comparisons(client, decision_id):
+    """把阶段3的成对比较全部答完，让流程进入追问阶段。"""
+    client.post(f"/api/v1/decisions/{decision_id}/advance")  # 触发标准生成
+    for _ in range(10):
+        nxt = client.get(f"/api/v1/decisions/{decision_id}/comparisons/next").json()
+        if nxt["done"]:
+            break
+        client.post(
+            f"/api/v1/decisions/{decision_id}/comparisons",
+            json={
+                "left_criterion_id": nxt["left"]["id"],
+                "right_criterion_id": nxt["right"]["id"],
+                "choice": "left",
+                "strength": 0.6,
+            },
+        )
+
+
 def test_advance_runs_diagnosis(client):
     decision_id = _prepare(client)
     resp = client.post(f"/api/v1/decisions/{decision_id}/advance")
@@ -35,6 +53,7 @@ def test_advance_runs_diagnosis(client):
 def test_one_question_per_advance_and_no_repeat(client):
     decision_id = _prepare(client)
     client.post(f"/api/v1/decisions/{decision_id}/advance")  # 诊断
+    _complete_comparisons(client, decision_id)
 
     asked_targets = []
     for _ in range(10):  # 上限内反复推进
@@ -57,6 +76,7 @@ def test_one_question_per_advance_and_no_repeat(client):
 def test_answer_resolves_unknown_and_becomes_fact(client):
     decision_id = _prepare(client)
     client.post(f"/api/v1/decisions/{decision_id}/advance")
+    _complete_comparisons(client, decision_id)
 
     body = client.post(f"/api/v1/decisions/{decision_id}/advance").json()
     assert body["kind"] == "question"
@@ -77,6 +97,7 @@ def test_answer_resolves_unknown_and_becomes_fact(client):
 def test_question_rounds_capped_at_five(client):
     decision_id = _prepare(client, "我在A和B之间纠结，不知道怎么选，很多都不了解。")
     client.post(f"/api/v1/decisions/{decision_id}/advance")
+    _complete_comparisons(client, decision_id)
     question_count = 0
     for _ in range(12):
         body = client.post(f"/api/v1/decisions/{decision_id}/advance").json()

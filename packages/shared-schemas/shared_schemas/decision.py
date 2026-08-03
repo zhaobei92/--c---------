@@ -9,6 +9,7 @@ from shared_schemas.enums import (
     MessageRole,
     RiskLevel,
 )
+from shared_schemas.preference import CriterionOut
 
 
 class DecisionCreateRequest(BaseModel):
@@ -74,6 +75,7 @@ class DecisionCaseDetail(DecisionCaseSummary):
     unknowns: list[str] = []
     options: list[DecisionOptionOut] = []
     constraints: list[HardConstraintOut] = []
+    criteria: list[CriterionOut] = []
     messages: list[DecisionMessageOut] = []
 
 
