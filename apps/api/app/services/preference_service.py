@@ -8,8 +8,10 @@
 import time
 from itertools import combinations
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from decision_engine.personalization.update import Posterior, blend_with_default
 from decision_engine.preference.bradley_terry import Comparison, fit_preferences
 
 from app.models import DecisionCase, DecisionCriterion, ModelInvocation, PairwiseComparison
@@ -119,8 +121,23 @@ def ensure_criteria(db: Session, case: DecisionCase, gateway: ModelGateway) -> N
         )
     )
 
-    initial = round(1.0 / len(pairs), 4)
+    default_initial = round(1.0 / len(pairs), 4)
+    applied_posteriors: list[str] = []
     for name, curve in pairs:
+        initial = default_initial
+        posterior_row = _find_posterior(db, case.user_id, name, case.domain)
+        if posterior_row is not None:
+            blended = blend_with_default(
+                Posterior(
+                    posterior_row.posterior_mean,
+                    posterior_row.posterior_std,
+                    posterior_row.evidence_count,
+                ),
+                default_initial,
+            )
+            if blended != default_initial:
+                initial = blended
+                applied_posteriors.append(name)
         case.criteria.append(
             DecisionCriterion(
                 name=name,
@@ -134,8 +151,24 @@ def ensure_criteria(db: Session, case: DecisionCase, gateway: ModelGateway) -> N
         db,
         case.id,
         "criteria_generated",
-        {"source": source, "criteria": [n for n, _ in pairs]},
+        {
+            "source": source,
+            "criteria": [n for n, _ in pairs],
+            "posteriors_applied": applied_posteriors,
+        },
         case.user_id,
+    )
+
+
+def _find_posterior(db: Session, user_id: str, name: str, category: str):
+    from app.models import UserPreferencePosterior
+
+    return db.scalar(
+        select(UserPreferencePosterior).where(
+            UserPreferencePosterior.user_id == user_id,
+            UserPreferencePosterior.criterion_name == name,
+            UserPreferencePosterior.category == category,
+        )
     )
 
 

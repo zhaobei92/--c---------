@@ -34,6 +34,12 @@ from shared_schemas.compute import (
     EvaluationUpsertRequest,
 )
 from shared_schemas.diagnosis import AdvanceResponse, NextQuestion, StuckTypeDiagnosis
+from shared_schemas.followup import (
+    DueFollowupsResponse,
+    FollowupCreateRequest,
+    FollowupOut,
+    PreferencePosteriorOut,
+)
 from shared_schemas.intake import ExtractedConstraint, ExtractedOption, IntakeExtraction
 from shared_schemas.recommendation import (
     ChallengeResult,
@@ -51,6 +57,10 @@ from shared_schemas.preference import (
 
 __all__ = [
     "AdvanceResponse",
+    "DueFollowupsResponse",
+    "FollowupCreateRequest",
+    "FollowupOut",
+    "PreferencePosteriorOut",
     "ClosureContractOut",
     "CommitRequest",
     "ReopenCreateRequest",

@@ -89,6 +89,11 @@ class DecisionCase(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         cascade="all, delete-orphan",
         order_by="ReopenRequest.created_at",
     )
+    followups: Mapped[list["FollowupOutcome"]] = relationship(
+        back_populates="decision_case",
+        cascade="all, delete-orphan",
+        order_by="FollowupOutcome.created_at",
+    )
 
 
 class DecisionOption(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -313,3 +318,39 @@ class ReopenRequest(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     is_rumination: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     decision_case: Mapped[DecisionCase] = relationship(back_populates="reopen_requests")
+
+
+class FollowupOutcome(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """回访结果（24小时/7天/30天/90天）。不覆盖原始决策记录。"""
+
+    __tablename__ = "followup_outcomes"
+
+    decision_case_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("decision_cases.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    checkpoint: Mapped[str] = mapped_column(String(10), nullable=False)  # h24/d7/d30/d90
+    executed: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    satisfaction: Mapped[float | None] = mapped_column(Float, nullable=True)  # 0-1
+    regret_level: Mapped[float | None] = mapped_column(Float, nullable=True)  # 0-1
+    worried_risk_occurred: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    decision_case: Mapped[DecisionCase] = relationship(back_populates="followups")
+
+
+class UserPreferencePosterior(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    """用户长期偏好后验（方案 6.11）。只从多次结果中逐渐确认。"""
+
+    __tablename__ = "user_preference_posteriors"
+
+    user_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    criterion_name: Mapped[str] = mapped_column(String(120), nullable=False)
+    category: Mapped[str] = mapped_column(String(40), nullable=False)  # 决策领域
+    posterior_mean: Mapped[float] = mapped_column(Float, nullable=False)
+    posterior_std: Mapped[float] = mapped_column(Float, nullable=False)
+    evidence_count: Mapped[int] = mapped_column(default=0, nullable=False)

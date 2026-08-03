@@ -323,3 +323,51 @@ export function reopenDecision(id: string, newInformation: string) {
     body: JSON.stringify({ new_information: newInformation }),
   });
 }
+
+export interface Followup {
+  id: string;
+  checkpoint: string;
+  executed: boolean | null;
+  satisfaction: number | null;
+  regret_level: number | null;
+  notes: string | null;
+}
+
+export interface PreferencePosterior {
+  id: string;
+  criterion_name: string;
+  category: string;
+  posterior_mean: number;
+  posterior_std: number;
+  evidence_count: number;
+}
+
+export function getDueFollowups(id: string) {
+  return request<{ due: string[] }>(`/api/v1/decisions/${id}/followups/due`);
+}
+
+export function submitFollowup(
+  id: string,
+  body: {
+    checkpoint: string;
+    executed?: boolean;
+    satisfaction?: number;
+    regret_level?: number;
+    notes?: string;
+  },
+) {
+  return request<Followup>(`/api/v1/decisions/${id}/followups`, {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function getPreferenceProfile() {
+  return request<PreferencePosterior[]>("/api/v1/profile/preferences");
+}
+
+export function deletePreferenceProfile() {
+  return request<{ deleted: number }>("/api/v1/profile/preferences", {
+    method: "DELETE",
+  });
+}

@@ -12,6 +12,7 @@ from app.services import (
     compute_service,
     decision_service,
     evaluation_service,
+    followup_service,
     intake_service,
     orchestrator,
     preference_service,
@@ -26,6 +27,9 @@ from shared_schemas import (
     CommitRequest,
     ReopenCreateRequest,
     ReopenResponse,
+    DueFollowupsResponse,
+    FollowupCreateRequest,
+    FollowupOut,
     ComparisonCreateRequest,
     ComparisonState,
     NextComparisonResponse,
@@ -158,6 +162,58 @@ def stream_decision(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ---------- 回访（阶段7） ----------
+
+
+@router.get("/{decision_id}/followups", response_model=list[FollowupOut])
+def list_followups(
+    decision_id: str,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> list[FollowupOut]:
+    case = _get_case_or_404(db, decision_id, user)
+    return [FollowupOut.model_validate(f) for f in case.followups]
+
+
+@router.get("/{decision_id}/followups/due", response_model=DueFollowupsResponse)
+def due_followups(
+    decision_id: str,
+    as_of: str | None = None,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> DueFollowupsResponse:
+    """返回已到期且未回答的回访节点。as_of 仅用于测试。"""
+    from datetime import datetime
+
+    case = _get_case_or_404(db, decision_id, user)
+    as_of_dt = datetime.fromisoformat(as_of) if as_of else None
+    return DueFollowupsResponse(due=followup_service.due_checkpoints(case, as_of_dt))
+
+
+@router.post("/{decision_id}/followups", response_model=FollowupOut, status_code=201)
+def create_followup(
+    decision_id: str,
+    body: FollowupCreateRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+) -> FollowupOut:
+    case = _get_case_or_404(db, decision_id, user)
+    try:
+        outcome = followup_service.submit_followup(
+            db,
+            case,
+            checkpoint=body.checkpoint,
+            executed=body.executed,
+            satisfaction=body.satisfaction,
+            regret_level=body.regret_level,
+            worried_risk_occurred=body.worried_risk_occurred,
+            notes=body.notes,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    return FollowupOut.model_validate(outcome)
 
 
 # ---------- 决策锁与重开（阶段6） ----------
