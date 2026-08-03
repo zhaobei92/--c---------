@@ -53,7 +53,11 @@ def _credibility(text: str) -> float:
 
 
 def _relevance(case: DecisionCase, text: str) -> float:
-    """新信息与选项/标准/契约重开条件的词面重合度。"""
+    """新信息与决策的相关度。
+
+    词面命中选项/标准/契约重开条件各计一档；直接指向所选选项的
+    负面硬事实（拆修、虚标等）即便没提到标准名也高度相关，额外计档。
+    """
     targets: list[str] = [o.name for o in case.options] + [c.name for c in case.criteria]
     contract = case.contracts[-1] if case.contracts else None
     if contract:
@@ -61,6 +65,9 @@ def _relevance(case: DecisionCase, text: str) -> float:
     if not targets:
         return 0.3
     hits = sum(1 for t in targets if t and any(part in text for part in _split(t)))
+    selected = next((o for o in case.options if o.id == case.selected_option_id), None)
+    if selected and selected.name in text and _ADVERSE_FACT_PATTERN.search(text):
+        hits += 1
     return min(0.9, 0.2 + 0.2 * hits)
 
 
