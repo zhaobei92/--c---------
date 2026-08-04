@@ -28,7 +28,8 @@ def _prod(**overrides):
         env="prod",
         jwt_secret="a-real-secret-with-enough-entropy-0123456789",
         admin_token="a-real-admin-token-0123456789",
-        email_provider_configured=True,
+        smtp_host="smtp.example.com",
+        smtp_from="noreply@example.com",
     )
     base.update(overrides)
     return Settings(**base)
@@ -49,8 +50,11 @@ def test_prod_rejects_default_admin_token():
 
 
 def test_prod_rejects_missing_email_provider():
-    with pytest.raises(RuntimeError, match="email"):
-        validate_production_settings(_prod(email_provider_configured=False))
+    # 布尔标记不算配置:必须有真实 SMTP 主机与发件人,缺一拒绝启动
+    with pytest.raises(RuntimeError, match="smtp"):
+        validate_production_settings(_prod(smtp_host=""))
+    with pytest.raises(RuntimeError, match="smtp"):
+        validate_production_settings(_prod(smtp_from=""))
 
 
 def test_dev_env_skips_guards():

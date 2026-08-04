@@ -182,4 +182,17 @@ void main() {
     expect((await db.query('upload_queue')).single['status'], 'done');
     expect(api.putChunks, isEmpty);
   });
+
+  test('file IO failure is caught, lease released, drain survives', () async {
+    // 本地文件被系统清理/移动:File.open 抛 FileSystemException,
+    // drain 不得崩溃,任务标记可重试 error 并释放租约
+    await db.update('recordings', {'local_path': '/nonexistent/gone.opus'},
+        where: 'id = ?', whereArgs: ['rec-1']);
+    await queue.enqueue('rec-1');
+    await queue.drain(onWifi: true);
+    final row = (await db.query('upload_queue')).single;
+    expect(row['status'], 'error');
+    expect(row['error_code'], 'SYS_9005');
+    expect(row['lease_expires_at'], isNull);
+  });
 }

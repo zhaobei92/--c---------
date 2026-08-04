@@ -132,4 +132,7 @@ def test_ledger_traceability_across_generations(force_failure):
     refunds = [e for e in entries if e["reason"] == "refund"]
     assert len(consumes) == 2 and len(refunds) == 2
     for e in consumes + refunds:
-        assert e["job_id"].startswith(job["id"])  # generation 后缀仍关联原任务
+        # job_id 必须是真实任务 UUID(可作外键),代次单独记录,禁止 "#g1" 后缀
+        assert e["job_id"] == job["id"]
+    assert sorted(e["generation"] for e in consumes) == [0, 1]
+    assert sorted(e["generation"] for e in refunds) == [0, 1]
