@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-import random
+import secrets
 
 from fastapi import APIRouter
 from pydantic import BaseModel, EmailStr
 
+from ..core.config import settings
 from ..core.errors import ApiError
 from ..core.security import issue_token, verify_token
 from .deps import CurrentUser, state
@@ -23,10 +24,13 @@ class VerifyIn(BaseModel):
 
 @router.post("/auth/email/code")
 def send_code(body: EmailIn):
-    # 骨架:生产接邮件服务 + 频控(AUTH_0002);dev 环境返回码便于联调
-    code = f"{random.randint(0, 999999):06d}"
+    # 验证码使用安全随机源;生产由邮件服务发送 + 频控(AUTH_0002)+ 有效期。
+    code = f"{secrets.randbelow(1_000_000):06d}"
     state.email_codes[body.email] = code
-    return {"sent": True, "dev_code": code}
+    if settings.env == "prod":
+        # 邮件服务发送(阶段1 接入);验证码绝不出现在 API 响应中
+        return {"sent": True}
+    return {"sent": True, "dev_code": code}  # 仅 dev/staging 便于联调
 
 
 @router.post("/auth/email/verify")

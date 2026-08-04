@@ -40,20 +40,29 @@ def create_job(body: JobIn, user_id: str = CurrentUser):
 
     minutes = max(1, math.ceil(rec["duration_ms"] / 60000))
     job_id = str(uuid.uuid4())
+    # P0-5:扣费 + 建任务 + 写 outbox 必须原子。生产实现为同一 PostgreSQL 事务
+    # (锁录音→查活跃任务→锁权益桶→写 ledger→建 job→写 outbox_events→提交),
+    # 由 Outbox Publisher 可靠投递到队列。内存骨架用补偿保持同等语义:
+    # 任一步失败即冲正已扣分钟,不留下"扣了钱没任务"。
     try:
         state.entitlements.consume(user_id, minutes, job_id=job_id)
     except InsufficientMinutes as e:
         raise ApiError("ENT_3001", detail={"required": e.required, "available": e.available})
     except DuplicateOperation:
         raise ApiError("ORD_5003")
-
-    job = {
-        "id": job_id, "user_id": user_id, "recording_id": body.recording_id,
-        "language_hint": body.language_hint, "diarize": body.diarize,
-        "minutes_charged": minutes, "state": JobState(),
-    }
-    state.jobs[job_id] = job
-    state.queue.enqueue(TOPIC_TRANSCRIBE, {"job_id": job_id})
+    try:
+        job = {
+            "id": job_id, "user_id": user_id, "recording_id": body.recording_id,
+            "language_hint": body.language_hint, "diarize": body.diarize,
+            "minutes_charged": minutes, "state": JobState(),
+            "retry_generation": 0, "charge_ref": job_id,
+        }
+        state.jobs[job_id] = job
+        state.outbox.append({"topic": TOPIC_TRANSCRIBE, "payload": {"job_id": job_id}})
+    except Exception:
+        state.jobs.pop(job_id, None)
+        state.entitlements.refund_job(user_id, job_id)  # 补偿:扣费回滚
+        raise
     return {**_view(job), "deduplicated": False}
 
 
@@ -64,13 +73,37 @@ def get_job(job_id: str, user_id: str = CurrentUser):
 
 @router.post("/jobs/{job_id}/retry")
 def retry_job(job_id: str, user_id: str = CurrentUser):
+    """人工重试计费规则(P0-6 修复):
+
+    - 系统自动重试(worker 内 ≤3 次)不重复收费;
+    - 终态失败时 worker 已把当代扣费冲正 → 人工重试开启新 generation,
+      必须重新扣费(余额不足 ENT_3001 拒绝);
+    - 若当代扣费未被冲正(冲正尚未发生的边缘情况),重试免费;
+    - 各代扣费/冲正以 charge_ref = {job_id}#g{n} 关联原任务,流水可追溯。
+    """
     job = _owned(job_id, user_id)
     st: JobState = job["state"]
     if st.status is not JobStatus.FAILED:
         raise ApiError("SYS_9004", message="only failed jobs can be retried")
-    # 失败重试不重复扣费:重建状态机,保留 minutes_charged
+
+    current_ref = job["charge_ref"]
+    refunded = any(
+        e.job_id == current_ref and e.reason == "refund"
+        for e in state.entitlements.store.entries_for(user_id)
+    )
+    if refunded:
+        generation = job["retry_generation"] + 1
+        new_ref = f"{job_id}#g{generation}"
+        try:
+            state.entitlements.consume(user_id, job["minutes_charged"], job_id=new_ref)
+        except InsufficientMinutes as e:
+            raise ApiError("ENT_3001",
+                           detail={"required": e.required, "available": e.available})
+        job["retry_generation"] = generation
+        job["charge_ref"] = new_ref
+
     job["state"] = JobState()
-    state.queue.enqueue(TOPIC_TRANSCRIBE, {"job_id": job_id})
+    state.outbox.append({"topic": TOPIC_TRANSCRIBE, "payload": {"job_id": job_id}})
     return _view(job)
 
 
@@ -87,4 +120,5 @@ def _view(job: dict) -> dict:
         "id": job["id"], "recording_id": job["recording_id"],
         "status": st.status.value, "retry_count": st.retry_count,
         "error_code": st.error_code, "minutes_charged": job["minutes_charged"],
+        "retry_generation": job.get("retry_generation", 0),
     }

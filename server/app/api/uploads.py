@@ -19,6 +19,14 @@ class InitIn(BaseModel):
 
 @router.post("/uploads/init")
 def init_upload(body: InitIn, user_id: str = CurrentUser):
+    # P0-3 越权修复:recording 必须存在、属于当前用户、未删除;
+    # 元数据(size/sha256)必须与登记值一致,防止会话指向他人/伪造内容。
+    rec = state.recordings.get(body.recording_id)
+    if rec is None or rec.get("deleted") or rec["user_id"] != user_id:
+        raise ApiError("DOC_6003")  # 不泄露他人资源存在性
+    if rec["sha256"] != body.sha256 or rec["size_bytes"] != body.size_bytes:
+        raise ApiError("SYS_9004", detail={
+            "reason": "metadata mismatch with registered recording"})
     try:
         kwargs = dict(user_id=user_id, recording_id=body.recording_id,
                       size_bytes=body.size_bytes, sha256=body.sha256)
@@ -28,6 +36,8 @@ def init_upload(body: InitIn, user_id: str = CurrentUser):
     except FileTooLarge:
         raise ApiError("UPL_2002", detail={"size_bytes": body.size_bytes})
     if result.deduplicated:
+        rec["cloud_status"] = "uploaded"
+        rec["media_asset_id"] = result.media_asset_id
         return {"deduplicated": True, "media_asset_id": result.media_asset_id}
     s = result.session
     return {
@@ -54,10 +64,13 @@ def complete_part(upload_id: str, part_no: int, body: PartIn, user_id: str = Cur
 
 @router.get("/uploads/{upload_id}")
 def upload_progress(upload_id: str, user_id: str = CurrentUser):
+    """断点续传契约:pending 分片附带重新签发的 put_url(旧预签名可能已过期)。"""
     s = _owned_session(upload_id, user_id)
     pending = state.uploads.pending_parts(upload_id)
+    parts = [{"part_no": n, "put_url": state.uploads.reissue_put_url(upload_id, n)}
+             for n in pending]
     return {"upload_id": upload_id, "status": s.status,
-            "pending_parts": pending, "total_parts": len(s.parts)}
+            "pending_parts": pending, "parts": parts, "total_parts": len(s.parts)}
 
 
 @router.post("/uploads/{upload_id}/complete")

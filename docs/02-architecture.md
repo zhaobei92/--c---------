@@ -85,7 +85,10 @@ Platform Channel 契约见 `mobile/lib/platform/device_channel.dart`(唯一事�
 → 摘要(8 内置模板,结论强制时间戳引用) → 翻译层(独立,不改原文) → 问答(P1)
 ```
 
-- 上传即计算 SHA-256 去重:**同一文件不重复收费**(`media_assets.sha256` 唯一索引 + 转写结果缓存复用)。
+- 上传即计算 SHA-256 去重:**同一用户的同一文件不重复上传、不重复收费**。
+  去重范围限定单用户(`(user_id, sha256)`):跨用户 Hash 命中会泄露"某音频已存在"
+  并共享资产 ID,涉及删除生命周期、引用计数、数据区域与加密域问题;
+  数据治理方案(asset_references + reference_count)落地前**不做全局去重**。
 - ASR 适配层支持多供应商路由(成本与语种路由),短/长音频分级。
 - 任务状态机:`Waiting → Uploading → Preprocessing → Transcribing → Diarizing → Summarizing → Completed / Failed / Retrying`,实现与合法迁移表在 `server/app/services/job_state_machine.py`,**禁止绕过状态机直接改状态**。
 
@@ -112,6 +115,11 @@ users, user_identities, devices, device_bindings, firmware_versions, recordings,
 - 扣费顺序:先到期先扣(free_monthly → gift → member → purchased),实现在 `entitlement_service.py`,含单元测试。
 - 每笔扣减/充值/退款/过期回收 = 一条 ledger 流水(`+/-` 分钟,关联 job/order),余额 = 流水聚合,支持对账。
 - 退款:按原扣减流水冲正;重复扣费目标 0(幂等键 = `job_id` + `reason`)。
+- 人工重试计费:终态失败已冲正后,重试开启新 generation(`charge_ref = {job_id}#g{n}`)
+  **重新扣费**,余额不足拒绝;未冲正的失败任务重试免费。杜绝"扣费→退款→免费重试"。
+- **原子性(Outbox)**:扣分钟 + 建任务 + 写 `outbox_events` 必须在同一 PostgreSQL
+  事务(锁录音→查活跃任务→锁权益桶→写 ledger→建 job→写 outbox→提交);
+  Publisher 轮询未投递行送队列(至少一次投递,消费侧按 job 状态幂等)。
 - 订单:StoreKit 2 App Store Server API / Google Play Developer API 服务端验证,框架在 `order_verification.py`(供应商 SDK 接入点留接口)。
 
 ## 8. 安全与合规架构

@@ -7,19 +7,20 @@ from sqlalchemy import create_engine, inspect
 from app.models import Base
 from app.models.tables import ALL_TABLES
 
+# 计划原 24 张 + outbox_events(P0-5 事务原子性引入)
 EXPECTED = {
     "users", "user_identities", "devices", "device_bindings", "firmware_versions",
     "recordings", "media_assets", "upload_parts", "transcription_jobs",
     "transcript_segments", "speakers", "summaries", "summary_templates",
     "translations", "folders", "tags", "subscriptions", "entitlements",
     "usage_ledger", "orders", "consent_logs", "audit_logs",
-    "deletion_requests", "notification_jobs",
+    "deletion_requests", "notification_jobs", "outbox_events",
 }
 
 
-def test_exactly_24_tables_declared():
+def test_all_core_tables_declared():
     assert set(ALL_TABLES) == EXPECTED
-    assert len(EXPECTED) == 24
+    assert len(EXPECTED) == 25
     assert set(Base.metadata.tables.keys()) == EXPECTED
 
 

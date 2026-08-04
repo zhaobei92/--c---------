@@ -59,10 +59,10 @@ class AppDatabase {
             upload_id TEXT,               -- 服务端上传会话
             part_size INTEGER,
             total_parts INTEGER,
-            uploaded_parts TEXT NOT NULL DEFAULT '[]', -- JSON 数组,检查点
-            status TEXT NOT NULL DEFAULT 'pending',
+            status TEXT NOT NULL DEFAULT 'pending', -- pending/uploading/error/failed/done
             error_code TEXT,
             wifi_only INTEGER NOT NULL DEFAULT 1,
+            lease_expires_at INTEGER,     -- 租约(P0-2):过期的 uploading 会被收回重跑
             UNIQUE (recording_id)
           )
         ''');

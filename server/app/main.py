@@ -10,8 +10,11 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from .api import admin, auth, billing, devices, jobs, notifications, recordings, uploads
-from .core.config import settings
+from .core.config import settings, validate_production_settings
 from .core.errors import ApiError
+
+# P0-10:prod 环境带开发态默认配置直接拒绝启动
+validate_production_settings(settings)
 
 app = FastAPI(title="YS Note API", version="0.1.0")
 

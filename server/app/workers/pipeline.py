@@ -79,8 +79,23 @@ def process_job(job: dict, app: AppState) -> JobState:
             transition(st, JobStatus.PREPROCESSING)  # retrying → 重入处理链起点
 
 
+def publish_outbox(app: AppState) -> int:
+    """Outbox Publisher(P0-5):把业务侧原子写入的事件可靠投递到队列。
+
+    生产实现:轮询 outbox_events 表未投递行 → enqueue → 标记 published
+    (至少一次投递,消费侧以 job 状态幂等)。
+    """
+    published = 0
+    while app.outbox:
+        event = app.outbox.pop(0)
+        app.queue.enqueue(event["topic"], event["payload"])
+        published += 1
+    return published
+
+
 def run_once(app: AppState) -> int:
-    """消费一轮队列;返回处理任务数(供测试与 cron 调用)。"""
+    """投递 outbox 并消费一轮队列;返回处理任务数(供测试与 cron 调用)。"""
+    publish_outbox(app)
     processed = 0
     while (msg := app.queue.dequeue(TOPIC_TRANSCRIBE)) is not None:
         job = app.jobs.get(msg.payload["job_id"])
@@ -92,9 +107,13 @@ def run_once(app: AppState) -> int:
 
 
 def _refund(job: dict, app: AppState) -> None:
-    """终态失败:已扣分钟冲正(幂等,重复调用被 ledger 幂等键拒绝)。"""
+    """终态失败:冲正当前 generation 的扣费(幂等,重复调用被 ledger 幂等键拒绝)。
+
+    人工重试会开启新 generation 并重新扣费(charge_ref = {id}#g{n}),
+    此处必须按 charge_ref 冲正,而不是原始 job_id。
+    """
     try:
-        app.entitlements.refund_job(job["user_id"], job["id"])
+        app.entitlements.refund_job(job["user_id"], job.get("charge_ref", job["id"]))
     except Exception:
         pass  # DuplicateOperation:已冲正过
     _notify(job, app, "job_failed")

@@ -35,16 +35,20 @@ def test_full_chunked_upload_and_merge(svc):
     assert svc.store.objects[s.storage_key] == data
 
 
-def test_init_dedup_by_sha256(svc):
+def test_init_dedup_by_sha256_same_user_only(svc):
     data = b"same-file"
     s = _upload_all(svc, data)
     svc.complete(s.upload_id)
-    again = svc.init_upload(user_id="u2", recording_id="r2",
-                            size_bytes=len(data),
-                            sha256=hashlib.sha256(data).hexdigest())
-    # 同一文件不重复上传、不重复收费
+    sha = hashlib.sha256(data).hexdigest()
+    # 同一用户同一文件:去重,不重复上传、不重复收费
+    again = svc.init_upload(user_id="u1", recording_id="r2",
+                            size_bytes=len(data), sha256=sha)
     assert again.deduplicated is True
     assert again.media_asset_id == s.media_asset_id
+    # 其他用户同一内容:不得命中(防存在性探测/资产 ID 跨用户泄露)
+    other = svc.init_upload(user_id="u2", recording_id="r3",
+                            size_bytes=len(data), sha256=sha)
+    assert other.deduplicated is False
 
 
 def test_part_registration_idempotent(svc):

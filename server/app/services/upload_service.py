@@ -83,8 +83,11 @@ class UploadService:
     def __init__(self, store: ObjectStore):
         self.store = store
         self.sessions: dict[str, UploadSession] = {}
-        # sha256 -> media_asset_id(生产实现为 media_assets 表)
-        self.assets_by_sha: dict[str, str] = {}
+        # (user_id, sha256) -> media_asset_id。
+        # 去重范围限定单用户(P0-4):跨用户 Hash 命中会泄露"某音频已存在"
+        # 并共享资产 ID,涉及删除生命周期/引用计数/数据区域/加密域问题,
+        # 数据治理方案(asset_references + reference_count)落地前不做全局去重。
+        self.assets_by_sha: dict[tuple[str, str], str] = {}
 
     def init_upload(
         self,
@@ -97,8 +100,9 @@ class UploadService:
     ) -> InitResult:
         if size_bytes <= 0 or size_bytes > MAX_FILE_BYTES:
             raise FileTooLarge(f"size {size_bytes} out of range")
-        if sha256 in self.assets_by_sha:
-            return InitResult(deduplicated=True, media_asset_id=self.assets_by_sha[sha256])
+        if (user_id, sha256) in self.assets_by_sha:
+            return InitResult(deduplicated=True,
+                              media_asset_id=self.assets_by_sha[(user_id, sha256)])
         upload_id = str(uuid.uuid4())
         storage_key = f"audio/{user_id}/{recording_id}/{upload_id}"
         n_parts = max(1, math.ceil(size_bytes / part_size))
@@ -143,8 +147,15 @@ class UploadService:
             raise HashMismatch(f"expected {session.sha256}, got {actual}")
         session.status = "completed"
         session.media_asset_id = str(uuid.uuid4())
-        self.assets_by_sha[session.sha256] = session.media_asset_id
+        self.assets_by_sha[(session.user_id, session.sha256)] = session.media_asset_id
         return session
+
+    def reissue_put_url(self, upload_id: str, part_no: int) -> str:
+        """为未完成分片重新签发 put_url(断点续传时旧预签名可能已过期)。"""
+        session = self._session(upload_id)
+        part = session.parts[part_no]
+        part.put_url = self.store.presign_put(session.storage_key, part_no)
+        return part.put_url
 
     def abort(self, upload_id: str) -> None:
         self._session(upload_id).status = "aborted"

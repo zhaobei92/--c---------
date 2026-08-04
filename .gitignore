@@ -9,7 +9,6 @@ __pycache__/
 mobile/.dart_tool/
 mobile/build/
 mobile/.flutter-plugins*
-mobile/pubspec.lock
 mobile/ios/Pods/
 mobile/android/.gradle/
 

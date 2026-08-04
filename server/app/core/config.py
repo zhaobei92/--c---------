@@ -22,6 +22,31 @@ class Settings(BaseSettings):
     deletion_cooling_days: int = 7            # 注销冷静期
     apple_bundle_id: str = "com.ysnote.app"
     google_package_name: str = "com.ysnote.app"
+    admin_token: str = "dev-admin"                 # prod 必须覆盖(启动拦截)
+    email_provider_configured: bool = False        # 邮件服务就绪标记(prod 必须 true)
+
+
+_DEFAULT_JWT_SECRET = "dev-secret-change-me"
+_DEFAULT_ADMIN_TOKEN = "dev-admin"
+
+
+def validate_production_settings(s: "Settings") -> None:
+    """P0-10 启动拦截:env=prod 时拒绝任何开发态默认配置。
+
+    在应用启动时调用(app.main);校验失败直接抛 RuntimeError 终止进程,
+    绝不允许带默认密钥/默认管理 token/无邮件服务的实例暴露到公网。
+    """
+    if s.env != "prod":
+        return
+    problems: list[str] = []
+    if s.jwt_secret == _DEFAULT_JWT_SECRET or len(s.jwt_secret) < 32:
+        problems.append("jwt_secret is default or too short (need >=32 chars)")
+    if s.admin_token == _DEFAULT_ADMIN_TOKEN or len(s.admin_token) < 16:
+        problems.append("admin_token is default or too short (need >=16 chars)")
+    if not s.email_provider_configured:
+        problems.append("email provider not configured (email_provider_configured=false)")
+    if problems:
+        raise RuntimeError("refusing to start in prod: " + "; ".join(problems))
 
 
 settings = Settings()

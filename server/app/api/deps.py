@@ -61,6 +61,9 @@ class AppState:
     jobs: dict[str, dict] = field(default_factory=dict)
     notifications: dict[str, list[dict]] = field(default_factory=dict)
     audit: list[dict] = field(default_factory=list)
+    # Outbox(P0-5):业务写入与消息投递解耦;生产实现为 outbox_events 表
+    # 与业务同事务写入,由 Publisher 轮询投递到队列后标记 published。
+    outbox: list[dict] = field(default_factory=list)
 
     def __post_init__(self) -> None:
         self.entitlements = EntitlementService(self.ledger_store)
@@ -76,6 +79,7 @@ class AppState:
                      "recordings", "jobs", "notifications"):
             getattr(self, attr).clear()
         self.audit.clear()
+        self.outbox.clear()
         self.object_store = FakeObjectStore()
         self.queue = InMemoryQueue()
         self.ledger_store = InMemoryLedgerStore()
@@ -109,8 +113,10 @@ def current_user_id(authorization: str = Header(default="")) -> str:
 
 
 def admin_guard(x_admin_token: str = Header(default="")) -> None:
-    # 骨架:生产替换为独立 RBAC 账号体系 + audit_logs
-    if x_admin_token != "dev-admin":
+    # 骨架:生产替换为独立 RBAC 账号体系 + audit_logs。
+    # token 来自配置(prod 启动时 validate_production_settings 拒绝默认值)。
+    import secrets as _secrets
+    if not _secrets.compare_digest(x_admin_token, settings.admin_token):
         raise ApiError("AUTH_0007", message="admin access denied")
 
 

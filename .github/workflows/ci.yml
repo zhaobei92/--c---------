@@ -34,23 +34,25 @@ jobs:
           python-version: "3.11"
           cache: pip
       - name: Install deps
-        run: pip install fastapi httpx pytest uvicorn
+        run: pip install fastapi httpx pytest uvicorn email-validator
       - name: Contract tests
         run: python -m pytest mock_device/tests -q
 
   flutter:
-    name: Flutter analyze (best effort until平台工程生成)
+    name: Flutter analyze + test
     runs-on: ubuntu-latest
-    # 平台工程(ios/、android/)由 flutter create 生成后,把 continue-on-error 移除
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
-      - name: Analyze
-        run: |
-          cd mobile
-          flutter pub get
-          flutter gen-l10n
-          flutter analyze
+          flutter-version: "3.24.5"
+          cache: true
+      - name: Pub get
+        run: cd mobile && flutter pub get
+      - name: Gen l10n
+        run: cd mobile && flutter gen-l10n
+      - name: Analyze (failures block the build)
+        run: cd mobile && flutter analyze
+      - name: Test
+        run: cd mobile && flutter test

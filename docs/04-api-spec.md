@@ -1,5 +1,12 @@
 # API 接口规范 V1.0
 
+> **实现状态标注**:本规范是目标契约,不代表全部已实现。当前状态:
+> - **Implemented+Tested**:auth 邮箱验证码/refresh、users/me、consents、devices(bind/list/heartbeat/unbind)、recordings CRUD、uploads(init/part/progress/complete,含越权校验与断点续传契约)、jobs(create/get/retry,含重试计费规则)、entitlements/usage、redeem、admin 骨架、notifications 骨架
+> - **Skeleton**:orders/{platform}/verify(Provider 未接真实平台 SDK)、firmware/check
+> - **Planned**:Apple/Google 登录、账户删除执行、数据导出、转写编辑、speakers、summary、translations、export、share、search、orders/restore、webhooks、WebSocket、`Idempotency-Key` 通用支持
+>
+> 新增实现必须同步更新本标注;严禁把 Planned 当作已完成汇报。
+
 - Base URL:`https://api.example.com`(dev/staging/prod 各自域名)
 - 版本前缀:`/v1`;管理后台前缀:`/admin`(独立鉴权)
 - 认证:`Authorization: Bearer <access_token>`(JWT,短期)+ refresh token 轮换

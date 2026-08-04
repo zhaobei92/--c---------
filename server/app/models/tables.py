@@ -325,6 +325,14 @@ class AuditLog(_PK, Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
+class OutboxEvent(_PK, Base):
+    __tablename__ = "outbox_events"
+    topic: Mapped[str] = mapped_column(String(60))
+    payload: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class NotificationJob(_PK, Base):
     __tablename__ = "notification_jobs"
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
@@ -343,5 +351,5 @@ ALL_TABLES = [
     "transcript_segments", "speakers", "summaries", "summary_templates",
     "translations", "folders", "tags", "subscriptions", "entitlements",
     "usage_ledger", "orders", "consent_logs", "audit_logs",
-    "deletion_requests", "notification_jobs",
+    "deletion_requests", "notification_jobs", "outbox_events",
 ]

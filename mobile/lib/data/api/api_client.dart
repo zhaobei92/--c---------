@@ -1,6 +1,10 @@
+import 'dart:typed_data';
+
+import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 
-/// 服务端 API 客户端骨架(docs/04-api-spec.md)。
+/// 服务端 API 客户端(docs/04-api-spec.md)。
+/// 上传契约与 server/tests/test_upload_contract.py 保持同步。
 /// 错误统一转 [ApiException];retryable 语义见 docs/07-error-codes.md。
 class ApiException implements Exception {
   ApiException(this.code, this.message, {this.retryable = false});
@@ -11,6 +15,16 @@ class ApiException implements Exception {
 
   @override
   String toString() => 'ApiException($code: $message)';
+}
+
+class UploadPartInfo {
+  UploadPartInfo({required this.partNo, required this.putUrl});
+
+  final int partNo;
+  final String putUrl;
+
+  factory UploadPartInfo.fromJson(Map<String, dynamic> j) =>
+      UploadPartInfo(partNo: j['part_no'] as int, putUrl: j['put_url'] as String);
 }
 
 class UploadInit {
@@ -24,7 +38,15 @@ class UploadInit {
   final bool deduplicated;
   final String uploadId;
   final int partSize;
-  final List<int> parts;
+  final List<UploadPartInfo> parts;
+}
+
+class UploadProgress {
+  UploadProgress({required this.pendingParts, required this.totalParts});
+
+  /// 未完成分片 → 重新签发的 put_url(旧预签名可能已过期)
+  final Map<int, String> pendingParts;
+  final int totalParts;
 }
 
 class ApiClient {
@@ -40,7 +62,8 @@ class ApiClient {
     'SYS_9001', 'SYS_9002', 'SYS_9005',
   };
 
-  Future<T> _call<T>(Future<Response<dynamic>> Function() fn, T Function(dynamic) parse) async {
+  Future<T> _call<T>(
+      Future<Response<dynamic>> Function() fn, T Function(dynamic) parse) async {
     try {
       final resp = await fn();
       return parse(resp.data);
@@ -52,28 +75,70 @@ class ApiClient {
     }
   }
 
-  Future<UploadInit> initUpload(String recordingId) => _call(
-        () => _dio.post('/v1/uploads/init', data: {'recording_id': recordingId}),
+  /// init 契约:必填 recording_id / size_bytes / sha256(服务端校验与录音登记一致)。
+  Future<UploadInit> initUpload(
+    String recordingId, {
+    required int sizeBytes,
+    required String sha256,
+    int? partSize,
+  }) =>
+      _call(
+        () => _dio.post('/v1/uploads/init', data: {
+          'recording_id': recordingId,
+          'size_bytes': sizeBytes,
+          'sha256': sha256,
+          if (partSize != null) 'part_size': partSize,
+        }),
         (d) => d['deduplicated'] == true
             ? UploadInit(deduplicated: true)
             : UploadInit(
                 deduplicated: false,
                 uploadId: d['upload_id'] as String,
                 partSize: d['part_size'] as int,
-                parts: (d['parts'] as List).map((p) => p['part_no'] as int).toList(),
+                parts: (d['parts'] as List)
+                    .map((p) => UploadPartInfo.fromJson((p as Map).cast()))
+                    .toList(),
               ),
       );
 
-  Future<List<int>> pendingParts(String uploadId) => _call(
+  /// 断点续传:未完成分片列表 + 新 put_url。
+  Future<UploadProgress> progress(String uploadId) => _call(
         () => _dio.get('/v1/uploads/$uploadId'),
-        (d) => (d['pending_parts'] as List).cast<int>(),
+        (d) => UploadProgress(
+          pendingParts: {
+            for (final p in d['parts'] as List)
+              (p as Map)['part_no'] as int: p['put_url'] as String,
+          },
+          totalParts: d['total_parts'] as int,
+        ),
       );
 
-  Future<void> uploadPart(String uploadId, String recordingId, int partNo) async {
-    // 骨架:读本地文件分片 → PUT 预签名 URL → 登记
+  /// 真实分片上传:PUT 数据到预签名 URL → 以真实 etag/size 向服务端登记。
+  Future<void> uploadPart({
+    required String uploadId,
+    required int partNo,
+    required String putUrl,
+    required Uint8List chunk,
+  }) async {
+    Response<dynamic> putResp;
+    try {
+      putResp = await _dio.put(
+        putUrl,
+        data: Stream.fromIterable([chunk]),
+        options: Options(headers: {
+          Headers.contentLengthHeader: chunk.length,
+          Headers.contentTypeHeader: 'application/octet-stream',
+        }),
+      );
+    } on DioException catch (e) {
+      throw ApiException('UPL_2101', 'part $partNo PUT failed: ${e.message}',
+          retryable: true);
+    }
+    final etag = (putResp.headers.value('etag') ?? md5.convert(chunk).toString())
+        .replaceAll('"', '');
     await _call(
       () => _dio.post('/v1/uploads/$uploadId/parts/$partNo/complete',
-          data: {'etag': 'pending-native-impl', 'size_bytes': 0}),
+          data: {'etag': etag, 'size_bytes': chunk.length}),
       (_) {},
     );
   }

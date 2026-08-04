@@ -24,12 +24,16 @@ dependencies:
   path: ^1.9.0
   # 安全存储(token)
   flutter_secure_storage: ^9.2.2
+  # 分片 etag / 文件 hash
+  crypto: ^3.0.3
   intl: any
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  # 桌面/CI 环境跑 sqflite 单测
+  sqflite_common_ffi: ^2.3.3
 
 flutter:
   uses-material-design: true

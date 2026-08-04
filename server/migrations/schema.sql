@@ -331,6 +331,17 @@ CREATE TABLE audit_logs (
 );
 CREATE INDEX idx_audit_logs_target ON audit_logs (target_type, target_id, created_at DESC);
 
+-- Outbox(P0-5):与业务写入(扣分钟 + 建任务)同一事务落库,
+-- Publisher 轮询未投递行 → 投递队列 → 标记 published_at(至少一次投递)。
+CREATE TABLE outbox_events (
+    id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    topic        text NOT NULL,
+    payload      jsonb NOT NULL,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    published_at timestamptz
+);
+CREATE INDEX idx_outbox_unpublished ON outbox_events (created_at) WHERE published_at IS NULL;
+
 CREATE TABLE notification_jobs (
     id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id      uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,
