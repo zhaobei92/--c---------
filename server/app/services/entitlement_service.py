@@ -52,7 +52,8 @@ class LedgerEntry:
     entitlement_id: str | None
     delta_minutes: int  # 授予为正,消耗为负,冲正为正
     reason: str  # grant / consume / refund / expire / adjust
-    job_id: str | None = None
+    job_id: str | None = None          # 真实任务 UUID(可作外键),禁止携带代次后缀
+    generation: int = 0                # 人工重试代次(usage_ledger.charge_generation)
     order_id: str | None = None
     idempotency_key: str | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -179,10 +180,15 @@ class EntitlementService:
                 return plan
         raise InsufficientMinutes(required=minutes, available=minutes - remaining)
 
-    def consume(self, user_id: str, minutes: int, *, job_id: str) -> list[LedgerEntry]:
-        """为一个 AI 任务扣减分钟。幂等键 = consume:{job_id},同任务只扣一次。"""
+    def consume(self, user_id: str, minutes: int, *, job_id: str,
+                generation: int = 0) -> list[LedgerEntry]:
+        """为一个 AI 任务(的某一代)扣减分钟。
+
+        幂等键 = consume:{job_id}:g{generation} —— 同任务同代只扣一次;
+        人工重试开启新代(generation+1)重新扣费。job_id 始终为真实任务 UUID。
+        """
         assert minutes > 0
-        key = f"consume:{job_id}"
+        key = f"consume:{job_id}:g{generation}"
         if self.store.has_idempotency_key(key):
             raise DuplicateOperation(key)
         plan = self._deduction_plan(user_id, minutes)
@@ -191,6 +197,7 @@ class EntitlementService:
             entry = LedgerEntry(
                 id=str(uuid.uuid4()), user_id=user_id, entitlement_id=ent.id,
                 delta_minutes=-take, reason="consume", job_id=job_id,
+                generation=generation,
                 idempotency_key=key if i == 0 else f"{key}:{i}",
             )
             self.store.append(entry)
@@ -199,20 +206,26 @@ class EntitlementService:
 
     # ---------- 冲正 ----------
 
-    def refund_job(self, user_id: str, job_id: str) -> list[LedgerEntry]:
-        """任务失败/退款:按原扣减流水逐桶冲正。幂等键 = refund:{job_id}。"""
-        key = f"refund:{job_id}"
+    def refund_job(self, user_id: str, job_id: str,
+                   generation: int = 0) -> list[LedgerEntry]:
+        """任务(某一代)失败/退款:按该代扣减流水逐桶冲正。
+
+        幂等键 = refund:{job_id}:g{generation}。
+        """
+        key = f"refund:{job_id}:g{generation}"
         if self.store.has_idempotency_key(key):
             raise DuplicateOperation(key)
         consumed = [
             e for e in self.store.entries_for(user_id)
             if e.job_id == job_id and e.reason == "consume"
+            and e.generation == generation
         ]
         entries: list[LedgerEntry] = []
         for i, orig in enumerate(consumed):
             entry = LedgerEntry(
                 id=str(uuid.uuid4()), user_id=user_id, entitlement_id=orig.entitlement_id,
                 delta_minutes=-orig.delta_minutes, reason="refund", job_id=job_id,
+                generation=generation,
                 idempotency_key=key if i == 0 else f"{key}:{i}",
             )
             self.store.append(entry)

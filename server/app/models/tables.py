@@ -139,7 +139,9 @@ class Tag(_PK, Base):
 
 class MediaAsset(_PK, Base):
     __tablename__ = "media_assets"
-    sha256: Mapped[str] = mapped_column(String(64), unique=True)
+    __table_args__ = (UniqueConstraint("user_id", "sha256"),)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    sha256: Mapped[str] = mapped_column(String(64))
     storage_key: Mapped[str] = mapped_column(Text)
     size_bytes: Mapped[int] = mapped_column(BigInteger)
     mime: Mapped[str | None] = mapped_column(String(80))
@@ -292,6 +294,7 @@ class UsageLedger(_PK, Base):
     delta_minutes: Mapped[int] = mapped_column(Integer)
     reason: Mapped[str] = mapped_column(String(12))  # grant/consume/refund/expire/adjust
     job_id: Mapped[str | None] = mapped_column(ForeignKey("transcription_jobs.id"))
+    charge_generation: Mapped[int] = mapped_column(Integer, default=0)
     order_id: Mapped[str | None] = mapped_column(String(36))
     idempotency_key: Mapped[str | None] = mapped_column(String(120), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)

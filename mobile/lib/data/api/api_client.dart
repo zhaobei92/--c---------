@@ -1,6 +1,5 @@
 import 'dart:typed_data';
 
-import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
 
 /// 服务端 API 客户端(docs/04-api-spec.md)。
@@ -50,9 +49,12 @@ class UploadProgress {
 }
 
 class ApiClient {
-  ApiClient(this._dio);
+  /// [storageDio] 专用于对象存储的预签名 PUT:独立实例,
+  /// **不携带** API 的 Authorization 拦截器(不能把用户 token 发给存储域)。
+  ApiClient(this._dio, {Dio? storageDio}) : _storageDio = storageDio ?? Dio();
 
   final Dio _dio;
+  final Dio _storageDio;
 
   static const _retryableCodes = {
     'AUTH_0003', 'DEV_1201', 'DEV_1202', 'DEV_1203', 'DEV_1205', 'DEV_1303',
@@ -122,7 +124,7 @@ class ApiClient {
   }) async {
     Response<dynamic> putResp;
     try {
-      putResp = await _dio.put(
+      putResp = await _storageDio.put(
         putUrl,
         data: Stream.fromIterable([chunk]),
         options: Options(headers: {
@@ -134,8 +136,13 @@ class ApiClient {
       throw ApiException('UPL_2101', 'part $partNo PUT failed: ${e.message}',
           retryable: true);
     }
-    final etag = (putResp.headers.value('etag') ?? md5.convert(chunk).toString())
-        .replaceAll('"', '');
+    // S3/MinIO 均返回 ETag;缺失视为存储异常重试,禁止伪造 etag 提交登记
+    final rawEtag = putResp.headers.value('etag');
+    if (rawEtag == null || rawEtag.isEmpty) {
+      throw ApiException('UPL_2101', 'storage did not return ETag for part $partNo',
+          retryable: true);
+    }
+    final etag = rawEtag.replaceAll('"', '');
     await _call(
       () => _dio.post('/v1/uploads/$uploadId/parts/$partNo/complete',
           data: {'etag': etag, 'size_bytes': chunk.length}),

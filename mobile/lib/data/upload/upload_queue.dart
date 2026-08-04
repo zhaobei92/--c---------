@@ -136,18 +136,25 @@ class UploadQueue {
       await api.completeUpload(uploadId);
       await _finish(id, 'done');
     } on ApiException catch (e) {
-      await db.update(
+      await _markFailure(id, e.code, retryable: e.retryable);
+    } catch (e) {
+      // 文件 IO(被系统清理/移动)、序列化等非 API 异常:
+      // 同样必须释放租约并标记可重试,绝不让 drain 崩溃(审查追加项)
+      await _markFailure(id, 'SYS_9005', retryable: true);
+    }
+  }
+
+  Future<void> _markFailure(int id, String code, {required bool retryable}) =>
+      db.update(
         'upload_queue',
         {
-          'status': e.retryable ? 'error' : 'failed',
-          'error_code': e.code,
+          'status': retryable ? 'error' : 'failed',
+          'error_code': code,
           'lease_expires_at': null,
         },
         where: 'id = ?',
         whereArgs: [id],
       );
-    }
-  }
 
   Future<Uint8List> _readChunk(
       RandomAccessFile file, int partNo, int partSize, int totalSize) async {

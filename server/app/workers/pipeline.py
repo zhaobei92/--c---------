@@ -82,13 +82,22 @@ def process_job(job: dict, app: AppState) -> JobState:
 def publish_outbox(app: AppState) -> int:
     """Outbox Publisher(P0-5):把业务侧原子写入的事件可靠投递到队列。
 
-    生产实现:轮询 outbox_events 表未投递行 → enqueue → 标记 published
-    (至少一次投递,消费侧以 job 状态幂等)。
+    生产实现:FOR UPDATE SKIP LOCKED 领取 outbox_events 未投递行 → enqueue
+    → 成功后置 published_at;失败记 attempt_count/last_error/next_attempt_at
+    退避重试 + 死信告警(至少一次投递,消费侧以 job 状态幂等)。
+
+    先投后删:入队成功才移除事件;失败保留并记录 attempts/last_error。
     """
     published = 0
     while app.outbox:
-        event = app.outbox.pop(0)
-        app.queue.enqueue(event["topic"], event["payload"])
+        event = app.outbox[0]
+        try:
+            app.queue.enqueue(event["topic"], event["payload"])
+        except Exception as e:
+            event["attempts"] = event.get("attempts", 0) + 1
+            event["last_error"] = str(e)
+            break  # 队列不可用:保留事件,本轮终止
+        app.outbox.pop(0)
         published += 1
     return published
 
@@ -109,11 +118,11 @@ def run_once(app: AppState) -> int:
 def _refund(job: dict, app: AppState) -> None:
     """终态失败:冲正当前 generation 的扣费(幂等,重复调用被 ledger 幂等键拒绝)。
 
-    人工重试会开启新 generation 并重新扣费(charge_ref = {id}#g{n}),
-    此处必须按 charge_ref 冲正,而不是原始 job_id。
+    人工重试会开启新 generation 并重新扣费,此处必须冲正当前代次。
     """
     try:
-        app.entitlements.refund_job(job["user_id"], job.get("charge_ref", job["id"]))
+        app.entitlements.refund_job(job["user_id"], job["id"],
+                                    generation=job.get("retry_generation", 0))
     except Exception:
         pass  # DuplicateOperation:已冲正过
     _notify(job, app, "job_failed")

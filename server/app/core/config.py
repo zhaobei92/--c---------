@@ -23,7 +23,12 @@ class Settings(BaseSettings):
     apple_bundle_id: str = "com.ysnote.app"
     google_package_name: str = "com.ysnote.app"
     admin_token: str = "dev-admin"                 # prod 必须覆盖(启动拦截)
-    email_provider_configured: bool = False        # 邮件服务就绪标记(prod 必须 true)
+    # 邮件服务(prod 必须配置真实 SMTP,布尔标记不算配置)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_from: str = ""
+    smtp_user: str = ""
+    smtp_password: str = ""
 
 
 _DEFAULT_JWT_SECRET = "dev-secret-change-me"
@@ -43,8 +48,10 @@ def validate_production_settings(s: "Settings") -> None:
         problems.append("jwt_secret is default or too short (need >=32 chars)")
     if s.admin_token == _DEFAULT_ADMIN_TOKEN or len(s.admin_token) < 16:
         problems.append("admin_token is default or too short (need >=16 chars)")
-    if not s.email_provider_configured:
-        problems.append("email provider not configured (email_provider_configured=false)")
+    if not s.smtp_host:
+        problems.append("smtp_host not configured (real email provider required)")
+    if not s.smtp_from:
+        problems.append("smtp_from not configured (real email provider required)")
     if problems:
         raise RuntimeError("refusing to start in prod: " + "; ".join(problems))
 

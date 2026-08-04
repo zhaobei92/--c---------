@@ -24,8 +24,6 @@ dependencies:
   path: ^1.9.0
   # 安全存储(token)
   flutter_secure_storage: ^9.2.2
-  # 分片 etag / 文件 hash
-  crypto: ^3.0.3
   intl: any
 
 dev_dependencies:

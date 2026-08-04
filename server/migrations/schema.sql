@@ -119,12 +119,16 @@ CREATE TABLE tags (
 
 CREATE TABLE media_assets (
     id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-    sha256      text NOT NULL UNIQUE,                 -- 全局去重:同一文件不重复存储、不重复收费
+    user_id     uuid NOT NULL REFERENCES users(id),
+    -- 去重范围限定单用户(P0-4):跨用户去重会泄露音频存在性并共享资产 ID,
+    -- 涉及删除生命周期/引用计数/数据区域/加密域;数据治理方案落地前不做全局去重。
+    sha256      text NOT NULL,
     storage_key text NOT NULL,                        -- 对象存储 key
     size_bytes  bigint NOT NULL,
     mime        text,
     duration_ms integer,
-    created_at  timestamptz NOT NULL DEFAULT now()
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (user_id, sha256)
 );
 
 CREATE TABLE recordings (
@@ -294,6 +298,7 @@ CREATE TABLE usage_ledger (
     delta_minutes   integer NOT NULL,                 -- 授予为正,消耗为负,冲正为正
     reason          text NOT NULL,                    -- grant / consume / refund / expire / adjust
     job_id          uuid REFERENCES transcription_jobs(id),
+    charge_generation integer NOT NULL DEFAULT 0,     -- 人工重试代次(0 = 首次扣费)
     order_id        uuid,
     idempotency_key text UNIQUE,                      -- 验收红线:重复扣费 = 0
     created_at      timestamptz NOT NULL DEFAULT now()

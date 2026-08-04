@@ -24,6 +24,7 @@ REGISTRY: dict[str, ErrorDef] = {e.code: e for e in [
     _E("AUTH_0005", 401, False, "third-party credential invalid"),
     _E("AUTH_0006", 409, False, "account in deletion cooling period"),
     _E("AUTH_0007", 403, False, "account banned"),
+    _E("AUTH_0008", 429, False, "verification attempts exceeded, request a new code"),
     # DEV
     _E("DEV_1101", 409, False, "device already bound by another account"),
     _E("DEV_1102", 400, False, "device model not supported"),

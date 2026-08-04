@@ -29,6 +29,6 @@
 
 ```bash
 pip install -e ".[dev]"
-pytest                    # 45 个测试:状态机/权益/上传/订单/模型/端到端
+pytest                    # 76 个测试:状态机/权益/上传/订单/模型/契约/越权/计费/验证码/端到端
 uvicorn app.main:app --reload   # /docs 查看 OpenAPI
 ```

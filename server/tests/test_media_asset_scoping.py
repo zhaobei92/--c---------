@@ -21,7 +21,7 @@ SCHEMA = (Path(__file__).resolve().parent.parent / "migrations" / "schema.sql").
 
 def _media_block() -> str:
     start = SCHEMA.index("CREATE TABLE media_assets")
-    return SCHEMA[start: SCHEMA.index(";", start)]
+    return SCHEMA[start: SCHEMA.index("\n);", start)]
 
 
 def test_schema_sql_media_assets_user_scoped():

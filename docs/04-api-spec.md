@@ -1,7 +1,8 @@
 # API 接口规范 V1.0
 
 > **实现状态标注**:本规范是目标契约,不代表全部已实现。当前状态:
-> - **Implemented+Tested**:auth 邮箱验证码/refresh、users/me、consents、devices(bind/list/heartbeat/unbind)、recordings CRUD、uploads(init/part/progress/complete,含越权校验与断点续传契约)、jobs(create/get/retry,含重试计费规则)、entitlements/usage、redeem、admin 骨架、notifications 骨架
+> - **Implemented+Tested**:users/me、consents、devices(bind/list/heartbeat/unbind)、recordings CRUD、uploads(init/part/progress/complete,含越权校验与断点续传契约)、jobs(create/get/retry,含重试计费规则)、entitlements/usage、redeem、admin 骨架、notifications 骨架
+> - **开发环境已实现,生产链路 Skeleton**:auth 邮箱验证码(Hash 存储/有效期/频控/尝试上限已实现并测试;dev 用 Console Provider,prod 走 SMTP Provider 但未对真实邮件服务联调;多实例共享验证码状态需 Redis)
 > - **Skeleton**:orders/{platform}/verify(Provider 未接真实平台 SDK)、firmware/check
 > - **Planned**:Apple/Google 登录、账户删除执行、数据导出、转写编辑、speakers、summary、translations、export、share、search、orders/restore、webhooks、WebSocket、`Idempotency-Key` 通用支持
 >

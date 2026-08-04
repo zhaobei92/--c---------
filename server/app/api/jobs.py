@@ -55,7 +55,7 @@ def create_job(body: JobIn, user_id: str = CurrentUser):
             "id": job_id, "user_id": user_id, "recording_id": body.recording_id,
             "language_hint": body.language_hint, "diarize": body.diarize,
             "minutes_charged": minutes, "state": JobState(),
-            "retry_generation": 0, "charge_ref": job_id,
+            "retry_generation": 0,
         }
         state.jobs[job_id] = job
         state.outbox.append({"topic": TOPIC_TRANSCRIBE, "payload": {"job_id": job_id}})
@@ -79,28 +79,28 @@ def retry_job(job_id: str, user_id: str = CurrentUser):
     - 终态失败时 worker 已把当代扣费冲正 → 人工重试开启新 generation,
       必须重新扣费(余额不足 ENT_3001 拒绝);
     - 若当代扣费未被冲正(冲正尚未发生的边缘情况),重试免费;
-    - 各代扣费/冲正以 charge_ref = {job_id}#g{n} 关联原任务,流水可追溯。
+    - 各代扣费/冲正记录 (job_id, generation):job_id 保持真实任务 UUID
+      (可作数据库外键),代次落在 usage_ledger.charge_generation。
     """
     job = _owned(job_id, user_id)
     st: JobState = job["state"]
     if st.status is not JobStatus.FAILED:
         raise ApiError("SYS_9004", message="only failed jobs can be retried")
 
-    current_ref = job["charge_ref"]
+    current_gen = job["retry_generation"]
     refunded = any(
-        e.job_id == current_ref and e.reason == "refund"
+        e.job_id == job_id and e.generation == current_gen and e.reason == "refund"
         for e in state.entitlements.store.entries_for(user_id)
     )
     if refunded:
-        generation = job["retry_generation"] + 1
-        new_ref = f"{job_id}#g{generation}"
+        generation = current_gen + 1
         try:
-            state.entitlements.consume(user_id, job["minutes_charged"], job_id=new_ref)
+            state.entitlements.consume(user_id, job["minutes_charged"],
+                                       job_id=job_id, generation=generation)
         except InsufficientMinutes as e:
             raise ApiError("ENT_3001",
                            detail={"required": e.required, "available": e.available})
         job["retry_generation"] = generation
-        job["charge_ref"] = new_ref
 
     job["state"] = JobState()
     state.outbox.append({"topic": TOPIC_TRANSCRIBE, "payload": {"job_id": job_id}})

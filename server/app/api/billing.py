@@ -25,7 +25,8 @@ def my_usage(user_id: str = CurrentUser, page: int = 1, page_size: int = 50):
         "total": len(entries), "page": page, "page_size": page_size,
         "items": [
             {"delta_minutes": e.delta_minutes, "reason": e.reason,
-             "job_id": e.job_id, "order_id": e.order_id,
+             "job_id": e.job_id, "generation": e.generation,
+             "order_id": e.order_id,
              "created_at": e.created_at.isoformat()}
             for e in entries[start:start + page_size]
         ],

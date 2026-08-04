@@ -56,3 +56,33 @@ jobs:
         run: cd mobile && flutter analyze
       - name: Test
         run: cd mobile && flutter test
+
+  android-build:
+    name: Android debug build (compiles Kotlin + Gradle)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.24.5"
+          cache: true
+      - name: Build debug APK
+        run: cd mobile && flutter build apk --debug
+
+  ios-build:
+    name: iOS simulator build (compiles Swift + Xcode project)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.24.5"
+          cache: true
+      - name: Build for iOS simulator
+        run: cd mobile && flutter build ios --simulator

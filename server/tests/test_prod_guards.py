@@ -61,14 +61,29 @@ def test_dev_env_skips_guards():
     validate_production_settings(Settings(env="dev"))  # dev 默认配置放行
 
 
-def test_dev_code_not_returned_in_prod(monkeypatch):
+class _CapturingProvider:
+    def __init__(self):
+        self.sent: list[tuple[str, str, str]] = []
+
+    def send(self, to, subject, body):
+        self.sent.append((to, subject, body))
+
+
+def test_dev_code_not_returned_in_prod_and_email_actually_sent(monkeypatch):
+    from app.api import auth as auth_module
+    provider = _CapturingProvider()
     monkeypatch.setattr(settings, "env", "prod")
+    monkeypatch.setattr(auth_module, "get_email_provider", lambda _s: provider)
     resp = client.post("/v1/auth/email/code", json={"email": "x@test.com"}).json()
     assert "dev_code" not in resp
-    # 验证码仍然生成并可通过内部通道验证(邮件服务发送)
+    # 验证码通过邮件 Provider 真实发出(而非仅返回 sent:true)
+    assert len(provider.sent) == 1
+    assert provider.sent[0][0] == "x@test.com"
     assert state.email_codes.get("x@test.com")
 
 
 def test_dev_code_returned_in_dev():
+    import hashlib
     resp = client.post("/v1/auth/email/code", json={"email": "x@test.com"}).json()
-    assert resp["dev_code"] == state.email_codes["x@test.com"]
+    stored = state.email_codes["x@test.com"]["code_hash"]
+    assert hashlib.sha256(resp["dev_code"].encode()).hexdigest() == stored
