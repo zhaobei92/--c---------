@@ -20,7 +20,10 @@ _SCHEMA = Path(__file__).resolve().parents[2] / "migrations" / "schema.sql"
 
 
 def upgrade() -> None:
-    op.execute(_SCHEMA.read_text())
+    # exec_driver_sql:原样执行整份脚本,不做 :name 绑定参数解析
+    # (schema.sql 注释含 ASCII 冒号,op.execute 会误判为 bindparam);
+    # % 转义为 %%,避开 psycopg 客户端占位符扫描(仅影响注释)。
+    op.get_bind().exec_driver_sql(_SCHEMA.read_text().replace("%", "%%"))
 
 
 def downgrade() -> None:

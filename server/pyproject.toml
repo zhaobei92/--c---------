@@ -14,10 +14,19 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "httpx>=0.27", "alembic>=1.13"]
+integration = [
+    "psycopg[binary]>=3.1", "redis>=5", "boto3>=1.34", "alembic>=1.13",
+    "requests>=2.31",
+]
 prod = ["psycopg[binary]>=3.1", "redis>=5", "boto3>=1.34", "alembic>=1.13"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "integration: 需要真实 PostgreSQL/Redis/S3/SMTP 的测试(make verify-integration 执行)",
+]
+# 单元测试默认排除 integration;verify-integration 用 -m integration 反选
+addopts = "-m 'not integration'"
 
 [build-system]
 requires = ["setuptools>=68"]

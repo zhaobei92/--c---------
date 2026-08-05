@@ -1,5 +1,7 @@
-# 本地/CI 集成环境:PostgreSQL + Redis + MinIO(S3 兼容)
-# 用法:docker compose up -d && make verify-integration(集成测试在阶段"服务端P0修复"接入)
+# 本地/CI 集成环境:PostgreSQL + Redis + MinIO(S3 兼容)+ Mailpit(SMTP 测试)
+# 数据库初始化的唯一入口是 Alembic(cd server && alembic upgrade head);
+# PostgreSQL 启动为空库,禁止再挂载 schema.sql 自动建表(会与 0001 基线冲突)。
+# 用法:make verify-integration
 services:
   postgres:
     image: postgres:15-alpine
@@ -8,20 +10,18 @@ services:
       POSTGRES_PASSWORD: ys
       POSTGRES_DB: ysnote
     ports: ["5432:5432"]
-    volumes:
-      - ./server/migrations/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ys -d ysnote"]
-      interval: 5s
-      retries: 10
+      interval: 2s
+      retries: 20
 
   redis:
     image: redis:7-alpine
     ports: ["6379:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      retries: 10
+      interval: 2s
+      retries: 20
 
   minio:
     image: minio/minio:latest
@@ -32,5 +32,13 @@ services:
     ports: ["9000:9000", "9001:9001"]
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
-      interval: 5s
-      retries: 10
+      interval: 2s
+      retries: 30
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports: ["1025:1025", "8025:8025"]  # 1025=SMTP, 8025=HTTP API/UI
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 2s
+      retries: 20

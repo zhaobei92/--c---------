@@ -164,7 +164,9 @@ class Recording(_PK, Base):
     local_status: Mapped[str] = mapped_column(String(16), default="none")
     cloud_status: Mapped[str] = mapped_column(String(16), default="none")
     folder_id: Mapped[str | None] = mapped_column(ForeignKey("folders.id"))
-    tag_ids: Mapped[list] = mapped_column(JSON, default=list)
+    # PG 实际类型为 uuid[](库默认 '{}');模型不带默认值,插入时不写此列,
+    # 避免 JSON 序列化与数组类型冲突。读写标签走专用 UPDATE(数组适配)。
+    tag_ids: Mapped[list | None] = mapped_column(JSON, nullable=True)
     recorded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     retention_days: Mapped[int | None] = mapped_column(Integer)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -334,6 +336,25 @@ class OutboxEvent(_PK, Base):
     payload: Mapped[dict] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    last_error: Mapped[str | None] = mapped_column(Text)
+    next_attempt_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+
+
+class UploadSessionRow(_PK, Base):
+    """真实 S3 Multipart 会话(0002 迁移引入;API 重启后据此恢复上传)。"""
+
+    __tablename__ = "upload_sessions"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
+    recording_id: Mapped[str] = mapped_column(ForeignKey("recordings.id"))
+    storage_key: Mapped[str] = mapped_column(Text)
+    s3_upload_id: Mapped[str] = mapped_column(Text)
+    size_bytes: Mapped[int] = mapped_column(BigInteger)
+    part_size: Mapped[int] = mapped_column(Integer)
+    sha256: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(12), default="active")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class NotificationJob(_PK, Base):
@@ -354,5 +375,5 @@ ALL_TABLES = [
     "transcript_segments", "speakers", "summaries", "summary_templates",
     "translations", "folders", "tags", "subscriptions", "entitlements",
     "usage_ledger", "orders", "consent_logs", "audit_logs",
-    "deletion_requests", "notification_jobs", "outbox_events",
+    "deletion_requests", "notification_jobs", "outbox_events", "upload_sessions",
 ]
