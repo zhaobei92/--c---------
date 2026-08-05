@@ -31,7 +31,8 @@ services:
       MINIO_ROOT_PASSWORD: ysnote-dev-secret
     ports: ["9000:9000", "9001:9001"]
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      # 用 HTTP 健康端点;`mc ready local` 依赖未配置的 alias,不可用
+      test: ["CMD-SHELL", "curl -sf http://127.0.0.1:9000/minio/health/live || exit 1"]
       interval: 2s
       retries: 30
 

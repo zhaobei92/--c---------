@@ -109,6 +109,27 @@ jobs:
           MAILPIT_API: http://127.0.0.1:8025
         run: make verify-integration
 
+  compose-integration:
+    name: Compose-from-zero integration (docker compose 默认路径)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e "server[dev,integration]"
+      - name: docker compose up → integration tests → down
+        # 不设 SKIP_COMPOSE:验证仓库默认路径(compose 健康检查、
+        # 真 MinIO 而非 moto、空库迁移、容器可从零启动)
+        run: |
+          docker compose down -v || true
+          make verify-integration
+          docker compose down -v
+
   android-build:
     name: Android debug build (compiles Kotlin + Gradle)
     runs-on: ubuntu-latest
