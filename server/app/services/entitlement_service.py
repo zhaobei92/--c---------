@@ -136,17 +136,21 @@ class EntitlementService:
     ) -> Entitlement:
         assert bucket in BUCKET_PRIORITY, f"unknown bucket {bucket}"
         assert minutes > 0
+        # 幂等检查前置;写入顺序为权益行 → 流水(满足 PG 外键)。
+        # SQL 实现中若并发撞唯一键,append 抛 DuplicateOperation,
+        # 调用方事务回滚会一并撤销权益行。
+        if idempotency_key and self.store.has_idempotency_key(idempotency_key):
+            raise DuplicateOperation(idempotency_key)
         ent = Entitlement(
             id=str(uuid.uuid4()), user_id=user_id, bucket=bucket,
             minutes_granted=minutes, expires_at=expires_at,
         )
-        # 先落流水,幂等冲突时权益不生效
+        self.store.add_entitlement(ent)
         self.store.append(LedgerEntry(
             id=str(uuid.uuid4()), user_id=user_id, entitlement_id=ent.id,
             delta_minutes=minutes, reason="grant", order_id=order_id,
             idempotency_key=idempotency_key,
         ))
-        self.store.add_entitlement(ent)
         return ent
 
     # ---------- 消耗 ----------

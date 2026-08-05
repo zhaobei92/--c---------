@@ -11,10 +11,32 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy import (
-    JSON, BigInteger, Boolean, Date, DateTime, Float, ForeignKey, Integer,
-    SmallInteger, String, Text, UniqueConstraint,
+    CHAR, JSON, BigInteger, Boolean, Date, DateTime, Float, ForeignKey, Integer,
+    SmallInteger, String, Text, TypeDecorator, UniqueConstraint,
 )
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+class GUID(TypeDecorator):
+    """跨方言 UUID:PostgreSQL 用原生 uuid,其余(SQLite 单测)用 CHAR(36)。
+
+    Python 侧统一为 str,避免 uuid.UUID 与 str 混用的静默不等。
+    """
+
+    impl = CHAR(36)
+    cache_ok = True
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == "postgresql":
+            return dialect.type_descriptor(PG_UUID(as_uuid=False))
+        return dialect.type_descriptor(CHAR(36))
+
+    def process_bind_param(self, value, dialect):
+        return None if value is None else str(value)
+
+    def process_result_value(self, value, dialect):
+        return None if value is None else str(value)
 
 
 def _uuid() -> str:
@@ -30,7 +52,7 @@ class Base(DeclarativeBase):
 
 
 class _PK:
-    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    id: Mapped[str] = mapped_column(GUID, primary_key=True, default=_uuid)
 
 
 # ------------------------------------------------------------ 用户域
@@ -71,7 +93,7 @@ class DeletionRequest(_PK, Base):
     __tablename__ = "deletion_requests"
     user_id: Mapped[str] = mapped_column(ForeignKey("users.id"))
     scope: Mapped[str] = mapped_column(String(16), default="account")
-    target_id: Mapped[str | None] = mapped_column(String(36))
+    target_id: Mapped[str | None] = mapped_column(GUID)
     status: Mapped[str] = mapped_column(String(16), default="cooling")
     requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     execute_after: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -177,7 +199,7 @@ class Recording(_PK, Base):
 class UploadPart(_PK, Base):
     __tablename__ = "upload_parts"
     __table_args__ = (UniqueConstraint("upload_id", "part_no"),)
-    upload_id: Mapped[str] = mapped_column(String(36))
+    upload_id: Mapped[str] = mapped_column(GUID)
     recording_id: Mapped[str] = mapped_column(ForeignKey("recordings.id", ondelete="CASCADE"))
     part_no: Mapped[int] = mapped_column(Integer)
     size_bytes: Mapped[int | None] = mapped_column(BigInteger)
@@ -196,7 +218,7 @@ class TranscriptionJob(_PK, Base):
     status: Mapped[str] = mapped_column(String(16), default="waiting")
     language_hint: Mapped[str | None] = mapped_column(String(8))
     diarize: Mapped[bool] = mapped_column(Boolean, default=True)
-    template_id: Mapped[str | None] = mapped_column(String(36))
+    template_id: Mapped[str | None] = mapped_column(GUID)
     error_code: Mapped[str | None] = mapped_column(String(12))
     retry_count: Mapped[int] = mapped_column(Integer, default=0)
     minutes_charged: Mapped[int] = mapped_column(Integer, default=0)
@@ -285,7 +307,7 @@ class Entitlement(_PK, Base):
     effective_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     source_type: Mapped[str] = mapped_column(String(16))
-    source_id: Mapped[str | None] = mapped_column(String(36))
+    source_id: Mapped[str | None] = mapped_column(GUID)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
 
@@ -297,7 +319,7 @@ class UsageLedger(_PK, Base):
     reason: Mapped[str] = mapped_column(String(12))  # grant/consume/refund/expire/adjust
     job_id: Mapped[str | None] = mapped_column(ForeignKey("transcription_jobs.id"))
     charge_generation: Mapped[int] = mapped_column(Integer, default=0)
-    order_id: Mapped[str | None] = mapped_column(String(36))
+    order_id: Mapped[str | None] = mapped_column(GUID)
     idempotency_key: Mapped[str | None] = mapped_column(String(120), unique=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
@@ -322,10 +344,10 @@ class Order(_PK, Base):
 class AuditLog(_PK, Base):
     __tablename__ = "audit_logs"
     actor_type: Mapped[str] = mapped_column(String(10))
-    actor_id: Mapped[str | None] = mapped_column(String(36))
+    actor_id: Mapped[str | None] = mapped_column(GUID)
     action: Mapped[str] = mapped_column(String(60))
     target_type: Mapped[str | None] = mapped_column(String(40))
-    target_id: Mapped[str | None] = mapped_column(String(36))
+    target_id: Mapped[str | None] = mapped_column(GUID)
     detail: Mapped[dict | None] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_now)
 
