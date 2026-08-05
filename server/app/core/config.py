@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     smtp_from: str = ""
     smtp_user: str = ""
     smtp_password: str = ""
+    smtp_starttls: bool = True   # Mailpit 等明文测试服务设 false
 
 
 _DEFAULT_JWT_SECRET = "dev-secret-change-me"

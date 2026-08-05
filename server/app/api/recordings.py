@@ -26,6 +26,8 @@ class RecordingIn(BaseModel):
 
 @router.post("/recordings")
 def create_recording(body: RecordingIn, user_id: str = CurrentUser):
+    if state.db is not None:
+        return state.db.create_recording(user_id, body.model_dump())
     # 验收红线:重复文件率 0 —— (user, sha256) 判重,返回已有记录
     for rec in state.recordings.values():
         if rec["user_id"] == user_id and rec["sha256"] == body.sha256 and not rec.get("deleted"):
@@ -40,6 +42,11 @@ def create_recording(body: RecordingIn, user_id: str = CurrentUser):
 
 @router.get("/recordings")
 def list_recordings(user_id: str = CurrentUser, page: int = 1, page_size: int = 20):
+    if state.db is not None:
+        items = state.db.list_recordings(user_id)
+        start = (page - 1) * page_size
+        return {"total": len(items), "page": page, "page_size": page_size,
+                "items": items[start:start + page_size]}
     items = [r for r in state.recordings.values() if r["user_id"] == user_id and not r.get("deleted")]
     start = (page - 1) * page_size
     return {"total": len(items), "page": page, "page_size": page_size,
@@ -48,6 +55,11 @@ def list_recordings(user_id: str = CurrentUser, page: int = 1, page_size: int = 
 
 @router.get("/recordings/{rec_id}")
 def get_recording(rec_id: str, user_id: str = CurrentUser):
+    if state.db is not None:
+        rec = state.db.get_recording(user_id, rec_id)
+        if rec is None:
+            raise ApiError("DOC_6003")
+        return rec
     return _owned(rec_id, user_id)
 
 
@@ -67,6 +79,10 @@ def patch_recording(rec_id: str, body: RecordingPatch, user_id: str = CurrentUse
 
 @router.delete("/recordings/{rec_id}")
 def delete_recording(rec_id: str, user_id: str = CurrentUser):
+    if state.db is not None:
+        if not state.db.delete_recording(user_id, rec_id):
+            raise ApiError("DOC_6003")
+        return {"deleted": True}
     rec = _owned(rec_id, user_id)
     rec["deleted"] = True
     # 生产:入 TOPIC_DELETE 队列,级联删除对象存储、转写、摘要、搜索索引,写 audit_logs

@@ -66,6 +66,15 @@ class GoldenChainDb:
                        source_type="system", idempotency_key=f"signup:{user_id}")
             return user_id, True
 
+    def update_user(self, user_id: str, changes: dict) -> dict:
+        allowed = {"nickname", "language", "region", "audio_retention_days"}
+        with self.session_factory() as s, s.begin():
+            row = s.get(User, user_id)
+            for k, v in changes.items():
+                if k in allowed:
+                    setattr(row, k, v)
+        return self.get_user(user_id)
+
     def get_user(self, user_id: str) -> dict | None:
         with self.session_factory() as s:
             row = s.get(User, user_id)
@@ -115,6 +124,24 @@ class GoldenChainDb:
                 .order_by(Recording.created_at.desc())
             ).scalars().all()
             return [self._rec_view(r) for r in rows]
+
+    def delete_recording(self, user_id: str, rec_id: str) -> bool:
+        with self.session_factory() as s, s.begin():
+            row = s.get(Recording, rec_id)
+            if row is None or str(row.user_id) != user_id or row.deleted_at is not None:
+                return False
+            row.deleted_at = _now()
+            # 生产:入 TOPIC_DELETE 级联清对象存储/转写/摘要/搜索索引 + audit_logs
+            return True
+
+    def list_notifications(self, user_id: str) -> list[dict]:
+        from ..models.tables import NotificationJob
+        with self.session_factory() as s:
+            rows = s.execute(
+                select(NotificationJob).where(NotificationJob.user_id == user_id)
+                .order_by(NotificationJob.scheduled_at.desc())
+            ).scalars().all()
+            return [{"type": r.type, **(r.payload or {})} for r in rows]
 
     def mark_uploaded(self, rec_id: str, media_asset_id: str) -> None:
         with self.session_factory() as s, s.begin():

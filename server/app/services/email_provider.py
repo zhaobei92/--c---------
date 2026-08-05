@@ -39,7 +39,8 @@ class SmtpEmailProvider:
         msg["Subject"] = subject
         msg.set_content(body)
         with smtplib.SMTP(self.settings.smtp_host, self.settings.smtp_port, timeout=10) as smtp:
-            smtp.starttls()
+            if self.settings.smtp_starttls:
+                smtp.starttls()
             if self.settings.smtp_user:
                 smtp.login(self.settings.smtp_user, self.settings.smtp_password)
             smtp.send_message(msg)

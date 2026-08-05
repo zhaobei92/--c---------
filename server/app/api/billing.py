@@ -12,12 +12,20 @@ router = APIRouter(prefix="/v1", tags=["billing"])
 
 @router.get("/entitlements/me")
 def my_entitlements(user_id: str = CurrentUser):
-    balances = state.entitlements.bucket_balances(user_id)
+    if state.db is not None:
+        balances = state.db.balances(user_id)
+    else:
+        balances = state.entitlements.bucket_balances(user_id)
     return {**balances, "total_minutes": sum(balances.values())}
 
 
 @router.get("/usage")
 def my_usage(user_id: str = CurrentUser, page: int = 1, page_size: int = 50):
+    if state.db is not None:
+        items = state.db.usage_entries(user_id)
+        start = (page - 1) * page_size
+        return {"total": len(items), "page": page, "page_size": page_size,
+                "items": items[start:start + page_size]}
     entries = state.entitlements.store.entries_for(user_id)
     entries.sort(key=lambda e: e.created_at, reverse=True)
     start = (page - 1) * page_size
