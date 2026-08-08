@@ -16,6 +16,13 @@ from pathlib import Path
 
 import pytest
 
+# 集成依赖守门:只装 server[dev] 的环境(如 CI 单元测试 job)在收集阶段
+# 会 import 本目录模块,缺依赖时整目录优雅跳过而不是收集报错。
+pytest.importorskip("requests", reason="integration extras not installed")
+pytest.importorskip("boto3", reason="integration extras not installed")
+pytest.importorskip("redis", reason="integration extras not installed")
+pytest.importorskip("psycopg", reason="integration extras not installed")
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 PG_URL = os.environ.get("YS_DATABASE_URL",
