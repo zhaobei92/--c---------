@@ -28,3 +28,4 @@ pg-data/
 mailpit-data/
 *.apk
 *.ipa
+*.log
