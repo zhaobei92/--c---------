@@ -244,3 +244,64 @@ describe("capture confirmation", () => {
     expect(captureNeedsConfirmation({ ...clean, unobserved_namespaces: ["ros"] })).toBe(true);
   });
 });
+
+describe("large payloads (§60)", () => {
+  const bigEvaluation = (): EvaluationRun => {
+    const statuses: ExpectationStatus[] = [
+      "SATISFIED",
+      "UNSATISFIED",
+      "UNKNOWN",
+      "NOT_APPLICABLE",
+    ];
+    return evaluation(
+      Array.from({ length: 1000 }, (_, i) =>
+        result(`expectation-${String(i).padStart(4, "0")}`, statuses[i % 4]),
+      ),
+    );
+  };
+
+  const bigDiff = (): BaselineDiff => {
+    const states: BaselineDiffEntity["state"][] = ["UNCHANGED", "ADDED", "CHANGED", "REMOVED"];
+    return diff(
+      Array.from({ length: 1000 }, (_, i) =>
+        diffEntity(
+          i % 3 === 0 ? "ros" : i % 3 === 1 ? "system" : "network",
+          "node",
+          `/entity_${i}`,
+          states[i % 4],
+        ),
+      ),
+    );
+  };
+
+  // Measurement, not a benchmark: these bounds are loose enough to be
+  // stable on slow CI and tight enough to catch an accidental O(n²).
+  it("prepares 1000 expectations for display quickly", () => {
+    const run = bigEvaluation();
+    const started = performance.now();
+    const ordered = orderedResults(run);
+    const counts = statusCounts(run);
+    const elapsed = performance.now() - started;
+
+    expect(ordered).toHaveLength(1000);
+    expect(counts.SATISFIED + counts.UNSATISFIED + counts.UNKNOWN + counts.NOT_APPLICABLE).toBe(
+      1000,
+    );
+    // Attention-needing outcomes still sort to the front at this size.
+    expect(ordered[0].status).toBe("UNSATISFIED");
+    expect(elapsed).toBeLessThan(200);
+  });
+
+  it("prepares 1000 comparison entities for display quickly", () => {
+    const d = bigDiff();
+    const started = performance.now();
+    const counts = diffCounts(d);
+    const grouped = groupByNamespace(notableEntities(d));
+    const elapsed = performance.now() - started;
+
+    expect(counts.UNCHANGED).toBe(250);
+    expect(grouped.map(([ns]) => ns)).toEqual(["network", "ros", "system"]);
+    expect(grouped.reduce((n, [, items]) => n + items.length, 0)).toBe(750);
+    expect(elapsed).toBeLessThan(200);
+  });
+});
