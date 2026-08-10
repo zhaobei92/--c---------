@@ -769,9 +769,15 @@ def main() -> int:
         return 0
 
     payload = {
-        "version": "draft-1",
-        "frozen": False,
-        "note": "阶段1草案，待确认后冻结。基于模拟数据；真实数据到位后需重新生成。",
+        "version": "v1.0",
+        "frozen": True,
+        "frozen_at": "2026-08-10",
+        "note": (
+            "已于 2026-08-10 经项目所有者批准冻结。冻结后不得增删改题目——"
+            "跨框架对比必须基于同一套题，否则数字不可比。确有必要修改时，"
+            "应新开 v1.1 并把此前所有框架重测一遍。"
+            "本版基于模拟数据；真实转写数据到位后需重新生成并重测关键项。"
+        ),
         "data_window": {
             "start": START_DATE.isoformat(),
             "end": (START_DATE + dt.timedelta(days=NUM_DAYS - 1)).isoformat(),
