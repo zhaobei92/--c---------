@@ -1,0 +1,79 @@
+name: robot-doctor-ci
+
+on:
+  push:
+    branches: [master, main, "claude/robot-doctor-**"]
+    paths:
+      - "robot-doctor/**"
+      - ".github/workflows/robot-doctor-ci.yml"
+  pull_request:
+    paths:
+      - "robot-doctor/**"
+      - ".github/workflows/robot-doctor-ci.yml"
+  workflow_dispatch:
+
+jobs:
+  # Core workspace: domain, plugin host, engine, plugins, integration tests.
+  core:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: robot-doctor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: robot-doctor
+      - name: Format check
+        run: cargo fmt --all --check
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests (unit + plugin protocol + engine integration)
+        run: cargo test --workspace
+
+  # Desktop app: frontend typecheck/tests/build + Tauri shell compile.
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: robot-doctor/apps/desktop/src-tauri
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: robot-doctor/apps/desktop/package-lock.json
+      - name: Install Linux GUI dependencies (WebKitGTK)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev \
+            libayatana-appindicator3-dev librsvg2-dev
+      - name: Install frontend dependencies
+        working-directory: robot-doctor/apps/desktop
+        run: npm ci
+      - name: Frontend typecheck
+        working-directory: robot-doctor/apps/desktop
+        run: npm run typecheck
+      - name: Frontend tests
+        working-directory: robot-doctor/apps/desktop
+        run: npm test
+      - name: Frontend build
+        working-directory: robot-doctor/apps/desktop
+        run: npx vite build
+      - name: Desktop shell compile
+        working-directory: robot-doctor/apps/desktop/src-tauri
+        run: cargo build

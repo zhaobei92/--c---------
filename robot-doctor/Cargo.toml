@@ -1,0 +1,40 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/doctor-domain",
+    "crates/doctor-plugin-host",
+    "crates/doctor-core",
+    "plugins/system",
+    "tests/integration",
+]
+# The Tauri shell links against platform GUI libraries (WebKitGTK on Linux,
+# WebView2 on Windows). It is a separate package so `cargo test --workspace`
+# stays runnable on headless CI/dev machines; CI builds it explicitly.
+exclude = ["apps/desktop/src-tauri"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/zhaobei92/robot-doctor"
+
+[workspace.dependencies]
+doctor-domain = { path = "crates/doctor-domain" }
+doctor-plugin-host = { path = "crates/doctor-plugin-host" }
+doctor-core = { path = "crates/doctor-core" }
+
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "process", "io-util", "sync", "time"] }
+thiserror = "2"
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+sysinfo = "0.33"
+hostname = "0.4"
+
+[profile.release]
+lto = "thin"
+strip = true

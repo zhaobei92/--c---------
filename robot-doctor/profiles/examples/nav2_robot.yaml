@@ -1,0 +1,43 @@
+# Example device profile: a Nav2-based AMR.
+# Profiles describe the EXPECTED state of a specific robot; rules stay
+# robot-agnostic and evaluate against these expectations (Phase D).
+id: nav2_robot
+name: Nav2 robot
+description: Differential-drive robot running Nav2 with LiDAR + IMU.
+
+required_processes:
+  - robot_state_publisher
+
+required_ports:
+  - 8765 # foxglove bridge
+
+network_targets:
+  - host: 192.168.1.1
+    description: LAN gateway
+
+ros:
+  expected_domain_id: 0
+  required_nodes:
+    - /controller_server
+    - /planner_server
+    - /bt_navigator
+  optional_nodes:
+    - /rviz2
+  topics:
+    /scan:
+      required: true
+      min_hz: 8
+    /imu/data:
+      required: true
+      min_hz: 50
+    /odom:
+      required: true
+      min_hz: 20
+      max_age_s: 0.5
+      expected_publishers: 1
+  required_tf:
+    - { from: map, to: odom }
+    - { from: odom, to: base_link }
+    - { from: base_link, to: laser_link }
+  required_services:
+    - /controller_server/get_parameters

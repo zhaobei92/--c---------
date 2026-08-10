@@ -1,0 +1,19 @@
+[package]
+name = "doctor-core"
+description = "Diagnosis engine: plugin registry, check execution, progressive results"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+doctor-domain.workspace = true
+doctor-plugin-host.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }

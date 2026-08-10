@@ -1,0 +1,25 @@
+[package]
+name = "robot-doctor-plugin-system"
+description = "Cross-platform system diagnostics plugin (CPU, memory, disk, processes…)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "robot-doctor-plugin-system"
+path = "src/main.rs"
+
+[lib]
+name = "plugin_system"
+path = "src/checks.rs"
+
+[dependencies]
+doctor-domain.workspace = true
+doctor-plugin-host.workspace = true
+serde_json.workspace = true
+sysinfo.workspace = true
+chrono.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+serde_yaml.workspace = true
