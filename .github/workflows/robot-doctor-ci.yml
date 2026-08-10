@@ -41,6 +41,12 @@ jobs:
         run: cargo build --workspace
       - name: Real diagnostic smoke test (system + network + NVIDIA-absence + SQLite persistence)
         run: cargo run -p integration-tests --bin smoke -- plugins
+      # C2 measurement (§59). Release, because debug timings would be
+      # misleading. Reported, not gated: there are no targets until there
+      # is data.
+      - name: Phase C2 performance measurement
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo run -p doctor-profile --bin measure --release
 
   # Real ROS 2 integration: launch actual nodes, verify RclpyProvider +
   # CLI parity + persistence through the full engine path. Two active
@@ -76,6 +82,13 @@ jobs:
         env:
           RD_ROS_SETUP: /opt/ros/${{ matrix.distro }}/setup.bash
         run: cargo run -p integration-tests --bin smoke-ros -- plugins
+      # C2 acceptance scenarios 1-6 against the same live ROS graph:
+      # baseline capture and restart, removed node, topic rate, TF path,
+      # UNKNOWN when the runtime cannot initialize, and revision pinning.
+      - name: Real ROS C2 acceptance scenarios (baseline, diff, profile evaluation)
+        env:
+          RD_ROS_SETUP: /opt/ros/${{ matrix.distro }}/setup.bash
+        run: cargo run -p integration-tests --bin smoke-c2 -- plugins
 
   # Desktop app: frontend typecheck/tests/build + Tauri shell compile.
   desktop:

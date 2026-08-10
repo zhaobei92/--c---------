@@ -1,0 +1,103 @@
+{
+  "kind": "baseline_diff",
+  "description": "A namespace that could not be observed yields UNAVAILABLE, and one no plugin projects yields UNKNOWN. Neither may be reported as REMOVED.",
+  "baseline": {
+    "id": "fixture-baseline",
+    "device_id": "local",
+    "name": "fixture",
+    "description": "",
+    "tags": [],
+    "created_at": "2026-01-01T00:00:00Z",
+    "sources": [
+      {
+        "run_id": "run-1",
+        "run_started_at": "2026-01-01T00:00:00Z",
+        "mode": "FULL",
+        "overall_health": "HEALTHY",
+        "manually_accepted": false
+      }
+    ],
+    "app_version": "0.1.0",
+    "plugin_versions": {
+      "ros2": "0.1.0"
+    },
+    "namespaces": {
+      "ros": "OBSERVED",
+      "nvidia": "OBSERVED"
+    },
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "node",
+          "key": "/talker"
+        },
+        "display_name": "/talker",
+        "attributes": {
+          "publisher_count": {
+            "type": "NUMBER",
+            "value": 2
+          },
+          "subscription_count": {
+            "type": "NUMBER",
+            "value": 1
+          }
+        },
+        "presence_count": 1,
+        "presence_ratio": 1.0,
+        "stability": "STABLE",
+        "numeric_summaries": {},
+        "observed_values": {},
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      },
+      {
+        "key": {
+          "namespace": "nvidia",
+          "kind": "gpu",
+          "key": "GPU-1234"
+        },
+        "display_name": "GPU-1234",
+        "attributes": {
+          "name": {
+            "type": "TEXT",
+            "value": "RTX"
+          }
+        },
+        "presence_count": 1,
+        "presence_ratio": 1.0,
+        "stability": "STABLE",
+        "numeric_summaries": {},
+        "observed_values": {},
+        "source_plugin": "nvidia",
+        "source_check": "nvidia.devices",
+        "source_evidence_ids": []
+      }
+    ]
+  },
+  "current": {
+    "run_id": "run-2",
+    "device_id": "local",
+    "entities": [],
+    "namespaces": {
+      "ros": "NOT_OBSERVED"
+    },
+    "kinds": {
+      "ros/node": "NOT_OBSERVED"
+    },
+    "namespace_reasons": {
+      "ros": "ROS_NOT_INSTALLED"
+    },
+    "kind_reasons": {
+      "ros/node": "ROS_NOT_INSTALLED"
+    }
+  },
+  "expect": {
+    "compatibility": "PARTIALLY_COMPATIBLE",
+    "states": {
+      "ros.node:/talker": "UNAVAILABLE",
+      "nvidia.gpu:GPU-1234": "UNKNOWN"
+    }
+  }
+}

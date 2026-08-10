@@ -1,0 +1,141 @@
+{
+  "kind": "baseline_capture",
+  "description": "An entity in every known-good run is STABLE with ratio 1.0.",
+  "sources": [
+    {
+      "source": {
+        "run_id": "run-1",
+        "run_started_at": "2026-01-01T00:00:00Z",
+        "mode": "FULL",
+        "overall_health": "HEALTHY",
+        "manually_accepted": false
+      },
+      "projection": {
+        "run_id": "run-2",
+        "device_id": "local",
+        "entities": [
+          {
+            "key": {
+              "namespace": "ros",
+              "kind": "node",
+              "key": "/talker"
+            },
+            "display_name": "/talker",
+            "attributes": {
+              "publisher_count": {
+                "type": "NUMBER",
+                "value": 2
+              }
+            },
+            "source_plugin": "ros2",
+            "source_check": "ros.graph",
+            "source_evidence_ids": []
+          }
+        ],
+        "namespaces": {
+          "ros": "OBSERVED"
+        },
+        "kinds": {
+          "ros/node": "OBSERVED"
+        },
+        "namespace_reasons": {},
+        "kind_reasons": {}
+      }
+    },
+    {
+      "source": {
+        "run_id": "run-2",
+        "run_started_at": "2026-01-01T00:00:00Z",
+        "mode": "FULL",
+        "overall_health": "HEALTHY",
+        "manually_accepted": false
+      },
+      "projection": {
+        "run_id": "run-2",
+        "device_id": "local",
+        "entities": [
+          {
+            "key": {
+              "namespace": "ros",
+              "kind": "node",
+              "key": "/talker"
+            },
+            "display_name": "/talker",
+            "attributes": {
+              "publisher_count": {
+                "type": "NUMBER",
+                "value": 2
+              }
+            },
+            "source_plugin": "ros2",
+            "source_check": "ros.graph",
+            "source_evidence_ids": []
+          }
+        ],
+        "namespaces": {
+          "ros": "OBSERVED"
+        },
+        "kinds": {
+          "ros/node": "OBSERVED"
+        },
+        "namespace_reasons": {},
+        "kind_reasons": {}
+      }
+    },
+    {
+      "source": {
+        "run_id": "run-3",
+        "run_started_at": "2026-01-01T00:00:00Z",
+        "mode": "FULL",
+        "overall_health": "HEALTHY",
+        "manually_accepted": false
+      },
+      "projection": {
+        "run_id": "run-2",
+        "device_id": "local",
+        "entities": [
+          {
+            "key": {
+              "namespace": "ros",
+              "kind": "node",
+              "key": "/talker"
+            },
+            "display_name": "/talker",
+            "attributes": {
+              "publisher_count": {
+                "type": "NUMBER",
+                "value": 2
+              }
+            },
+            "source_plugin": "ros2",
+            "source_check": "ros.graph",
+            "source_evidence_ids": []
+          }
+        ],
+        "namespaces": {
+          "ros": "OBSERVED"
+        },
+        "kinds": {
+          "ros/node": "OBSERVED"
+        },
+        "namespace_reasons": {},
+        "kind_reasons": {}
+      }
+    }
+  ],
+  "expect": {
+    "entities": {
+      "ros.node:/talker": {
+        "stability": "STABLE",
+        "presence_count": 3,
+        "presence_ratio": 1.0
+      }
+    },
+    "draft": {
+      "ros.node:/talker": {
+        "requirement": "required",
+        "selected_by_default": true
+      }
+    }
+  }
+}

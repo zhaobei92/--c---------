@@ -1,0 +1,106 @@
+{
+  "kind": "profile_evaluation",
+  "description": "Everything the profile asks for was observed and holds.",
+  "projection": {
+    "run_id": "run-2",
+    "device_id": "local",
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "node",
+          "key": "/talker"
+        },
+        "display_name": "/talker",
+        "attributes": {
+          "publisher_count": {
+            "type": "NUMBER",
+            "value": 2
+          },
+          "subscription_count": {
+            "type": "NUMBER",
+            "value": 1
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      },
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "topic_rate",
+          "key": "/scan"
+        },
+        "display_name": "/scan",
+        "attributes": {
+          "observed_hz": {
+            "type": "NUMBER",
+            "value": 10.4
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.topic_rate",
+        "source_evidence_ids": []
+      }
+    ],
+    "namespaces": {
+      "ros": "OBSERVED"
+    },
+    "kinds": {
+      "ros/node": "OBSERVED",
+      "ros/topic_rate": "OBSERVED"
+    },
+    "namespace_reasons": {},
+    "kind_reasons": {}
+  },
+  "profile": {
+    "schema_version": 1,
+    "id": "fixture-profile",
+    "name": "fixture profile",
+    "description": "",
+    "revision": 1,
+    "status": "ACTIVE",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+    "tags": [],
+    "expectations": [
+      {
+        "id": "talker",
+        "description": "",
+        "namespace": "ros",
+        "kind": "node",
+        "selector": {
+          "key": "/talker"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "exists"
+        },
+        "from_baseline": false
+      },
+      {
+        "id": "scan-rate",
+        "description": "",
+        "namespace": "ros",
+        "kind": "topic_rate",
+        "selector": {
+          "key": "/scan"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "min",
+          "field": "observed_hz",
+          "value": 8.0
+        },
+        "from_baseline": false
+      }
+    ]
+  },
+  "expect": {
+    "statuses": {
+      "talker": "SATISFIED",
+      "scan-rate": "SATISFIED"
+    }
+  }
+}

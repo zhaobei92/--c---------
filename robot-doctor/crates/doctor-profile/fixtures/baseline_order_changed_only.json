@@ -1,0 +1,173 @@
+{
+  "kind": "baseline_diff",
+  "description": "Reordering entities and set members must not look like a change.",
+  "baseline": {
+    "id": "fixture-baseline",
+    "device_id": "local",
+    "name": "fixture",
+    "description": "",
+    "tags": [],
+    "created_at": "2026-01-01T00:00:00Z",
+    "sources": [
+      {
+        "run_id": "run-1",
+        "run_started_at": "2026-01-01T00:00:00Z",
+        "mode": "FULL",
+        "overall_health": "HEALTHY",
+        "manually_accepted": false
+      }
+    ],
+    "app_version": "0.1.0",
+    "plugin_versions": {
+      "ros2": "0.1.0"
+    },
+    "namespaces": {
+      "ros": "OBSERVED"
+    },
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "node",
+          "key": "/a"
+        },
+        "display_name": "/a",
+        "attributes": {
+          "peers": {
+            "type": "TEXT_SET",
+            "value": [
+              "x",
+              "y",
+              "z"
+            ]
+          }
+        },
+        "presence_count": 1,
+        "presence_ratio": 1.0,
+        "stability": "STABLE",
+        "numeric_summaries": {},
+        "observed_values": {},
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      },
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "node",
+          "key": "/b"
+        },
+        "display_name": "/b",
+        "attributes": {
+          "peers": {
+            "type": "TEXT_SET",
+            "value": [
+              "p",
+              "q"
+            ]
+          }
+        },
+        "presence_count": 1,
+        "presence_ratio": 1.0,
+        "stability": "STABLE",
+        "numeric_summaries": {},
+        "observed_values": {},
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      },
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "node",
+          "key": "/c"
+        },
+        "display_name": "/c",
+        "attributes": {},
+        "presence_count": 1,
+        "presence_ratio": 1.0,
+        "stability": "STABLE",
+        "numeric_summaries": {},
+        "observed_values": {},
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      }
+    ]
+  },
+  "current": {
+    "run_id": "run-2",
+    "device_id": "local",
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "node",
+          "key": "/c"
+        },
+        "display_name": "/c",
+        "attributes": {},
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      },
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "node",
+          "key": "/b"
+        },
+        "display_name": "/b",
+        "attributes": {
+          "peers": {
+            "type": "TEXT_SET",
+            "value": [
+              "q",
+              "p"
+            ]
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      },
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "node",
+          "key": "/a"
+        },
+        "display_name": "/a",
+        "attributes": {
+          "peers": {
+            "type": "TEXT_SET",
+            "value": [
+              "z",
+              "x",
+              "y"
+            ]
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      }
+    ],
+    "namespaces": {
+      "ros": "OBSERVED"
+    },
+    "kinds": {
+      "ros/node": "OBSERVED"
+    },
+    "namespace_reasons": {},
+    "kind_reasons": {}
+  },
+  "expect": {
+    "compatibility": "COMPATIBLE",
+    "states": {
+      "ros.node:/a": "UNCHANGED",
+      "ros.node:/b": "UNCHANGED",
+      "ros.node:/c": "UNCHANGED"
+    }
+  }
+}

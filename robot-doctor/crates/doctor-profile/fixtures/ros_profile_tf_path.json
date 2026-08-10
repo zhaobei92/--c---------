@@ -1,0 +1,186 @@
+{
+  "kind": "profile_evaluation",
+  "description": "PATH traverses map -> odom -> base_link; DIRECT_EDGE for the same pair does not hold. The two must never be conflated.",
+  "projection": {
+    "run_id": "run-2",
+    "device_id": "local",
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "tf_edge",
+          "key": "map->odom"
+        },
+        "display_name": "map->odom",
+        "attributes": {
+          "from": {
+            "type": "TEXT",
+            "value": "map"
+          },
+          "to": {
+            "type": "TEXT",
+            "value": "odom"
+          },
+          "static": {
+            "type": "BOOL",
+            "value": false
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.tf",
+        "source_evidence_ids": []
+      },
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "tf_edge",
+          "key": "odom->base_link"
+        },
+        "display_name": "odom->base_link",
+        "attributes": {
+          "from": {
+            "type": "TEXT",
+            "value": "odom"
+          },
+          "to": {
+            "type": "TEXT",
+            "value": "base_link"
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.tf",
+        "source_evidence_ids": []
+      },
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "tf_edge",
+          "key": "base_link->laser"
+        },
+        "display_name": "base_link->laser",
+        "attributes": {
+          "from": {
+            "type": "TEXT",
+            "value": "base_link"
+          },
+          "to": {
+            "type": "TEXT",
+            "value": "laser"
+          },
+          "static": {
+            "type": "BOOL",
+            "value": true
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.tf",
+        "source_evidence_ids": []
+      }
+    ],
+    "namespaces": {
+      "ros": "OBSERVED"
+    },
+    "kinds": {
+      "ros/tf_edge": "OBSERVED"
+    },
+    "namespace_reasons": {},
+    "kind_reasons": {}
+  },
+  "profile": {
+    "schema_version": 1,
+    "id": "fixture-profile",
+    "name": "fixture profile",
+    "description": "",
+    "revision": 1,
+    "status": "ACTIVE",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+    "tags": [],
+    "expectations": [
+      {
+        "id": "map-to-base",
+        "description": "",
+        "namespace": "ros",
+        "kind": "tf_edge",
+        "selector": {},
+        "requirement": "required",
+        "constraint": {
+          "operator": "relationship_exists",
+          "from": "map",
+          "to": "base_link",
+          "mode": "path"
+        },
+        "from_baseline": false
+      },
+      {
+        "id": "map-to-base-direct",
+        "description": "",
+        "namespace": "ros",
+        "kind": "tf_edge",
+        "selector": {},
+        "requirement": "required",
+        "constraint": {
+          "operator": "relationship_exists",
+          "from": "map",
+          "to": "base_link",
+          "mode": "direct_edge"
+        },
+        "from_baseline": false
+      },
+      {
+        "id": "map-to-laser",
+        "description": "",
+        "namespace": "ros",
+        "kind": "tf_edge",
+        "selector": {},
+        "requirement": "required",
+        "constraint": {
+          "operator": "relationship_exists",
+          "from": "map",
+          "to": "laser",
+          "mode": "path"
+        },
+        "from_baseline": false
+      },
+      {
+        "id": "map-to-gripper",
+        "description": "",
+        "namespace": "ros",
+        "kind": "tf_edge",
+        "selector": {},
+        "requirement": "required",
+        "constraint": {
+          "operator": "relationship_exists",
+          "from": "map",
+          "to": "gripper",
+          "mode": "path"
+        },
+        "from_baseline": false
+      },
+      {
+        "id": "odom-direct",
+        "description": "",
+        "namespace": "ros",
+        "kind": "tf_edge",
+        "selector": {},
+        "requirement": "required",
+        "constraint": {
+          "operator": "relationship_exists",
+          "from": "map",
+          "to": "odom",
+          "mode": "direct_edge"
+        },
+        "from_baseline": false
+      }
+    ]
+  },
+  "expect": {
+    "statuses": {
+      "map-to-base": "SATISFIED",
+      "map-to-base-direct": "UNSATISFIED",
+      "map-to-laser": "SATISFIED",
+      "map-to-gripper": "UNSATISFIED",
+      "odom-direct": "SATISFIED"
+    }
+  }
+}

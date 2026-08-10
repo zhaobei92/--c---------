@@ -1,0 +1,113 @@
+{
+  "kind": "profile_evaluation",
+  "description": "A required node present, and a required node the run observed to be gone.",
+  "projection": {
+    "run_id": "run-2",
+    "device_id": "local",
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "node",
+          "key": "/smoke_talker"
+        },
+        "display_name": "/smoke_talker",
+        "attributes": {
+          "publisher_count": {
+            "type": "NUMBER",
+            "value": 1
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      },
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "node",
+          "key": "/smoke_listener"
+        },
+        "display_name": "/smoke_listener",
+        "attributes": {
+          "subscription_count": {
+            "type": "NUMBER",
+            "value": 1
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      }
+    ],
+    "namespaces": {
+      "ros": "OBSERVED"
+    },
+    "kinds": {
+      "ros/node": "OBSERVED"
+    },
+    "namespace_reasons": {},
+    "kind_reasons": {}
+  },
+  "profile": {
+    "schema_version": 1,
+    "id": "fixture-profile",
+    "name": "fixture profile",
+    "description": "",
+    "revision": 1,
+    "status": "ACTIVE",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+    "tags": [],
+    "expectations": [
+      {
+        "id": "talker",
+        "description": "",
+        "namespace": "ros",
+        "kind": "node",
+        "selector": {
+          "key": "/smoke_talker"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "exists"
+        },
+        "from_baseline": false
+      },
+      {
+        "id": "planner",
+        "description": "",
+        "namespace": "ros",
+        "kind": "node",
+        "selector": {
+          "key": "/planner"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "exists"
+        },
+        "from_baseline": false
+      },
+      {
+        "id": "node-count",
+        "description": "",
+        "namespace": "ros",
+        "kind": "node",
+        "selector": {},
+        "requirement": "required",
+        "constraint": {
+          "operator": "count_min",
+          "value": 2
+        },
+        "from_baseline": false
+      }
+    ]
+  },
+  "expect": {
+    "statuses": {
+      "talker": "SATISFIED",
+      "planner": "UNSATISFIED",
+      "node-count": "SATISFIED"
+    }
+  }
+}

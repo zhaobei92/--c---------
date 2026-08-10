@@ -25,10 +25,11 @@ pub const NAMESPACE: &str = "ros";
 /// comparable, instead of forcing every ROS expectation to UNKNOWN.
 pub fn kinds_for(check_id: &str) -> &'static [&'static str] {
     match check_id {
-        "ros.env" => &["runtime"],
+        "ros.environment" => &["runtime"],
         "ros.graph" => &["node", "topic", "service", "action"],
         "ros.diagnostics" => &["diagnostic_component"],
-        "ros.topic_rate" | "ros.topic_age" => &["topic_rate"],
+        "ros.topic_rate" => &["topic_rate"],
+        "ros.topic_age" => &["topic_age"],
         "ros.tf" => &["tf_edge"],
         "ros.lifecycle" => &["lifecycle_node"],
         // ros.clock and ros.qos observe values, not comparable entities.
@@ -251,15 +252,15 @@ pub fn lifecycle_entities(
 
 /// Project a bounded topic sample. Numeric values are preserved for
 /// comparison; whether a delta matters is a Profile decision.
-pub fn sample_entity(ctx: &CheckContext, sample: &RosTopicSample) -> ComparisonEntity {
+///
+/// `kind` separates the rate check from the age check. They sample the
+/// same topics but measure different things, so sharing one entity kind
+/// would make two checks claim the same identity and let whichever
+/// finished last silently overwrite the other.
+pub fn sample_entity(ctx: &CheckContext, kind: &str, sample: &RosTopicSample) -> ComparisonEntity {
     let evidence = ctx.evidence_ids();
     let mut entity = ctx
-        .entity(
-            NAMESPACE,
-            "topic_rate",
-            sample.topic.clone(),
-            sample.topic.clone(),
-        )
+        .entity(NAMESPACE, kind, sample.topic.clone(), sample.topic.clone())
         .with("topic", AttributeValue::text(sample.topic.clone()))
         .with(
             "sample_count",

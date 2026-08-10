@@ -1,0 +1,94 @@
+{
+  "kind": "baseline_diff",
+  "description": "Same entity, different values: CHANGED with per-attribute deltas.",
+  "baseline": {
+    "id": "fixture-baseline",
+    "device_id": "local",
+    "name": "fixture",
+    "description": "",
+    "tags": [],
+    "created_at": "2026-01-01T00:00:00Z",
+    "sources": [
+      {
+        "run_id": "run-1",
+        "run_started_at": "2026-01-01T00:00:00Z",
+        "mode": "FULL",
+        "overall_health": "HEALTHY",
+        "manually_accepted": false
+      }
+    ],
+    "app_version": "0.1.0",
+    "plugin_versions": {
+      "ros2": "0.1.0"
+    },
+    "namespaces": {
+      "ros": "OBSERVED"
+    },
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "topic_rate",
+          "key": "/scan"
+        },
+        "display_name": "/scan",
+        "attributes": {
+          "observed_hz": {
+            "type": "NUMBER",
+            "value": 10.0
+          }
+        },
+        "presence_count": 1,
+        "presence_ratio": 1.0,
+        "stability": "STABLE",
+        "numeric_summaries": {},
+        "observed_values": {},
+        "source_plugin": "ros2",
+        "source_check": "ros.topic_rate",
+        "source_evidence_ids": []
+      }
+    ]
+  },
+  "current": {
+    "run_id": "run-2",
+    "device_id": "local",
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "topic_rate",
+          "key": "/scan"
+        },
+        "display_name": "/scan",
+        "attributes": {
+          "observed_hz": {
+            "type": "NUMBER",
+            "value": 2.0
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.topic_rate",
+        "source_evidence_ids": []
+      }
+    ],
+    "namespaces": {
+      "ros": "OBSERVED"
+    },
+    "kinds": {
+      "ros/topic_rate": "OBSERVED"
+    },
+    "namespace_reasons": {},
+    "kind_reasons": {}
+  },
+  "expect": {
+    "compatibility": "COMPATIBLE",
+    "states": {
+      "ros.topic_rate:/scan": "CHANGED"
+    },
+    "attribute_deltas": {
+      "ros.topic_rate:/scan": {
+        "observed_hz": -8.0
+      }
+    }
+  }
+}

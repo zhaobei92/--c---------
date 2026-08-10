@@ -1,0 +1,168 @@
+{
+  "kind": "baseline_diff",
+  "description": "A run that matches the baseline exactly reports only UNCHANGED.",
+  "baseline": {
+    "id": "fixture-baseline",
+    "device_id": "local",
+    "name": "fixture",
+    "description": "",
+    "tags": [],
+    "created_at": "2026-01-01T00:00:00Z",
+    "sources": [
+      {
+        "run_id": "run-1",
+        "run_started_at": "2026-01-01T00:00:00Z",
+        "mode": "FULL",
+        "overall_health": "HEALTHY",
+        "manually_accepted": false
+      }
+    ],
+    "app_version": "0.1.0",
+    "plugin_versions": {
+      "ros2": "0.1.0"
+    },
+    "namespaces": {
+      "ros": "OBSERVED"
+    },
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "node",
+          "key": "/talker"
+        },
+        "display_name": "/talker",
+        "attributes": {
+          "publisher_count": {
+            "type": "NUMBER",
+            "value": 2
+          },
+          "subscription_count": {
+            "type": "NUMBER",
+            "value": 1
+          }
+        },
+        "presence_count": 1,
+        "presence_ratio": 1.0,
+        "stability": "STABLE",
+        "numeric_summaries": {},
+        "observed_values": {},
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      },
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "topic",
+          "key": "/scan|sensor_msgs/msg/LaserScan"
+        },
+        "display_name": "/scan|sensor_msgs/msg/LaserScan",
+        "attributes": {
+          "name": {
+            "type": "TEXT",
+            "value": "/scan"
+          },
+          "type": {
+            "type": "TEXT",
+            "value": "sensor_msgs/msg/LaserScan"
+          },
+          "publisher_nodes": {
+            "type": "TEXT_SET",
+            "value": [
+              "/lidar",
+              "/relay"
+            ]
+          },
+          "publisher_count": {
+            "type": "NUMBER",
+            "value": 2
+          }
+        },
+        "presence_count": 1,
+        "presence_ratio": 1.0,
+        "stability": "STABLE",
+        "numeric_summaries": {},
+        "observed_values": {},
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      }
+    ]
+  },
+  "current": {
+    "run_id": "run-2",
+    "device_id": "local",
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "node",
+          "key": "/talker"
+        },
+        "display_name": "/talker",
+        "attributes": {
+          "publisher_count": {
+            "type": "NUMBER",
+            "value": 2
+          },
+          "subscription_count": {
+            "type": "NUMBER",
+            "value": 1
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      },
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "topic",
+          "key": "/scan|sensor_msgs/msg/LaserScan"
+        },
+        "display_name": "/scan|sensor_msgs/msg/LaserScan",
+        "attributes": {
+          "name": {
+            "type": "TEXT",
+            "value": "/scan"
+          },
+          "type": {
+            "type": "TEXT",
+            "value": "sensor_msgs/msg/LaserScan"
+          },
+          "publisher_nodes": {
+            "type": "TEXT_SET",
+            "value": [
+              "/lidar",
+              "/relay"
+            ]
+          },
+          "publisher_count": {
+            "type": "NUMBER",
+            "value": 2
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      }
+    ],
+    "namespaces": {
+      "ros": "OBSERVED"
+    },
+    "kinds": {
+      "ros/node": "OBSERVED",
+      "ros/topic": "OBSERVED"
+    },
+    "namespace_reasons": {},
+    "kind_reasons": {}
+  },
+  "expect": {
+    "compatibility": "COMPATIBLE",
+    "states": {
+      "ros.node:/talker": "UNCHANGED",
+      "ros.topic:/scan|sensor_msgs/msg/LaserScan": "UNCHANGED"
+    }
+  }
+}

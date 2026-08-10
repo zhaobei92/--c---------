@@ -1,0 +1,131 @@
+{
+  "kind": "profile_evaluation",
+  "description": "Rate expectations over a sampled topic, including a prefix selector.",
+  "projection": {
+    "run_id": "run-2",
+    "device_id": "local",
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "topic_rate",
+          "key": "/scan"
+        },
+        "display_name": "/scan",
+        "attributes": {
+          "observed_hz": {
+            "type": "NUMBER",
+            "value": 2.0
+          },
+          "sample_count": {
+            "type": "NUMBER",
+            "value": 4
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.topic_rate",
+        "source_evidence_ids": []
+      },
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "topic_rate",
+          "key": "/camera/image"
+        },
+        "display_name": "/camera/image",
+        "attributes": {
+          "observed_hz": {
+            "type": "NUMBER",
+            "value": 30.0
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.topic_rate",
+        "source_evidence_ids": []
+      },
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "topic_rate",
+          "key": "/camera/depth"
+        },
+        "display_name": "/camera/depth",
+        "attributes": {
+          "observed_hz": {
+            "type": "NUMBER",
+            "value": 4.0
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.topic_rate",
+        "source_evidence_ids": []
+      }
+    ],
+    "namespaces": {
+      "ros": "OBSERVED"
+    },
+    "kinds": {
+      "ros/topic_rate": "OBSERVED"
+    },
+    "namespace_reasons": {},
+    "kind_reasons": {}
+  },
+  "profile": {
+    "schema_version": 1,
+    "id": "fixture-profile",
+    "name": "fixture profile",
+    "description": "",
+    "revision": 1,
+    "status": "ACTIVE",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+    "tags": [],
+    "expectations": [
+      {
+        "id": "scan-rate",
+        "description": "",
+        "namespace": "ros",
+        "kind": "topic_rate",
+        "selector": {
+          "key": "/scan"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "min",
+          "field": "observed_hz",
+          "value": 8.0
+        },
+        "from_baseline": false
+      },
+      {
+        "id": "camera-rate",
+        "description": "",
+        "namespace": "ros",
+        "kind": "topic_rate",
+        "selector": {
+          "key_prefix": "/camera/"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "min",
+          "field": "observed_hz",
+          "value": 10.0
+        },
+        "from_baseline": false
+      }
+    ]
+  },
+  "expect": {
+    "statuses": {
+      "scan-rate": "UNSATISFIED",
+      "camera-rate": "UNSATISFIED"
+    },
+    "actual_numbers": {
+      "scan-rate": 2.0,
+      "camera-rate": 4.0
+    },
+    "reason_contains": {
+      "camera-rate": "/camera/depth"
+    }
+  }
+}

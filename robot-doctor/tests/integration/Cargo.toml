@@ -14,6 +14,10 @@ path = "src/stub_plugin.rs"
 name = "smoke-ros"
 path = "src/bin/smoke_ros.rs"
 
+[[bin]]
+name = "smoke-c2"
+path = "src/bin/smoke_c2.rs"
+
 [lib]
 name = "integration_tests"
 path = "src/lib.rs"

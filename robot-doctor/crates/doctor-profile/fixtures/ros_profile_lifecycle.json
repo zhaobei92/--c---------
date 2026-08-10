@@ -1,0 +1,136 @@
+{
+  "kind": "profile_evaluation",
+  "description": "Lifecycle node state pinned by equality; an unmanaged node is absent.",
+  "projection": {
+    "run_id": "run-2",
+    "device_id": "local",
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "lifecycle_node",
+          "key": "/lidar_driver"
+        },
+        "display_name": "/lidar_driver",
+        "attributes": {
+          "state_label": {
+            "type": "TEXT",
+            "value": "active"
+          },
+          "state_id": {
+            "type": "NUMBER",
+            "value": 3
+          },
+          "services_available": {
+            "type": "BOOL",
+            "value": true
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.lifecycle",
+        "source_evidence_ids": []
+      },
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "lifecycle_node",
+          "key": "/camera_driver"
+        },
+        "display_name": "/camera_driver",
+        "attributes": {
+          "state_label": {
+            "type": "TEXT",
+            "value": "inactive"
+          },
+          "state_id": {
+            "type": "NUMBER",
+            "value": 2
+          },
+          "services_available": {
+            "type": "BOOL",
+            "value": true
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.lifecycle",
+        "source_evidence_ids": []
+      }
+    ],
+    "namespaces": {
+      "ros": "OBSERVED"
+    },
+    "kinds": {
+      "ros/lifecycle_node": "OBSERVED"
+    },
+    "namespace_reasons": {},
+    "kind_reasons": {}
+  },
+  "profile": {
+    "schema_version": 1,
+    "id": "fixture-profile",
+    "name": "fixture profile",
+    "description": "",
+    "revision": 1,
+    "status": "ACTIVE",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+    "tags": [],
+    "expectations": [
+      {
+        "id": "lidar-active",
+        "description": "",
+        "namespace": "ros",
+        "kind": "lifecycle_node",
+        "selector": {
+          "key": "/lidar_driver"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "equals",
+          "field": "state_label",
+          "value": "active"
+        },
+        "from_baseline": false
+      },
+      {
+        "id": "camera-active",
+        "description": "",
+        "namespace": "ros",
+        "kind": "lifecycle_node",
+        "selector": {
+          "key": "/camera_driver"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "equals",
+          "field": "state_label",
+          "value": "active"
+        },
+        "from_baseline": false
+      },
+      {
+        "id": "arm-active",
+        "description": "",
+        "namespace": "ros",
+        "kind": "lifecycle_node",
+        "selector": {
+          "key": "/arm_driver"
+        },
+        "requirement": "optional",
+        "constraint": {
+          "operator": "equals",
+          "field": "state_label",
+          "value": "active"
+        },
+        "from_baseline": false
+      }
+    ]
+  },
+  "expect": {
+    "statuses": {
+      "lidar-active": "SATISFIED",
+      "camera-active": "UNSATISFIED",
+      "arm-active": "NOT_APPLICABLE"
+    }
+  }
+}

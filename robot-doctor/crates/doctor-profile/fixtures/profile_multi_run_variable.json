@@ -1,0 +1,235 @@
+{
+  "kind": "baseline_capture",
+  "description": "An entity in some runs is VARIABLE; one seen exactly once across several runs is a TRANSIENT_CANDIDATE. Neither may be drafted as a pre-selected requirement, and a rate seen across runs yields a range rather than a single-sample threshold.",
+  "sources": [
+    {
+      "source": {
+        "run_id": "run-1",
+        "run_started_at": "2026-01-01T00:00:00Z",
+        "mode": "FULL",
+        "overall_health": "HEALTHY",
+        "manually_accepted": false
+      },
+      "projection": {
+        "run_id": "run-2",
+        "device_id": "local",
+        "entities": [
+          {
+            "key": {
+              "namespace": "ros",
+              "kind": "node",
+              "key": "/talker"
+            },
+            "display_name": "/talker",
+            "attributes": {},
+            "source_plugin": "ros2",
+            "source_check": "ros.graph",
+            "source_evidence_ids": []
+          },
+          {
+            "key": {
+              "namespace": "ros",
+              "kind": "node",
+              "key": "/flaky"
+            },
+            "display_name": "/flaky",
+            "attributes": {},
+            "source_plugin": "ros2",
+            "source_check": "ros.graph",
+            "source_evidence_ids": []
+          },
+          {
+            "key": {
+              "namespace": "ros",
+              "kind": "node",
+              "key": "/once"
+            },
+            "display_name": "/once",
+            "attributes": {},
+            "source_plugin": "ros2",
+            "source_check": "ros.graph",
+            "source_evidence_ids": []
+          },
+          {
+            "key": {
+              "namespace": "ros",
+              "kind": "topic_rate",
+              "key": "/scan"
+            },
+            "display_name": "/scan",
+            "attributes": {
+              "observed_hz": {
+                "type": "NUMBER",
+                "value": 9.2
+              }
+            },
+            "source_plugin": "ros2",
+            "source_check": "ros.topic_rate",
+            "source_evidence_ids": []
+          }
+        ],
+        "namespaces": {
+          "ros": "OBSERVED"
+        },
+        "kinds": {
+          "ros/node": "OBSERVED",
+          "ros/topic_rate": "OBSERVED"
+        },
+        "namespace_reasons": {},
+        "kind_reasons": {}
+      }
+    },
+    {
+      "source": {
+        "run_id": "run-2",
+        "run_started_at": "2026-01-01T00:00:00Z",
+        "mode": "FULL",
+        "overall_health": "HEALTHY",
+        "manually_accepted": false
+      },
+      "projection": {
+        "run_id": "run-2",
+        "device_id": "local",
+        "entities": [
+          {
+            "key": {
+              "namespace": "ros",
+              "kind": "node",
+              "key": "/talker"
+            },
+            "display_name": "/talker",
+            "attributes": {},
+            "source_plugin": "ros2",
+            "source_check": "ros.graph",
+            "source_evidence_ids": []
+          },
+          {
+            "key": {
+              "namespace": "ros",
+              "kind": "node",
+              "key": "/flaky"
+            },
+            "display_name": "/flaky",
+            "attributes": {},
+            "source_plugin": "ros2",
+            "source_check": "ros.graph",
+            "source_evidence_ids": []
+          },
+          {
+            "key": {
+              "namespace": "ros",
+              "kind": "topic_rate",
+              "key": "/scan"
+            },
+            "display_name": "/scan",
+            "attributes": {
+              "observed_hz": {
+                "type": "NUMBER",
+                "value": 10.4
+              }
+            },
+            "source_plugin": "ros2",
+            "source_check": "ros.topic_rate",
+            "source_evidence_ids": []
+          }
+        ],
+        "namespaces": {
+          "ros": "OBSERVED"
+        },
+        "kinds": {
+          "ros/node": "OBSERVED",
+          "ros/topic_rate": "OBSERVED"
+        },
+        "namespace_reasons": {},
+        "kind_reasons": {}
+      }
+    },
+    {
+      "source": {
+        "run_id": "run-3",
+        "run_started_at": "2026-01-01T00:00:00Z",
+        "mode": "FULL",
+        "overall_health": "HEALTHY",
+        "manually_accepted": false
+      },
+      "projection": {
+        "run_id": "run-2",
+        "device_id": "local",
+        "entities": [
+          {
+            "key": {
+              "namespace": "ros",
+              "kind": "node",
+              "key": "/talker"
+            },
+            "display_name": "/talker",
+            "attributes": {},
+            "source_plugin": "ros2",
+            "source_check": "ros.graph",
+            "source_evidence_ids": []
+          },
+          {
+            "key": {
+              "namespace": "ros",
+              "kind": "topic_rate",
+              "key": "/scan"
+            },
+            "display_name": "/scan",
+            "attributes": {
+              "observed_hz": {
+                "type": "NUMBER",
+                "value": 9.8
+              }
+            },
+            "source_plugin": "ros2",
+            "source_check": "ros.topic_rate",
+            "source_evidence_ids": []
+          }
+        ],
+        "namespaces": {
+          "ros": "OBSERVED"
+        },
+        "kinds": {
+          "ros/node": "OBSERVED",
+          "ros/topic_rate": "OBSERVED"
+        },
+        "namespace_reasons": {},
+        "kind_reasons": {}
+      }
+    }
+  ],
+  "expect": {
+    "entities": {
+      "ros.node:/talker": {
+        "stability": "STABLE",
+        "presence_count": 3,
+        "presence_ratio": 1.0
+      },
+      "ros.node:/flaky": {
+        "stability": "VARIABLE",
+        "presence_count": 2
+      },
+      "ros.node:/once": {
+        "stability": "TRANSIENT_CANDIDATE",
+        "presence_count": 1
+      }
+    },
+    "draft": {
+      "ros.node:/talker": {
+        "requirement": "required",
+        "selected_by_default": true
+      },
+      "ros.node:/flaky": {
+        "requirement": "optional",
+        "selected_by_default": false
+      },
+      "ros.node:/once": {
+        "requirement": "optional",
+        "selected_by_default": false
+      }
+    },
+    "suggested_thresholds": {
+      "ros.topic_rate:/scan::observed_hz_min": 9.2
+    }
+  }
+}

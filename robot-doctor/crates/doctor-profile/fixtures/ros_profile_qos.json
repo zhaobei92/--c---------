@@ -1,0 +1,140 @@
+{
+  "kind": "profile_evaluation",
+  "description": "QoS settings compared as plain attributes of the topic entity.",
+  "projection": {
+    "run_id": "run-2",
+    "device_id": "local",
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "topic",
+          "key": "/scan|sensor_msgs/msg/LaserScan"
+        },
+        "display_name": "/scan|sensor_msgs/msg/LaserScan",
+        "attributes": {
+          "name": {
+            "type": "TEXT",
+            "value": "/scan"
+          },
+          "type": {
+            "type": "TEXT",
+            "value": "sensor_msgs/msg/LaserScan"
+          },
+          "publisher_reliability": {
+            "type": "TEXT",
+            "value": "BESTEFFORT"
+          },
+          "publisher_durability": {
+            "type": "TEXT",
+            "value": "VOLATILE"
+          },
+          "publisher_depth": {
+            "type": "NUMBER",
+            "value": 5
+          },
+          "subscriber_reliability": {
+            "type": "TEXT",
+            "value": "RELIABLE"
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      }
+    ],
+    "namespaces": {
+      "ros": "OBSERVED"
+    },
+    "kinds": {
+      "ros/topic": "OBSERVED"
+    },
+    "namespace_reasons": {},
+    "kind_reasons": {}
+  },
+  "profile": {
+    "schema_version": 1,
+    "id": "fixture-profile",
+    "name": "fixture profile",
+    "description": "",
+    "revision": 1,
+    "status": "ACTIVE",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+    "tags": [],
+    "expectations": [
+      {
+        "id": "scan-reliable",
+        "description": "",
+        "namespace": "ros",
+        "kind": "topic",
+        "selector": {
+          "key": "/scan|sensor_msgs/msg/LaserScan"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "equals",
+          "field": "publisher_reliability",
+          "value": "RELIABLE"
+        },
+        "from_baseline": false
+      },
+      {
+        "id": "scan-volatile",
+        "description": "",
+        "namespace": "ros",
+        "kind": "topic",
+        "selector": {
+          "key": "/scan|sensor_msgs/msg/LaserScan"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "equals",
+          "field": "publisher_durability",
+          "value": "VOLATILE"
+        },
+        "from_baseline": false
+      },
+      {
+        "id": "scan-depth",
+        "description": "",
+        "namespace": "ros",
+        "kind": "topic",
+        "selector": {
+          "key": "/scan|sensor_msgs/msg/LaserScan"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "min",
+          "field": "publisher_depth",
+          "value": 10.0
+        },
+        "from_baseline": false
+      },
+      {
+        "id": "scan-type",
+        "description": "",
+        "namespace": "ros",
+        "kind": "topic",
+        "selector": {
+          "key": "/scan|sensor_msgs/msg/LaserScan"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "contains",
+          "field": "type",
+          "value": "LaserScan"
+        },
+        "from_baseline": false
+      }
+    ]
+  },
+  "expect": {
+    "statuses": {
+      "scan-reliable": "UNSATISFIED",
+      "scan-volatile": "SATISFIED",
+      "scan-depth": "UNSATISFIED",
+      "scan-type": "SATISFIED"
+    }
+  }
+}

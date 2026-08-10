@@ -1,0 +1,102 @@
+{
+  "kind": "profile_evaluation",
+  "description": "Three ways to be undecidable: the kind could not be observed, no plugin reports it at all, and the entity exists but the attribute was never projected. None of them may be reported as UNSATISFIED.",
+  "projection": {
+    "run_id": "run-2",
+    "device_id": "local",
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "topic_rate",
+          "key": "/scan"
+        },
+        "display_name": "/scan",
+        "attributes": {},
+        "source_plugin": "ros2",
+        "source_check": "ros.topic_rate",
+        "source_evidence_ids": []
+      }
+    ],
+    "namespaces": {
+      "ros": "OBSERVED"
+    },
+    "kinds": {
+      "ros/node": "NOT_OBSERVED",
+      "ros/topic_rate": "OBSERVED"
+    },
+    "namespace_reasons": {},
+    "kind_reasons": {
+      "ros/node": "graph query timed out"
+    }
+  },
+  "profile": {
+    "schema_version": 1,
+    "id": "fixture-profile",
+    "name": "fixture profile",
+    "description": "",
+    "revision": 1,
+    "status": "ACTIVE",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+    "tags": [],
+    "expectations": [
+      {
+        "id": "blind-kind",
+        "description": "",
+        "namespace": "ros",
+        "kind": "node",
+        "selector": {
+          "key": "/talker"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "exists"
+        },
+        "from_baseline": false
+      },
+      {
+        "id": "unreported-kind",
+        "description": "",
+        "namespace": "ros",
+        "kind": "service",
+        "selector": {
+          "key": "/reset"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "exists"
+        },
+        "from_baseline": false
+      },
+      {
+        "id": "missing-attribute",
+        "description": "",
+        "namespace": "ros",
+        "kind": "topic_rate",
+        "selector": {
+          "key": "/scan"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "min",
+          "field": "observed_hz",
+          "value": 8.0
+        },
+        "from_baseline": false
+      }
+    ]
+  },
+  "expect": {
+    "statuses": {
+      "blind-kind": "UNKNOWN",
+      "unreported-kind": "UNKNOWN",
+      "missing-attribute": "UNKNOWN"
+    },
+    "reason_contains": {
+      "blind-kind": "graph query timed out",
+      "unreported-kind": "no plugin",
+      "missing-attribute": "was not observed"
+    }
+  }
+}

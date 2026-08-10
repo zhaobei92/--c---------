@@ -567,7 +567,7 @@ fn check_environment(ctx: &mut CheckContext, runtime: &ActiveRuntime) -> RosResu
         let entity = projection::runtime_entity(ctx, info);
         ctx.observed_kinds(
             projection::NAMESPACE,
-            projection::kinds_for("ros.env"),
+            projection::kinds_for("ros.environment"),
             vec![entity],
         );
         Ok(CheckStatus::Passed)
@@ -922,13 +922,19 @@ fn check_topic_rate(
         }
     }
     if successes > 0 {
+        let check_id = if age_focus {
+            "ros.topic_age"
+        } else {
+            "ros.topic_rate"
+        };
+        let kind = projection::kinds_for(check_id)[0];
         let entities = sampled
             .iter()
-            .map(|sample| projection::sample_entity(ctx, sample))
+            .map(|sample| projection::sample_entity(ctx, kind, sample))
             .collect();
         ctx.observed_kinds(
             projection::NAMESPACE,
-            projection::kinds_for("ros.topic_rate"),
+            projection::kinds_for(check_id),
             entities,
         );
     }

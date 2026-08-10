@@ -1,0 +1,101 @@
+{
+  "kind": "profile_evaluation",
+  "description": "Revision 1 required 8 Hz and passes; revision 2 requires 9 Hz and does not. Which revision evaluated a run is therefore load-bearing and must be pinned.",
+  "projection": {
+    "run_id": "run-2",
+    "device_id": "local",
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "topic_rate",
+          "key": "/scan"
+        },
+        "display_name": "/scan",
+        "attributes": {
+          "observed_hz": {
+            "type": "NUMBER",
+            "value": 8.5
+          }
+        },
+        "source_plugin": "ros2",
+        "source_check": "ros.topic_rate",
+        "source_evidence_ids": []
+      }
+    ],
+    "namespaces": {
+      "ros": "OBSERVED"
+    },
+    "kinds": {
+      "ros/topic_rate": "OBSERVED"
+    },
+    "namespace_reasons": {},
+    "kind_reasons": {}
+  },
+  "profile": {
+    "schema_version": 1,
+    "id": "fixture-profile",
+    "name": "fixture profile",
+    "description": "",
+    "revision": 1,
+    "status": "ACTIVE",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+    "tags": [],
+    "expectations": [
+      {
+        "id": "scan-rate",
+        "description": "",
+        "namespace": "ros",
+        "kind": "topic_rate",
+        "selector": {
+          "key": "/scan"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "min",
+          "field": "observed_hz",
+          "value": 8.0
+        },
+        "from_baseline": false
+      }
+    ]
+  },
+  "profile_next": {
+    "schema_version": 1,
+    "id": "fixture-profile",
+    "name": "fixture profile",
+    "description": "",
+    "revision": 2,
+    "status": "ACTIVE",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+    "tags": [],
+    "expectations": [
+      {
+        "id": "scan-rate",
+        "description": "",
+        "namespace": "ros",
+        "kind": "topic_rate",
+        "selector": {
+          "key": "/scan"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "min",
+          "field": "observed_hz",
+          "value": 9.0
+        },
+        "from_baseline": false
+      }
+    ]
+  },
+  "expect": {
+    "statuses": {
+      "scan-rate": "SATISFIED"
+    },
+    "next_statuses": {
+      "scan-rate": "UNSATISFIED"
+    }
+  }
+}

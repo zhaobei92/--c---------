@@ -54,7 +54,10 @@ pub fn read_entities(
         "SELECT namespace, kind, entity_key, display_name, attributes,
                 source_plugin, source_check, evidence_ids
          FROM run_entities WHERE {column} = ?1
-         ORDER BY namespace, kind, entity_key"
+         -- source_check breaks ties deterministically: if two checks ever
+         -- claim the same entity identity again, the winner must not
+         -- depend on SQLite's unspecified order for equal sort keys.
+         ORDER BY namespace, kind, entity_key, source_check"
     );
     let mut stmt = conn.prepare(&sql)?;
     let rows = stmt

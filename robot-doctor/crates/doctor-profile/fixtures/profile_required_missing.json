@@ -1,0 +1,65 @@
+{
+  "kind": "profile_evaluation",
+  "description": "The kind was observed and the required subject is genuinely absent.",
+  "projection": {
+    "run_id": "run-2",
+    "device_id": "local",
+    "entities": [
+      {
+        "key": {
+          "namespace": "ros",
+          "kind": "node",
+          "key": "/listener"
+        },
+        "display_name": "/listener",
+        "attributes": {},
+        "source_plugin": "ros2",
+        "source_check": "ros.graph",
+        "source_evidence_ids": []
+      }
+    ],
+    "namespaces": {
+      "ros": "OBSERVED"
+    },
+    "kinds": {
+      "ros/node": "OBSERVED"
+    },
+    "namespace_reasons": {},
+    "kind_reasons": {}
+  },
+  "profile": {
+    "schema_version": 1,
+    "id": "fixture-profile",
+    "name": "fixture profile",
+    "description": "",
+    "revision": 1,
+    "status": "ACTIVE",
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z",
+    "tags": [],
+    "expectations": [
+      {
+        "id": "talker",
+        "description": "",
+        "namespace": "ros",
+        "kind": "node",
+        "selector": {
+          "key": "/talker"
+        },
+        "requirement": "required",
+        "constraint": {
+          "operator": "exists"
+        },
+        "from_baseline": false
+      }
+    ]
+  },
+  "expect": {
+    "statuses": {
+      "talker": "UNSATISFIED"
+    },
+    "reason_contains": {
+      "talker": "did observe"
+    }
+  }
+}

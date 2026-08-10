@@ -8,7 +8,8 @@ use doctor_domain::baseline::EntityDiffState;
 use doctor_domain::comparison::NamespaceAvailability;
 use doctor_domain::evaluation::ExpectationStatus;
 use doctor_domain::profile::{
-    Constraint, Expectation, Profile, ProfileStatus, Requirement, Selector, PROFILE_SCHEMA_VERSION,
+    Constraint, Expectation, Profile, ProfileStatus, RelationshipMode, Requirement, Selector,
+    PROFILE_SCHEMA_VERSION,
 };
 use doctor_domain::{DeviceId, DiagnosticMode, ProfileId, RunId};
 use doctor_storage::Storage;
@@ -477,6 +478,226 @@ async fn drafting_from_a_baseline_suggests_without_committing() {
         .await
         .unwrap()
         .is_none());
+
+    engine.shutdown().await;
+}
+
+#[tokio::test]
+async fn baseline_survives_deletion_of_the_run_it_came_from() {
+    let engine = engine_with_storage("survives").await;
+    let (first, _) = run_all_events(&engine, DiagnosticMode::Full).await;
+
+    let baseline = c2::capture_baseline(
+        &engine,
+        "known good".into(),
+        String::new(),
+        vec![first.clone()],
+        false,
+    )
+    .await
+    .unwrap();
+    assert!(!baseline.entities.is_empty());
+
+    // The originating run is history and may be pruned. A baseline stores
+    // its own immutable projection, so deleting the run must not damage
+    // it — only its provenance becomes dangling.
+    let storage = engine.storage().expect("storage configured");
+    assert!(storage.delete_run(&first).await.unwrap());
+    assert!(storage.get_run(&first).await.unwrap().is_none());
+
+    let reloaded = c2::get_baseline(&engine, &baseline.id).await.unwrap();
+    assert_eq!(
+        reloaded, baseline,
+        "baseline changed when its source run was deleted"
+    );
+    assert_eq!(reloaded.sources[0].run_id, first, "provenance is retained");
+
+    // And it is still usable for comparison afterwards.
+    let (second, _) = run_all_events(&engine, DiagnosticMode::Full).await;
+    let diff = c2::diff_run(&engine, &baseline.id, &second).await.unwrap();
+    assert!(diff.count(EntityDiffState::Unchanged) > 0);
+
+    engine.shutdown().await;
+}
+
+#[tokio::test]
+async fn a_new_run_never_mutates_a_captured_baseline() {
+    let engine = engine_with_storage("immutable").await;
+    let (first, _) = run_all_events(&engine, DiagnosticMode::Full).await;
+    let baseline = c2::capture_baseline(
+        &engine,
+        "immutable".into(),
+        String::new(),
+        vec![first],
+        false,
+    )
+    .await
+    .unwrap();
+
+    for _ in 0..2 {
+        run_all_events(&engine, DiagnosticMode::Full).await;
+    }
+    let reloaded = c2::get_baseline(&engine, &baseline.id).await.unwrap();
+    assert_eq!(reloaded, baseline);
+    assert_eq!(
+        reloaded.source_count(),
+        1,
+        "later runs do not join a baseline"
+    );
+
+    engine.shutdown().await;
+}
+
+#[tokio::test]
+async fn a_stored_evaluation_keeps_the_revision_it_was_computed_with() {
+    let engine = engine_with_storage("history").await;
+
+    // Revision 1 demands one widget; revision 2 demands three. The same
+    // run therefore evaluates differently under each, which is what makes
+    // pinning the revision meaningful rather than cosmetic.
+    let lenient = profile_with(
+        "pinned",
+        vec![expectation(
+            "widget-count",
+            "widget",
+            Constraint::CountMin { value: 1 },
+            Requirement::Required,
+        )],
+    );
+    let strict = profile_with(
+        "pinned",
+        vec![expectation(
+            "widget-count",
+            "widget",
+            Constraint::CountMin { value: 3 },
+            Requirement::Required,
+        )],
+    );
+
+    let v1 = c2::save_profile(&engine, lenient).await.unwrap();
+    c2::assign_profile(
+        &engine,
+        DeviceId::from("local"),
+        v1.id.clone(),
+        v1.revision,
+        None,
+    )
+    .await
+    .unwrap();
+
+    let (run_id, _) = run_all_events(&engine, DiagnosticMode::Full).await;
+    let original = c2::evaluation_for_run(&engine, run_id.clone())
+        .await
+        .unwrap()
+        .expect("evaluated under revision 1");
+    assert_eq!(original.profile_revision, 1);
+    assert_eq!(original.results[0].status, ExpectationStatus::Satisfied);
+
+    // Tighten the profile and activate the new revision.
+    let v2 = c2::save_profile(&engine, strict).await.unwrap();
+    assert_eq!(v2.revision, 2);
+    c2::assign_profile(
+        &engine,
+        DeviceId::from("local"),
+        v2.id.clone(),
+        v2.revision,
+        None,
+    )
+    .await
+    .unwrap();
+
+    // The historical evaluation is untouched: same revision, same verdict.
+    let reloaded = c2::evaluation_for_run(&engine, run_id.clone())
+        .await
+        .unwrap()
+        .expect("evaluation still present");
+    assert_eq!(reloaded.profile_revision, 1);
+    assert_eq!(reloaded.id, original.id);
+    assert_eq!(reloaded.results, original.results);
+
+    // A *new* run uses revision 2, and reaches the opposite conclusion —
+    // proving the two revisions genuinely disagree about this device.
+    let (later_run, _) = run_all_events(&engine, DiagnosticMode::Full).await;
+    let later = c2::evaluation_for_run(&engine, later_run)
+        .await
+        .unwrap()
+        .expect("evaluated under revision 2");
+    assert_eq!(later.profile_revision, 2);
+    assert_eq!(later.results[0].status, ExpectationStatus::Unsatisfied);
+
+    engine.shutdown().await;
+}
+
+#[tokio::test]
+async fn not_exists_and_relationship_expectations_evaluate_generically() {
+    let engine = engine_with_storage("operators").await;
+
+    let profile = profile_with(
+        "operators",
+        vec![
+            // Observed kind, no matching entity → the absence is the
+            // desired state.
+            {
+                let mut e = expectation(
+                    "no-rogue-widget",
+                    "widget",
+                    Constraint::NotExists,
+                    Requirement::Required,
+                );
+                e.selector = Selector {
+                    key: None,
+                    key_prefix: Some("rogue.".into()),
+                };
+                e
+            },
+            // Present entities violate a NOT_EXISTS over the whole kind.
+            expectation(
+                "no-widgets-at-all",
+                "widget",
+                Constraint::NotExists,
+                Requirement::Required,
+            ),
+            // No entity in this run is edge-shaped, so a relationship
+            // question cannot be answered — that is UNKNOWN, not a fault.
+            expectation(
+                "widget-path",
+                "widget",
+                Constraint::RelationshipExists {
+                    from: "a".into(),
+                    to: "b".into(),
+                    mode: RelationshipMode::Path,
+                },
+                Requirement::Required,
+            ),
+        ],
+    );
+    let saved = c2::save_profile(&engine, profile).await.unwrap();
+    c2::assign_profile(
+        &engine,
+        DeviceId::from("local"),
+        saved.id.clone(),
+        saved.revision,
+        None,
+    )
+    .await
+    .unwrap();
+
+    let (run_id, _) = run_all_events(&engine, DiagnosticMode::Full).await;
+    let evaluation = c2::evaluation_for_run(&engine, run_id)
+        .await
+        .unwrap()
+        .unwrap();
+    let status = |id: &str| {
+        evaluation
+            .results
+            .iter()
+            .find(|r| r.expectation_id == id)
+            .unwrap()
+            .status
+    };
+    assert_eq!(status("no-rogue-widget"), ExpectationStatus::Satisfied);
+    assert_eq!(status("no-widgets-at-all"), ExpectationStatus::Unsatisfied);
+    assert_eq!(status("widget-path"), ExpectationStatus::Unknown);
 
     engine.shutdown().await;
 }
