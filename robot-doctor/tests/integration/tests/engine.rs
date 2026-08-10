@@ -1,8 +1,10 @@
 //! Engine-level integration tests using the deterministic stub plugin:
-//! progressive streaming, failure semantics, crash containment and restart.
+//! progressive streaming, failure semantics, crash containment, restart,
+//! runtime capability discovery and persistence wiring.
 
 use doctor_core::{DiagnosisEvent, Engine};
 use doctor_domain::{CheckStatus, DeviceId, DiagnosticMode, HealthState};
+use doctor_storage::{RunFilter, Storage};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -11,7 +13,9 @@ fn stub_exe() -> PathBuf {
     PathBuf::from(env!("CARGO_BIN_EXE_stub-plugin"))
 }
 
-fn write_stub_manifest(plugins_dir: &Path, id: &str, mode: &str, checks_yaml: &str) {
+/// Write a bootstrap-only manifest (no checks — those come from the
+/// running plugin's CAPABILITIES answer).
+fn write_stub_manifest(plugins_dir: &Path, id: &str, mode: &str) {
     let dir = plugins_dir.join(id);
     std::fs::create_dir_all(&dir).unwrap();
     let exe = stub_exe().display().to_string();
@@ -22,26 +26,13 @@ name: Stub ({mode})
 version: 0.1.0
 api_version: 1
 platforms: [linux, windows]
-capabilities: [stub]
 executable:
   linux: '{exe}'
   windows: '{exe}'
 args: [{mode}]
-checks:
-{checks_yaml}
 "#
     );
     std::fs::write(dir.join("plugin.yaml"), yaml).unwrap();
-}
-
-fn good_checks_yaml() -> &'static str {
-    r#"  - { id: stub.ok, name: ok, cost: FAST, timeout_ms: 5000, modes: [QUICK, FULL] }
-  - { id: stub.unavailable, name: unavailable, cost: FAST, timeout_ms: 5000, modes: [QUICK, FULL] }
-  - { id: stub.slow, name: slow, cost: FAST, timeout_ms: 300, modes: [FULL] }"#
-}
-
-fn crashy_checks_yaml() -> &'static str {
-    r#"  - { id: stub.crash, name: crash, cost: FAST, timeout_ms: 5000, modes: [QUICK, FULL] }"#
 }
 
 fn temp_plugins_dir(tag: &str) -> PathBuf {
@@ -50,7 +41,6 @@ fn temp_plugins_dir(tag: &str) -> PathBuf {
     dir
 }
 
-/// Drive one diagnosis to completion, returning all events.
 async fn run_to_completion(engine: &Arc<Engine>, mode: DiagnosticMode) -> Vec<DiagnosisEvent> {
     let (_run_id, mut rx) = engine.start_diagnosis(DeviceId::from("local"), mode).await;
     let mut events = Vec::new();
@@ -71,47 +61,74 @@ fn results_by_check(events: &[DiagnosisEvent]) -> HashMap<String, CheckStatus> {
             DiagnosisEvent::CheckCompleted { result, .. } => {
                 Some((result.check_id.to_string(), result.status))
             }
+            DiagnosisEvent::CheckSkipped { result, .. } => {
+                Some((result.check_id.to_string(), result.status))
+            }
             _ => None,
         })
         .collect()
 }
 
 #[tokio::test]
-async fn full_diagnosis_streams_progressive_results_with_failure_semantics() {
-    let plugins_dir = temp_plugins_dir("good");
-    write_stub_manifest(&plugins_dir, "stub-good", "good", good_checks_yaml());
+async fn checks_are_discovered_from_the_running_plugin_not_the_manifest() {
+    let plugins_dir = temp_plugins_dir("discovery");
+    // Bootstrap manifest with NO check declarations at all.
+    write_stub_manifest(&plugins_dir, "stub-good", "good");
 
     let engine = Arc::new(Engine::new(&plugins_dir));
-    let events = run_to_completion(&engine, DiagnosticMode::Full).await;
+    // Before contact: no runtime capabilities known yet.
+    let before = engine.registry().summaries().await;
+    assert!(!before[0].contacted);
+    assert!(before[0].checks.is_empty());
 
-    // First event is the plan.
+    let events = run_to_completion(&engine, DiagnosticMode::Full).await;
     match &events[0] {
         DiagnosisEvent::RunStarted { planned, .. } => {
-            assert_eq!(planned.len(), 3, "expected 3 planned checks");
+            assert_eq!(planned.len(), 3, "3 checks discovered from the process");
         }
         other => panic!("first event was {other:?}"),
     }
 
+    // After contact: capability list reflects the live negotiation.
+    let after = engine.registry().summaries().await;
+    assert!(after[0].contacted);
+    assert_eq!(after[0].checks.len(), 3);
+    assert_eq!(after[0].capabilities, vec!["stub".to_string()]);
+
+    engine.shutdown().await;
+    std::fs::remove_dir_all(&plugins_dir).ok();
+}
+
+#[tokio::test]
+async fn full_diagnosis_streams_progressive_results_with_failure_semantics() {
+    let plugins_dir = temp_plugins_dir("good");
+    write_stub_manifest(&plugins_dir, "stub-good", "good");
+
+    let engine = Arc::new(Engine::new(&plugins_dir));
+    let events = run_to_completion(&engine, DiagnosticMode::Full).await;
+
     let statuses = results_by_check(&events);
     assert_eq!(statuses["stub.ok"], CheckStatus::Passed);
-    // Missing dependency is UNAVAILABLE, not a generic error.
     assert_eq!(statuses["stub.unavailable"], CheckStatus::Unavailable);
-    // A hanging check hits its timeout instead of stalling the run.
     assert_eq!(statuses["stub.slow"], CheckStatus::Timeout);
 
-    // UNAVAILABLE alone must not degrade health; TIMEOUT makes it UNKNOWN.
+    // Progressive event shape: queued before started before completed.
+    let first_queued = events
+        .iter()
+        .position(|e| matches!(e, DiagnosisEvent::CheckQueued { .. }))
+        .unwrap();
+    let first_started = events
+        .iter()
+        .position(|e| matches!(e, DiagnosisEvent::CheckStarted { .. }))
+        .unwrap();
+    assert!(first_queued < first_started);
+
     match events.last().unwrap() {
         DiagnosisEvent::RunCompleted { health, .. } => {
-            assert_eq!(*health, HealthState::Unknown);
+            assert_eq!(*health, HealthState::Unknown); // timeout → UNKNOWN
         }
         other => panic!("last event was {other:?}"),
     }
-
-    // The run is persisted with all results and a finish timestamp.
-    let runs = engine.store().list_runs().await;
-    assert_eq!(runs.len(), 1);
-    assert_eq!(runs[0].results.len(), 3);
-    assert!(runs[0].finished_at.is_some());
 
     engine.shutdown().await;
     std::fs::remove_dir_all(&plugins_dir).ok();
@@ -120,14 +137,13 @@ async fn full_diagnosis_streams_progressive_results_with_failure_semantics() {
 #[tokio::test]
 async fn quick_mode_excludes_full_only_checks() {
     let plugins_dir = temp_plugins_dir("quick");
-    write_stub_manifest(&plugins_dir, "stub-good", "good", good_checks_yaml());
+    write_stub_manifest(&plugins_dir, "stub-good", "good");
 
     let engine = Arc::new(Engine::new(&plugins_dir));
     let events = run_to_completion(&engine, DiagnosticMode::Quick).await;
     let statuses = results_by_check(&events);
     assert!(statuses.contains_key("stub.ok"));
-    // stub.slow is FULL-only in its manifest.
-    assert!(!statuses.contains_key("stub.slow"));
+    assert!(!statuses.contains_key("stub.slow")); // FULL-only
 
     engine.shutdown().await;
     std::fs::remove_dir_all(&plugins_dir).ok();
@@ -136,28 +152,21 @@ async fn quick_mode_excludes_full_only_checks() {
 #[tokio::test]
 async fn plugin_crash_is_contained_and_process_restarted() {
     let plugins_dir = temp_plugins_dir("crashy");
-    write_stub_manifest(&plugins_dir, "stub-crashy", "crashy", crashy_checks_yaml());
+    write_stub_manifest(&plugins_dir, "stub-crashy", "crashy");
 
     let engine = Arc::new(Engine::new(&plugins_dir));
 
-    // First run: the plugin dies mid-check. Robot Doctor keeps going and
-    // records a typed ERROR result for that check.
     let events = run_to_completion(&engine, DiagnosticMode::Full).await;
     let statuses = results_by_check(&events);
     assert_eq!(statuses["stub.crash"], CheckStatus::Error);
 
-    // Second run: the managed plugin is respawned automatically.
     let events = run_to_completion(&engine, DiagnosticMode::Full).await;
     let statuses = results_by_check(&events);
     assert_eq!(statuses["stub.crash"], CheckStatus::Error);
 
-    let summaries = engine.registry().summaries();
+    let summaries = engine.registry().summaries().await;
     let stub = summaries.iter().find(|s| s.id == "stub-crashy").unwrap();
-    assert!(
-        stub.restarts >= 1,
-        "expected at least one recorded restart, got {}",
-        stub.restarts
-    );
+    assert!(stub.restarts >= 1);
 
     engine.shutdown().await;
     std::fs::remove_dir_all(&plugins_dir).ok();
@@ -166,21 +175,14 @@ async fn plugin_crash_is_contained_and_process_restarted() {
 #[tokio::test]
 async fn broken_manifest_never_blocks_other_plugins() {
     let plugins_dir = temp_plugins_dir("mixed");
-    write_stub_manifest(&plugins_dir, "stub-good", "good", good_checks_yaml());
-    // A plugin directory with an unparseable manifest.
+    write_stub_manifest(&plugins_dir, "stub-good", "good");
     let broken = plugins_dir.join("broken");
     std::fs::create_dir_all(&broken).unwrap();
     std::fs::write(broken.join("plugin.yaml"), "{{{{ not yaml").unwrap();
 
     let engine = Arc::new(Engine::new(&plugins_dir));
-    let summaries = engine.registry().summaries();
-    assert!(
-        summaries.iter().any(|s| s.error.is_some()),
-        "broken plugin reported"
-    );
-    assert!(summaries
-        .iter()
-        .any(|s| s.id == "stub-good" && s.error.is_none()));
+    let summaries = engine.registry().summaries().await;
+    assert!(summaries.iter().any(|s| s.error.is_some()));
 
     let events = run_to_completion(&engine, DiagnosticMode::Quick).await;
     let statuses = results_by_check(&events);
@@ -193,7 +195,7 @@ async fn broken_manifest_never_blocks_other_plugins() {
 #[tokio::test]
 async fn devices_reflect_latest_run_health() {
     let plugins_dir = temp_plugins_dir("devices");
-    write_stub_manifest(&plugins_dir, "stub-good", "good", good_checks_yaml());
+    write_stub_manifest(&plugins_dir, "stub-good", "good");
 
     let engine = Arc::new(Engine::new(&plugins_dir));
     let devices = engine.devices().await;
@@ -202,9 +204,42 @@ async fn devices_reflect_latest_run_health() {
 
     run_to_completion(&engine, DiagnosticMode::Quick).await;
     let devices = engine.devices().await;
-    // Quick mode: ok=PASSED, unavailable=UNAVAILABLE → overall HEALTHY.
     assert_eq!(devices[0].health, HealthState::Healthy);
 
     engine.shutdown().await;
+    std::fs::remove_dir_all(&plugins_dir).ok();
+}
+
+#[tokio::test]
+async fn engine_persists_runs_to_storage_and_history_survives() {
+    let plugins_dir = temp_plugins_dir("persist");
+    write_stub_manifest(&plugins_dir, "stub-good", "good");
+
+    let dir = std::env::temp_dir().join(format!("rd-engine-db-{}", uuid::Uuid::new_v4()));
+    let db_path = dir.join("history.db");
+    let storage = Storage::open(&db_path).await.unwrap();
+    let engine = Arc::new(Engine::with_storage(&plugins_dir, storage.clone()));
+
+    let events = run_to_completion(&engine, DiagnosticMode::Quick).await;
+    match events.last().unwrap() {
+        DiagnosisEvent::RunCompleted { persisted, .. } => assert!(*persisted),
+        other => panic!("last event was {other:?}"),
+    }
+    engine.shutdown().await;
+    storage.close().await.unwrap();
+
+    // Fresh storage handle (simulated restart): history still there,
+    // including the plugin snapshot taken at run time.
+    let storage = Storage::open(&db_path).await.unwrap();
+    let rows = storage.list_runs(RunFilter::default()).await.unwrap();
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0].check_count, 2); // quick: ok + unavailable
+    let run_id = doctor_domain::RunId::from(rows[0].id.as_str());
+    let stored = storage.get_run(&run_id).await.unwrap().unwrap();
+    assert_eq!(stored.plugin_snapshots.len(), 1);
+    assert_eq!(stored.plugin_snapshots[0].plugin_id, "stub-good");
+    assert_eq!(stored.plugin_snapshots[0].capabilities, vec!["stub"]);
+    storage.close().await.unwrap();
+    std::fs::remove_dir_all(&dir).ok();
     std::fs::remove_dir_all(&plugins_dir).ok();
 }

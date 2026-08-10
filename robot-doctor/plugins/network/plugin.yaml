@@ -1,0 +1,12 @@
+# Bootstrap metadata only. Capabilities and checks are discovered at
+# runtime from the plugin process (CAPABILITIES message).
+id: network
+name: Network Diagnostics
+version: 0.1.0
+api_version: 1
+description: Interfaces, routes, DNS, reachability, latency and TCP port checks
+platforms: [linux, windows]
+architectures: [x86_64, aarch64]
+executable:
+  linux: robot-doctor-plugin-network
+  windows: robot-doctor-plugin-network.exe

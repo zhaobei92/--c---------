@@ -1,19 +1,26 @@
 //! Robot Doctor desktop shell: a thin Tauri 2 layer over the embedded
 //! doctor-core engine. All diagnostics run in the core; the UI receives
-//! progressive `diagnosis-event` events and renders real results.
+//! progressive `diagnosis-event` events and renders real results. History
+//! is served from SQLite through the storage service — never rebuilt by
+//! re-running checks.
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use doctor_core::{Engine, PluginSummary};
 use doctor_domain::{CheckRun, Device, DeviceId, DiagnosticMode, Platform, RunId};
-use serde::Serialize;
+use doctor_storage::{RunFilter, RunSummaryRow, Storage, StoredRun};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::{Emitter, Manager, State};
 
+const NETWORK_TARGETS_KEY: &str = "network.targets";
+
 struct AppState {
     engine: Arc<Engine>,
     plugins_dir: PathBuf,
+    db_path: Option<PathBuf>,
 }
 
 #[derive(Serialize)]
@@ -21,6 +28,18 @@ struct AppInfo {
     version: String,
     platform: String,
     plugins_dir: String,
+    database_path: Option<String>,
+    storage_ok: bool,
+}
+
+/// A user-configured network target (host + optional port).
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct NetworkTarget {
+    host: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    port: Option<u16>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    timeout_ms: Option<u64>,
 }
 
 /// Find the plugins directory:
@@ -37,7 +56,6 @@ fn locate_plugins_dir() -> PathBuf {
         if installed.is_dir() {
             return installed;
         }
-        // Dev: walk up until we find a `plugins/` dir containing manifests.
         let mut cursor = Some(exe_dir);
         while let Some(dir) = cursor {
             let candidate = dir.join("plugins");
@@ -65,8 +83,8 @@ async fn list_devices(state: State<'_, AppState>) -> Result<Vec<Device>, String>
 }
 
 #[tauri::command]
-fn list_plugins(state: State<'_, AppState>) -> Vec<PluginSummary> {
-    state.engine.registry().summaries()
+async fn list_plugins(state: State<'_, AppState>) -> Result<Vec<PluginSummary>, String> {
+    Ok(state.engine.registry().summaries().await)
 }
 
 #[tauri::command]
@@ -75,7 +93,61 @@ fn get_app_info(state: State<'_, AppState>) -> AppInfo {
         version: env!("CARGO_PKG_VERSION").to_owned(),
         platform: format!("{:?}", Platform::current()).to_lowercase(),
         plugins_dir: state.plugins_dir.display().to_string(),
+        database_path: state.db_path.as_ref().map(|p| p.display().to_string()),
+        storage_ok: state.engine.storage().is_some(),
     }
+}
+
+#[tauri::command]
+async fn get_network_targets(state: State<'_, AppState>) -> Result<Vec<NetworkTarget>, String> {
+    let Some(storage) = state.engine.storage() else {
+        return Ok(vec![]);
+    };
+    let raw = storage
+        .get_setting(NETWORK_TARGETS_KEY)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(raw
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default())
+}
+
+#[tauri::command]
+async fn set_network_targets(
+    state: State<'_, AppState>,
+    targets: Vec<NetworkTarget>,
+) -> Result<(), String> {
+    let Some(storage) = state.engine.storage() else {
+        return Err("storage is not available".into());
+    };
+    storage
+        .set_setting(
+            NETWORK_TARGETS_KEY,
+            &serde_json::to_string(&targets).map_err(|e| e.to_string())?,
+        )
+        .await
+        .map_err(|e| e.to_string())
+}
+
+async fn network_params(engine: &Engine) -> BTreeMap<String, serde_json::Value> {
+    let mut params = BTreeMap::new();
+    if let Some(storage) = engine.storage() {
+        if let Ok(Some(raw)) = storage.get_setting(NETWORK_TARGETS_KEY).await {
+            if let Ok(targets) = serde_json::from_str::<Vec<NetworkTarget>>(&raw) {
+                if !targets.is_empty() {
+                    let value = serde_json::json!({ "targets": targets });
+                    for check in [
+                        "network.reachability",
+                        "network.tcp_port",
+                        "network.latency",
+                    ] {
+                        params.insert(check.to_owned(), value.clone());
+                    }
+                }
+            }
+        }
+    }
+    params
 }
 
 #[tauri::command]
@@ -85,11 +157,12 @@ async fn run_diagnosis(
     device_id: String,
     mode: DiagnosticMode,
 ) -> Result<RunId, String> {
+    let params = network_params(&state.engine).await;
     let (run_id, mut rx) = state
         .engine
-        .start_diagnosis(DeviceId::from(device_id.as_str()), mode)
+        .start_diagnosis_with_params(DeviceId::from(device_id.as_str()), mode, params)
         .await;
-    // Forward progressive engine events to the UI; the run continues in the
+    // Forward progressive engine events; the run continues in the
     // background so the interface never blocks on a deep diagnostic.
     tauri::async_runtime::spawn(async move {
         while let Some(event) = rx.recv().await {
@@ -102,6 +175,12 @@ async fn run_diagnosis(
 }
 
 #[tauri::command]
+async fn cancel_diagnosis(state: State<'_, AppState>, run_id: String) -> Result<(), String> {
+    state.engine.cancel_run(&RunId::from(run_id.as_str())).await;
+    Ok(())
+}
+
+#[tauri::command]
 async fn get_run(state: State<'_, AppState>, run_id: String) -> Result<Option<CheckRun>, String> {
     Ok(state
         .engine
@@ -111,8 +190,39 @@ async fn get_run(state: State<'_, AppState>, run_id: String) -> Result<Option<Ch
 }
 
 #[tauri::command]
-async fn list_runs(state: State<'_, AppState>) -> Result<Vec<CheckRun>, String> {
-    Ok(state.engine.store().list_runs().await)
+async fn list_history(
+    state: State<'_, AppState>,
+    filter: RunFilter,
+) -> Result<Vec<RunSummaryRow>, String> {
+    match state.engine.storage() {
+        Some(storage) => storage.list_runs(filter).await.map_err(|e| e.to_string()),
+        None => Ok(vec![]),
+    }
+}
+
+#[tauri::command]
+async fn get_history_run(
+    state: State<'_, AppState>,
+    run_id: String,
+) -> Result<Option<StoredRun>, String> {
+    match state.engine.storage() {
+        Some(storage) => storage
+            .get_run(&RunId::from(run_id.as_str()))
+            .await
+            .map_err(|e| e.to_string()),
+        None => Ok(None),
+    }
+}
+
+#[tauri::command]
+async fn delete_history_run(state: State<'_, AppState>, run_id: String) -> Result<bool, String> {
+    match state.engine.storage() {
+        Some(storage) => storage
+            .delete_run(&RunId::from(run_id.as_str()))
+            .await
+            .map_err(|e| e.to_string()),
+        None => Ok(false),
+    }
 }
 
 fn main() {
@@ -127,10 +237,31 @@ fn main() {
         .setup(|app| {
             let plugins_dir = locate_plugins_dir();
             tracing::info!("plugins directory: {}", plugins_dir.display());
-            let engine = Arc::new(Engine::new(&plugins_dir));
+
+            // Storage lives in the per-user app data dir. A storage failure
+            // is degraded mode (no history), never a startup crash.
+            let db_path = app
+                .path()
+                .app_data_dir()
+                .ok()
+                .map(|dir| dir.join("history.db"));
+            let storage = db_path.as_ref().and_then(|path| {
+                match tauri::async_runtime::block_on(Storage::open(path)) {
+                    Ok(storage) => Some(storage),
+                    Err(err) => {
+                        tracing::error!("failed to open history database: {err}");
+                        None
+                    }
+                }
+            });
+            let engine = Arc::new(match storage {
+                Some(storage) => Engine::with_storage(&plugins_dir, storage),
+                None => Engine::new(&plugins_dir),
+            });
             app.manage(AppState {
                 engine,
                 plugins_dir,
+                db_path,
             });
             Ok(())
         })
@@ -138,9 +269,14 @@ fn main() {
             list_devices,
             list_plugins,
             get_app_info,
+            get_network_targets,
+            set_network_targets,
             run_diagnosis,
+            cancel_diagnosis,
             get_run,
-            list_runs
+            list_history,
+            get_history_run,
+            delete_history_run
         ])
         .run(tauri::generate_context!())
         .expect("error while running Robot Doctor");

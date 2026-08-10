@@ -1,0 +1,12 @@
+# Bootstrap metadata only. Capabilities and checks are discovered at
+# runtime from the plugin process (CAPABILITIES message).
+id: nvidia
+name: NVIDIA GPU Diagnostics
+version: 0.1.0
+api_version: 1
+description: GPU inventory, utilization, memory, thermals and power via NVML
+platforms: [linux, windows]
+architectures: [x86_64, aarch64]
+executable:
+  linux: robot-doctor-plugin-nvidia
+  windows: robot-doctor-plugin-nvidia.exe

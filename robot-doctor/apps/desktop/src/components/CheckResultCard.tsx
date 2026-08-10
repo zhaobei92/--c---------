@@ -19,7 +19,9 @@ export function CheckResultCard({ row }: { row: CheckRow }) {
           <span className="check-id">{row.checkId}</span>
         </span>
         <span className="check-meta">
-          {result ? (
+          {row.state === "SKIPPED" ? (
+            <span className="badge badge-muted">SKIPPED</span>
+          ) : result ? (
             <>
               <span className="check-duration">{formatDuration(result.duration_ms)}</span>
               <StatusChip status={result.status} />
@@ -27,12 +29,18 @@ export function CheckResultCard({ row }: { row: CheckRow }) {
           ) : row.state === "RUNNING" ? (
             <span className="badge badge-running">RUNNING…</span>
           ) : (
-            <span className="badge badge-muted">PENDING</span>
+            <span className="badge badge-muted">QUEUED</span>
           )}
         </span>
       </button>
 
-      {result?.error && (
+      {row.state === "SKIPPED" && row.skipReason && (
+        <div className="check-error">
+          Skipped: {row.skipReason}
+          {row.skipPrerequisite ? ` (prerequisite: ${row.skipPrerequisite})` : ""}
+        </div>
+      )}
+      {row.state !== "SKIPPED" && result?.error && (
         <div className="check-error">{result.error.message}</div>
       )}
 

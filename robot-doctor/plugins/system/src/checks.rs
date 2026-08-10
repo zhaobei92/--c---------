@@ -507,7 +507,7 @@ fn check_process(ctx: &mut Ctx) -> CheckStatus {
         })
         .collect();
 
-    list.sort_by(|a, b| b.3.cmp(&a.3));
+    list.sort_by_key(|item| std::cmp::Reverse(item.3));
     let top_memory: Vec<serde_json::Value> = list
         .iter()
         .take(10)
@@ -584,6 +584,7 @@ mod tests {
         CheckRequest {
             check_id: CheckId::from(check),
             device_id: DeviceId::from("local"),
+            mode: None,
             params: BTreeMap::new(),
             timeout_ms: 10_000,
         }
@@ -645,21 +646,14 @@ mod tests {
     }
 
     #[test]
-    fn manifest_matches_code_declarations() {
-        // plugin.yaml (pre-start discovery) must list the same check ids
-        // as the running plugin's CAPABILITIES answer.
+    fn manifest_is_bootstrap_only() {
+        // plugin.yaml must not declare checks: the runtime CAPABILITIES
+        // answer is the single authoritative source (no duplication).
         let manifest_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("plugin.yaml");
         let manifest: doctor_domain::PluginManifest =
             serde_yaml::from_str(&std::fs::read_to_string(manifest_path).unwrap()).unwrap();
-        let manifest_ids: Vec<_> = manifest
-            .checks
-            .iter()
-            .map(|c| c.id.as_str().to_owned())
-            .collect();
-        let code_ids: Vec<_> = check_declarations()
-            .iter()
-            .map(|c| c.id.as_str().to_owned())
-            .collect();
-        assert_eq!(manifest_ids, code_ids);
+        assert!(manifest.checks.is_empty());
+        assert!(manifest.capabilities.is_empty());
+        assert!(!check_declarations().is_empty());
     }
 }

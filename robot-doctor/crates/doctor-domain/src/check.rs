@@ -93,6 +93,10 @@ impl CheckDefinition {
 pub struct CheckRequest {
     pub check_id: CheckId,
     pub device_id: DeviceId,
+    /// The diagnostic mode this execution belongs to; checks may scale
+    /// their depth (e.g. latency sample count) accordingly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mode: Option<DiagnosticMode>,
     /// Check-specific parameters (e.g. target hosts from a profile).
     #[serde(default)]
     pub params: BTreeMap<String, serde_json::Value>,

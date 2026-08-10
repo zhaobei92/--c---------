@@ -87,6 +87,8 @@ pub enum CheckStatus {
     DependencyMissing,
     /// The target device is unreachable; downstream errors are suppressed.
     Offline,
+    /// The run (or this check) was cancelled before completion.
+    Cancelled,
     /// The check itself malfunctioned (plugin crash, protocol error).
     Error,
 }
@@ -103,7 +105,7 @@ impl CheckStatus {
             CheckStatus::Passed => HealthState::Healthy,
             CheckStatus::Failed => HealthState::Degraded, // findings refine this
             CheckStatus::Unavailable | CheckStatus::Unsupported => HealthState::Healthy,
-            CheckStatus::DependencyMissing => HealthState::Unknown,
+            CheckStatus::DependencyMissing | CheckStatus::Cancelled => HealthState::Unknown,
             CheckStatus::Timeout | CheckStatus::PermissionDenied | CheckStatus::Error => {
                 HealthState::Unknown
             }

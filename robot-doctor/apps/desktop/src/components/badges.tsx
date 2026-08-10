@@ -21,6 +21,7 @@ const STATUS_CLASS: Record<CheckStatus, string> = {
   PERMISSION_DENIED: "badge badge-warn",
   DEPENDENCY_MISSING: "badge badge-muted",
   OFFLINE: "badge badge-off",
+  CANCELLED: "badge badge-muted",
   ERROR: "badge badge-warn",
 };
 

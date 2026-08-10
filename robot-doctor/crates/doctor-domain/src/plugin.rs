@@ -67,6 +67,11 @@ pub struct ActionDeclaration {
 }
 
 /// The parsed contents of a plugin's `plugin.yaml`.
+///
+/// The manifest is **static bootstrap metadata only**: identity, version,
+/// compatibility and how to start the process. The authoritative source
+/// for capabilities, checks and actions is the running plugin's
+/// CAPABILITIES response — never this file.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct PluginManifest {
     pub id: PluginId,
@@ -74,16 +79,20 @@ pub struct PluginManifest {
     pub version: String,
     /// Plugin protocol API version this plugin implements.
     pub api_version: u32,
+    #[serde(default)]
+    pub description: String,
     pub platforms: Vec<Platform>,
     #[serde(default)]
     pub architectures: Vec<Architecture>,
-    #[serde(default)]
-    pub capabilities: Vec<PluginCapability>,
     /// Executable per platform, relative to the plugin directory
     /// (or absolute, mainly for tests/development).
     pub executable: BTreeMap<Platform, String>,
     #[serde(default)]
     pub args: Vec<String>,
+    /// Legacy (pre-runtime-negotiation) fields. Still parsed so old
+    /// manifests load, but never used as runtime state.
+    #[serde(default)]
+    pub capabilities: Vec<PluginCapability>,
     #[serde(default)]
     pub checks: Vec<CheckDeclaration>,
     #[serde(default)]
@@ -98,14 +107,6 @@ impl PluginManifest {
     pub fn executable_for(&self, platform: Platform) -> Option<&str> {
         self.executable.get(&platform).map(String::as_str)
     }
-
-    pub fn check_definitions(&self) -> Vec<CheckDefinition> {
-        self.checks
-            .iter()
-            .cloned()
-            .map(|c| c.into_definition(&self.id))
-            .collect()
-    }
 }
 
 #[cfg(test)]
@@ -113,26 +114,18 @@ mod tests {
     use super::*;
 
     #[test]
-    fn manifest_yaml_roundtrip() {
+    fn bootstrap_manifest_parses() {
         let yaml = r#"
 id: system
 name: System Diagnostics
 version: 0.1.0
 api_version: 1
+description: Cross-platform system diagnostics
 platforms: [linux, windows]
 architectures: [x86_64, aarch64]
-capabilities: [system]
 executable:
   linux: robot-doctor-plugin-system
   windows: robot-doctor-plugin-system.exe
-checks:
-  - id: system.cpu
-    name: CPU
-    description: CPU load and per-core usage
-    cost: FAST
-    timeout_ms: 5000
-    modes: [QUICK, FULL]
-actions: []
 "#;
         let manifest: PluginManifest = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(manifest.id, PluginId::from("system"));
@@ -142,8 +135,30 @@ actions: []
             manifest.executable_for(Platform::Windows),
             Some("robot-doctor-plugin-system.exe")
         );
-        let defs = manifest.check_definitions();
-        assert_eq!(defs.len(), 1);
-        assert_eq!(defs[0].plugin_id, PluginId::from("system"));
+        // Checks are not declared here: the runtime CAPABILITIES answer is
+        // the single authoritative source.
+        assert!(manifest.checks.is_empty());
+    }
+
+    #[test]
+    fn legacy_manifest_with_checks_still_loads() {
+        let yaml = r#"
+id: legacy
+name: Legacy
+version: 0.1.0
+api_version: 1
+platforms: [linux]
+executable:
+  linux: legacy-plugin
+checks:
+  - id: legacy.check
+    name: Old-style declaration
+    cost: FAST
+    timeout_ms: 5000
+    modes: [QUICK]
+"#;
+        // Old manifests parse, but their check lists are legacy data only.
+        let manifest: PluginManifest = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(manifest.checks.len(), 1);
     }
 }

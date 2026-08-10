@@ -21,16 +21,6 @@ async fn main() {
     };
 
     let engine = Arc::new(Engine::new(&plugins_dir));
-    for summary in engine.registry().summaries() {
-        match &summary.error {
-            None => println!(
-                "plugin {:<10} v{} ({} checks)",
-                summary.id, summary.version, summary.check_count
-            ),
-            Some(err) => println!("plugin {:<10} LOAD FAILED: {err}", summary.id),
-        }
-    }
-
     let (run_id, mut rx) = engine.start_diagnosis(DeviceId::from("local"), mode).await;
     println!("run {run_id} started ({mode:?})\n");
 
@@ -39,11 +29,10 @@ async fn main() {
             DiagnosisEvent::RunStarted { planned, .. } => {
                 println!("planned {} checks", planned.len());
             }
-            DiagnosisEvent::CheckStarted { .. } => {}
             DiagnosisEvent::CheckCompleted { result, .. } => {
                 println!(
-                    "  {:<18} {:>6} ms  {:?}  obs={} ev={} findings={}",
-                    result.check_id,
+                    "  {:<28} {:>6} ms  {:?}  obs={} ev={} findings={}",
+                    result.check_id.to_string(),
                     result.duration_ms,
                     result.status,
                     result.observations.len(),
@@ -54,10 +43,28 @@ async fn main() {
                     println!("      ! [{:?}] {}", finding.severity, finding.title);
                 }
             }
+            DiagnosisEvent::CheckSkipped {
+                check_id, reason, ..
+            } => {
+                println!("  {check_id:<28} SKIPPED ({reason})");
+            }
             DiagnosisEvent::RunCompleted { health, .. } => {
                 println!("\noverall health: {health:?}");
                 break;
             }
+            _ => {}
+        }
+    }
+    for summary in engine.registry().summaries().await {
+        match &summary.error {
+            None => println!(
+                "plugin {:<10} v{} ({} checks, concurrency {})",
+                summary.id,
+                summary.version,
+                summary.checks.len(),
+                summary.max_concurrency
+            ),
+            Some(err) => println!("plugin {:<10} ERROR: {err}", summary.id),
         }
     }
     engine.shutdown().await;

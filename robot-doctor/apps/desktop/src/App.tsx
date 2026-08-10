@@ -3,17 +3,19 @@ import * as api from "./api";
 import { applyEvent, type RunView } from "./diagnosisStore";
 import { DevicesPage } from "./pages/DevicesPage";
 import { DiagnosticsPage } from "./pages/DiagnosticsPage";
+import { HistoryPage } from "./pages/HistoryPage";
 import { OverviewPage } from "./pages/OverviewPage";
 import { PluginsPage } from "./pages/PluginsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import type { AppInfo, Device, DiagnosticMode, PluginSummary } from "./types";
 
-type Page = "overview" | "devices" | "diagnostics" | "plugins" | "settings";
+type Page = "overview" | "devices" | "diagnostics" | "history" | "plugins" | "settings";
 
 const NAV: { id: Page; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "devices", label: "Devices" },
   { id: "diagnostics", label: "Diagnostics" },
+  { id: "history", label: "History" },
   { id: "plugins", label: "Plugins" },
   { id: "settings", label: "Settings" },
 ];
@@ -24,15 +26,20 @@ export default function App() {
   const [plugins, setPlugins] = useState<PluginSummary[]>([]);
   const [info, setInfo] = useState<AppInfo | null>(null);
   const [run, setRun] = useState<RunView | null>(null);
+  const [historyToken, setHistoryToken] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   const refreshDevices = useCallback(() => {
     api.listDevices().then(setDevices).catch((e) => setError(String(e)));
   }, []);
 
+  const refreshPlugins = useCallback(() => {
+    api.listPlugins().then(setPlugins).catch((e) => setError(String(e)));
+  }, []);
+
   useEffect(() => {
     refreshDevices();
-    api.listPlugins().then(setPlugins).catch((e) => setError(String(e)));
+    refreshPlugins();
     api.getAppInfo().then(setInfo).catch((e) => setError(String(e)));
 
     let unlisten: (() => void) | undefined;
@@ -40,8 +47,9 @@ export default function App() {
       .onDiagnosisEvent((event) => {
         setRun((current) => applyEvent(current, event));
         if (event.type === "RUN_COMPLETED") {
-          // Health on the device list reflects the finished run.
           refreshDevices();
+          refreshPlugins(); // runtime capabilities may have been discovered
+          setHistoryToken((t) => t + 1);
         }
       })
       .then((fn) => {
@@ -49,16 +57,19 @@ export default function App() {
       })
       .catch((e) => setError(String(e)));
     return () => unlisten?.();
-  }, [refreshDevices]);
+  }, [refreshDevices, refreshPlugins]);
 
-  const startDiagnosis = useCallback(
-    (mode: DiagnosticMode) => {
-      setError(null);
-      api.runDiagnosis("local", mode).catch((e) => setError(String(e)));
-      setPage("diagnostics");
-    },
-    [],
-  );
+  const startDiagnosis = useCallback((mode: DiagnosticMode) => {
+    setError(null);
+    api.runDiagnosis("local", mode).catch((e) => setError(String(e)));
+    setPage("diagnostics");
+  }, []);
+
+  const cancelDiagnosis = useCallback(() => {
+    if (run?.runId) {
+      api.cancelDiagnosis(run.runId).catch((e) => setError(String(e)));
+    }
+  }, [run?.runId]);
 
   return (
     <div className="app">
@@ -91,7 +102,16 @@ export default function App() {
           />
         )}
         {page === "devices" && <DevicesPage devices={devices} />}
-        {page === "diagnostics" && <DiagnosticsPage run={run} onRunDiagnosis={startDiagnosis} />}
+        {page === "diagnostics" && (
+          <DiagnosticsPage
+            run={run}
+            onRunDiagnosis={startDiagnosis}
+            onCancel={cancelDiagnosis}
+          />
+        )}
+        {page === "history" && (
+          <HistoryPage refreshToken={historyToken} storageOk={info?.storage_ok ?? false} />
+        )}
         {page === "plugins" && <PluginsPage plugins={plugins} />}
         {page === "settings" && <SettingsPage info={info} />}
       </main>

@@ -15,7 +15,12 @@ impl PluginService for SystemPlugin {
         plugin_system::PLUGIN_VERSION.to_owned()
     }
 
-    fn capabilities(&mut self) -> ServiceCapabilities {
+    fn max_concurrency(&self) -> u32 {
+        // Each check builds its own sysinfo snapshot; they are independent.
+        4
+    }
+
+    fn capabilities(&self) -> ServiceCapabilities {
         ServiceCapabilities {
             capabilities: vec![PluginCapability("system".to_owned())],
             checks: plugin_system::check_declarations(),
@@ -23,11 +28,11 @@ impl PluginService for SystemPlugin {
         }
     }
 
-    fn run_check(&mut self, request: &CheckRequest) -> CheckResult {
+    fn run_check(&self, request: &CheckRequest) -> CheckResult {
         plugin_system::run_check(request)
     }
 }
 
 fn main() -> std::io::Result<()> {
-    run_plugin_stdio(&mut SystemPlugin)
+    run_plugin_stdio(SystemPlugin)
 }

@@ -7,9 +7,10 @@ import { CheckResultCard } from "../components/CheckResultCard";
 interface Props {
   run: RunView | null;
   onRunDiagnosis: (mode: DiagnosticMode) => void;
+  onCancel: () => void;
 }
 
-export function DiagnosticsPage({ run, onRunDiagnosis }: Props) {
+export function DiagnosticsPage({ run, onRunDiagnosis, onCancel }: Props) {
   const progress = runProgress(run);
   return (
     <div className="page">
@@ -30,8 +31,19 @@ export function DiagnosticsPage({ run, onRunDiagnosis }: Props) {
           >
             Run full diagnosis
           </button>
+          {run?.running && (
+            <button className="btn btn-danger" onClick={onCancel}>
+              Cancel
+            </button>
+          )}
         </div>
       </header>
+      {run && !run.running && run.persisted === false && (
+        <div className="error-banner">
+          This run could not be saved to the history database — results are
+          only available until the app closes.
+        </div>
+      )}
 
       {!run ? (
         <p className="muted">

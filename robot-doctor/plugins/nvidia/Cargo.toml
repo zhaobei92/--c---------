@@ -1,0 +1,24 @@
+[package]
+name = "robot-doctor-plugin-nvidia"
+description = "NVIDIA GPU diagnostics via NVML (programmatic interface, multi-GPU)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "robot-doctor-plugin-nvidia"
+path = "src/main.rs"
+
+[lib]
+name = "plugin_nvidia"
+path = "src/checks.rs"
+
+[dependencies]
+doctor-domain.workspace = true
+doctor-plugin-host.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+nvml-wrapper.workspace = true
+
+[dev-dependencies]
+serde_yaml.workspace = true

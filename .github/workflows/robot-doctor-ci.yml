@@ -37,6 +37,10 @@ jobs:
         run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Tests (unit + plugin protocol + engine integration)
         run: cargo test --workspace
+      - name: Build all binaries (plugins + smoke)
+        run: cargo build --workspace
+      - name: Real diagnostic smoke test (system + network + NVIDIA-absence + SQLite persistence)
+        run: cargo run -p integration-tests --bin smoke -- plugins
 
   # Desktop app: frontend typecheck/tests/build + Tauri shell compile.
   desktop:

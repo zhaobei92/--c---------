@@ -18,4 +18,4 @@ pub mod sdk;
 pub use host::{HostError, ManagedPlugin, NegotiatedCapabilities, PluginHandle};
 pub use manifest::{load_manifest, scan_plugins_dir, LoadedManifest, ManifestError};
 pub use protocol::{HostMessage, PluginError, PluginErrorKind, PluginMessage, PROTOCOL_VERSION};
-pub use sdk::{run_plugin_stdio, PluginService, ServiceCapabilities};
+pub use sdk::{run_plugin_stdio, CheckContext, PluginService, ServiceCapabilities};

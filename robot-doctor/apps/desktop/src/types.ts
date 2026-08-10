@@ -11,6 +11,7 @@ export type CheckStatus =
   | "PERMISSION_DENIED"
   | "DEPENDENCY_MISSING"
   | "OFFLINE"
+  | "CANCELLED"
   | "ERROR";
 
 export type Severity = "INFO" | "WARNING" | "ERROR" | "CRITICAL";
@@ -117,8 +118,14 @@ export interface PluginSummary {
   name: string;
   version: string;
   api_version: number;
-  check_count: number;
+  description: string;
+  /** Runtime-discovered capability names (empty until first contact). */
+  capabilities: string[];
+  /** Runtime-discovered check ids (empty until first contact). */
+  checks: string[];
+  max_concurrency: number;
   restarts: number;
+  contacted: boolean;
   error?: string | null;
 }
 
@@ -126,6 +133,54 @@ export interface AppInfo {
   version: string;
   platform: string;
   plugins_dir: string;
+  database_path?: string | null;
+  storage_ok: boolean;
+}
+
+export interface NetworkTarget {
+  host: string;
+  port?: number;
+  timeout_ms?: number;
+}
+
+export interface RunFilter {
+  device_id?: string;
+  mode?: DiagnosticMode;
+  health?: HealthState;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface RunSummaryRow {
+  id: string;
+  device_id: string;
+  device_name: string;
+  mode: string;
+  status: string;
+  started_at: string;
+  finished_at?: string | null;
+  overall_health?: string | null;
+  app_version: string;
+  duration_ms?: number | null;
+  check_count: number;
+  finding_count: number;
+}
+
+export interface PluginSnapshot {
+  plugin_id: string;
+  version: string;
+  api_version: number;
+  capabilities: string[];
+}
+
+export interface StoredRun {
+  run: CheckRun;
+  status: string;
+  overall_health?: HealthState | null;
+  app_version: string;
+  plugin_snapshots: PluginSnapshot[];
 }
 
 export type DiagnosisEvent =
@@ -136,6 +191,23 @@ export type DiagnosisEvent =
       mode: DiagnosticMode;
       planned: CheckDefinition[];
     }
+  | { type: "PLUGIN_STARTED"; run_id: string; plugin_id: string }
+  | { type: "CHECK_QUEUED"; run_id: string; check_id: string }
   | { type: "CHECK_STARTED"; run_id: string; check_id: string }
   | { type: "CHECK_COMPLETED"; run_id: string; result: CheckResult }
-  | { type: "RUN_COMPLETED"; run_id: string; health: HealthState; finished_at: string };
+  | {
+      type: "CHECK_SKIPPED";
+      run_id: string;
+      check_id: string;
+      reason: string;
+      prerequisite?: string | null;
+      result: CheckResult;
+    }
+  | { type: "PLUGIN_COMPLETED"; run_id: string; plugin_id: string }
+  | {
+      type: "RUN_COMPLETED";
+      run_id: string;
+      health: HealthState;
+      finished_at: string;
+      persisted: boolean;
+    };

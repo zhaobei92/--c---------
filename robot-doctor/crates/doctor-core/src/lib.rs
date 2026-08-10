@@ -9,8 +9,10 @@
 
 pub mod engine;
 pub mod registry;
+pub mod scheduler;
 pub mod store;
 
 pub use engine::{DiagnosisEvent, Engine};
 pub use registry::{PluginRegistry, PluginSummary, RegisteredPlugin};
+pub use scheduler::SchedulerLimits;
 pub use store::RunStore;

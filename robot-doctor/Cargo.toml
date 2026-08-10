@@ -3,8 +3,11 @@ resolver = "2"
 members = [
     "crates/doctor-domain",
     "crates/doctor-plugin-host",
+    "crates/doctor-storage",
     "crates/doctor-core",
     "plugins/system",
+    "plugins/network",
+    "plugins/nvidia",
     "tests/integration",
 ]
 # The Tauri shell links against platform GUI libraries (WebKitGTK on Linux,
@@ -21,6 +24,7 @@ repository = "https://github.com/zhaobei92/robot-doctor"
 [workspace.dependencies]
 doctor-domain = { path = "crates/doctor-domain" }
 doctor-plugin-host = { path = "crates/doctor-plugin-host" }
+doctor-storage = { path = "crates/doctor-storage" }
 doctor-core = { path = "crates/doctor-core" }
 
 serde = { version = "1", features = ["derive"] }
@@ -34,6 +38,10 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 sysinfo = "0.33"
 hostname = "0.4"
+rusqlite = { version = "0.32", features = ["bundled"] }
+netdev = "0.36"
+nvml-wrapper = "0.10"
+tokio-util = "0.7"
 
 [profile.release]
 lto = "thin"

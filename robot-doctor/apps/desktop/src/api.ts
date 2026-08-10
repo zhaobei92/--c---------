@@ -9,7 +9,11 @@ import type {
   Device,
   DiagnosisEvent,
   DiagnosticMode,
+  NetworkTarget,
   PluginSummary,
+  RunFilter,
+  RunSummaryRow,
+  StoredRun,
 } from "./types";
 
 export function listDevices(): Promise<Device[]> {
@@ -28,8 +32,28 @@ export function getRun(runId: string): Promise<CheckRun | null> {
   return invoke("get_run", { runId });
 }
 
-export function listRuns(): Promise<CheckRun[]> {
-  return invoke("list_runs");
+export function cancelDiagnosis(runId: string): Promise<void> {
+  return invoke("cancel_diagnosis", { runId });
+}
+
+export function listHistory(filter: RunFilter): Promise<RunSummaryRow[]> {
+  return invoke("list_history", { filter });
+}
+
+export function getHistoryRun(runId: string): Promise<StoredRun | null> {
+  return invoke("get_history_run", { runId });
+}
+
+export function deleteHistoryRun(runId: string): Promise<boolean> {
+  return invoke("delete_history_run", { runId });
+}
+
+export function getNetworkTargets(): Promise<NetworkTarget[]> {
+  return invoke("get_network_targets");
+}
+
+export function setNetworkTargets(targets: NetworkTarget[]): Promise<void> {
+  return invoke("set_network_targets", { targets });
 }
 
 export function getAppInfo(): Promise<AppInfo> {

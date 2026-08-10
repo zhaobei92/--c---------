@@ -1,0 +1,26 @@
+[package]
+name = "robot-doctor-plugin-network"
+description = "Cross-platform network diagnostics plugin (interfaces, routes, DNS, reachability, latency, ports)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "robot-doctor-plugin-network"
+path = "src/main.rs"
+
+[lib]
+name = "plugin_network"
+path = "src/checks.rs"
+
+[dependencies]
+doctor-domain.workspace = true
+doctor-plugin-host.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+chrono.workspace = true
+netdev.workspace = true
+
+[dev-dependencies]
+serde_yaml.workspace = true
+socket2 = "0.5"

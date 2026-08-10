@@ -15,8 +15,9 @@ export function PluginsPage({ plugins }: Props) {
           <tr>
             <th>Plugin</th>
             <th>Version</th>
-            <th>API</th>
+            <th>Capabilities</th>
             <th>Checks</th>
+            <th>Concurrency</th>
             <th>Restarts</th>
             <th>Status</th>
           </tr>
@@ -29,16 +30,21 @@ export function PluginsPage({ plugins }: Props) {
                 <span className="check-id">{p.id}</span>
               </td>
               <td>{p.version || "–"}</td>
-              <td>{p.api_version || "–"}</td>
-              <td>{p.check_count}</td>
+              <td className="muted">
+                {p.contacted ? p.capabilities.join(", ") || "–" : "not contacted yet"}
+              </td>
+              <td>{p.contacted ? p.checks.length : "–"}</td>
+              <td>{p.contacted ? p.max_concurrency : "–"}</td>
               <td>{p.restarts}</td>
               <td>
                 {p.error ? (
                   <span className="badge badge-crit" title={p.error}>
-                    LOAD FAILED
+                    ERROR
                   </span>
+                ) : p.contacted ? (
+                  <span className="badge badge-ok">READY</span>
                 ) : (
-                  <span className="badge badge-ok">LOADED</span>
+                  <span className="badge badge-muted">DISCOVERED</span>
                 )}
               </td>
             </tr>
@@ -47,7 +53,7 @@ export function PluginsPage({ plugins }: Props) {
       </table>
       {plugins.some((p) => p.error) && (
         <div className="card">
-          <h3>Load errors</h3>
+          <h3>Errors</h3>
           {plugins
             .filter((p) => p.error)
             .map((p) => (
@@ -58,8 +64,9 @@ export function PluginsPage({ plugins }: Props) {
         </div>
       )}
       <p className="muted">
-        Plugins are separate processes speaking the JSONL plugin protocol. A
-        crashing plugin is restarted automatically and can never take Robot
+        Capabilities and checks are discovered from the running plugin process
+        (CAPABILITIES negotiation) — the manifest only bootstraps the process.
+        A crashing plugin is restarted automatically and can never take Robot
         Doctor down.
       </p>
     </div>

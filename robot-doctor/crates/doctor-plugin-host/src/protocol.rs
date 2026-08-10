@@ -43,20 +43,28 @@ pub enum HostMessage {
     Ping {
         id: String,
     },
+    /// Best-effort cancellation of an in-flight request. The host has
+    /// already stopped waiting; a well-behaved plugin drops the work (or
+    /// its response). No reply is expected.
+    Cancel {
+        request_id: String,
+    },
     Shutdown {
         id: String,
     },
 }
 
 impl HostMessage {
-    pub fn id(&self) -> &str {
+    /// The correlation id a response must echo, if this message expects one.
+    pub fn id(&self) -> Option<&str> {
         match self {
             HostMessage::Hello { id, .. }
             | HostMessage::Capabilities { id }
             | HostMessage::Check { id, .. }
             | HostMessage::Action { id, .. }
             | HostMessage::Ping { id }
-            | HostMessage::Shutdown { id } => id,
+            | HostMessage::Shutdown { id } => Some(id),
+            HostMessage::Cancel { .. } => None,
         }
     }
 }
@@ -106,6 +114,10 @@ pub enum PluginMessage {
         checks: Vec<CheckDeclaration>,
         #[serde(default)]
         actions: Vec<ActionDeclaration>,
+        /// How many requests the plugin can process concurrently.
+        /// 1 (the default) means strictly sequential processing.
+        #[serde(default = "default_max_concurrency")]
+        max_concurrency: u32,
     },
     CheckResult {
         id: String,
@@ -130,6 +142,10 @@ pub enum PluginMessage {
         level: String,
         message: String,
     },
+}
+
+pub(crate) fn default_max_concurrency() -> u32 {
+    1
 }
 
 impl PluginMessage {
@@ -159,6 +175,7 @@ mod tests {
             request: CheckRequest {
                 check_id: CheckId::from("system.cpu"),
                 device_id: DeviceId::from("local"),
+                mode: None,
                 params: Default::default(),
                 timeout_ms: 5000,
             },

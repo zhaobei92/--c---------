@@ -23,6 +23,7 @@ fn request(check: &str) -> CheckRequest {
     CheckRequest {
         check_id: CheckId::from(check),
         device_id: DeviceId::from("local"),
+        mode: None,
         params: BTreeMap::new(),
         timeout_ms: 10_000,
     }

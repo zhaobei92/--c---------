@@ -1,66 +1,12 @@
+# Bootstrap metadata only. Capabilities, checks and actions are discovered
+# at runtime from the plugin process (CAPABILITIES message) — never here.
 id: system
 name: System Diagnostics
 version: 0.1.0
 api_version: 1
+description: Cross-platform system diagnostics (CPU, memory, disk, processes…)
 platforms: [linux, windows]
 architectures: [x86_64, aarch64]
-capabilities: [system]
 executable:
   linux: robot-doctor-plugin-system
   windows: robot-doctor-plugin-system.exe
-checks:
-  - id: system.identity
-    name: Machine identity
-    description: Hostname, architecture and OS identity
-    cost: FAST
-    timeout_ms: 5000
-    modes: [QUICK, FULL]
-  - id: system.os
-    name: Operating system
-    description: OS name, version and kernel
-    cost: FAST
-    timeout_ms: 5000
-    modes: [QUICK, FULL]
-  - id: system.cpu
-    name: CPU
-    description: Core count, per-core utilization and load
-    cost: MEDIUM
-    timeout_ms: 8000
-    modes: [QUICK, FULL]
-  - id: system.memory
-    name: Memory
-    description: RAM capacity and pressure
-    cost: FAST
-    timeout_ms: 5000
-    modes: [QUICK, FULL]
-  - id: system.swap
-    name: Swap
-    description: Swap capacity and usage
-    cost: FAST
-    timeout_ms: 5000
-    modes: [QUICK, FULL]
-  - id: system.disk
-    name: Disks
-    description: Mounted filesystems, capacity and free space
-    cost: FAST
-    timeout_ms: 8000
-    modes: [QUICK, FULL]
-  - id: system.process
-    name: Processes
-    description: Process inventory and top consumers
-    cost: MEDIUM
-    timeout_ms: 10000
-    modes: [QUICK, FULL]
-  - id: system.uptime
-    name: Uptime
-    description: System uptime and boot time
-    cost: FAST
-    timeout_ms: 5000
-    modes: [QUICK, FULL]
-  - id: system.time
-    name: System time
-    description: Wall clock and timezone offset
-    cost: FAST
-    timeout_ms: 5000
-    modes: [QUICK, FULL]
-actions: []

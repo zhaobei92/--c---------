@@ -72,6 +72,8 @@ pub struct NegotiatedCapabilities {
     pub capabilities: Vec<PluginCapability>,
     pub checks: Vec<CheckDeclaration>,
     pub actions: Vec<ActionDeclaration>,
+    /// Requests the plugin can process in parallel (>= 1).
+    pub max_concurrency: u32,
 }
 
 type PendingMap = Arc<Mutex<HashMap<String, oneshot::Sender<PluginMessage>>>>;
@@ -222,7 +224,10 @@ impl PluginHandle {
                 plugin: self.plugin_id.to_string(),
             });
         }
-        let id = msg.id().to_owned();
+        let id = msg
+            .id()
+            .expect("request messages carry a correlation id")
+            .to_owned();
         let (tx, rx) = oneshot::channel();
         self.pending.lock().await.insert(id.clone(), tx);
 
@@ -290,11 +295,13 @@ impl PluginHandle {
                 capabilities,
                 checks,
                 actions,
+                max_concurrency,
                 ..
             } => Ok(NegotiatedCapabilities {
                 capabilities,
                 checks,
                 actions,
+                max_concurrency: max_concurrency.max(1),
             }),
             _ => Err(HostError::UnexpectedResponse {
                 plugin: self.plugin_id.to_string(),
@@ -303,19 +310,36 @@ impl PluginHandle {
     }
 
     /// CHECK: run one check. The plugin gets `request.timeout_ms`; the host
-    /// waits slightly longer before declaring a timeout itself.
+    /// waits slightly longer before declaring a timeout itself. On timeout,
+    /// a best-effort CANCEL is sent so the plugin can drop the work.
     pub async fn run_check(&self, request: CheckRequest) -> Result<CheckResult, HostError> {
         let timeout = Duration::from_millis(request.timeout_ms) + HOST_TIMEOUT_GRACE;
+        let id = self.fresh_id();
         let msg = HostMessage::Check {
-            id: self.fresh_id(),
+            id: id.clone(),
             request,
         };
-        match self.request(msg, timeout).await? {
-            PluginMessage::CheckResult { result, .. } => Ok(result),
-            _ => Err(HostError::UnexpectedResponse {
+        match self.request(msg, timeout).await {
+            Ok(PluginMessage::CheckResult { result, .. }) => Ok(result),
+            Ok(_) => Err(HostError::UnexpectedResponse {
                 plugin: self.plugin_id.to_string(),
             }),
+            Err(err) => {
+                if matches!(err, HostError::Timeout { .. }) {
+                    self.cancel(&id).await;
+                }
+                Err(err)
+            }
         }
+    }
+
+    /// Best-effort cancellation notification; no response is expected.
+    pub async fn cancel(&self, request_id: &str) {
+        let msg = HostMessage::Cancel {
+            request_id: request_id.to_owned(),
+        };
+        let line = serde_json::to_string(&msg).expect("protocol messages serialize");
+        let _ = self.writer_tx.send(line).await;
     }
 
     /// PING: liveness probe.
