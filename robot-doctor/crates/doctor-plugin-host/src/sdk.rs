@@ -48,10 +48,15 @@ pub trait PluginService: Send + Sync + 'static {
     }
 }
 
+#[derive(Default)]
 pub struct ServiceCapabilities {
     pub capabilities: Vec<PluginCapability>,
     pub checks: Vec<CheckDeclaration>,
     pub actions: Vec<ActionDeclaration>,
+    /// Whether this plugin emits baseline-comparison projections
+    /// (Phase C2). Plugins without it stay valid; their namespaces are
+    /// simply UNSUPPORTED for semantic comparison.
+    pub baseline_projection: bool,
 }
 
 /// Collector used by plugin check implementations: accumulates evidence,
@@ -60,24 +65,95 @@ pub struct ServiceCapabilities {
 pub struct CheckContext {
     pub check_id: doctor_domain::CheckId,
     pub device_id: doctor_domain::DeviceId,
+    plugin_id: doctor_domain::PluginId,
     started_at: chrono::DateTime<chrono::Utc>,
     started: std::time::Instant,
     observations: Vec<doctor_domain::Observation>,
     evidence: Vec<doctor_domain::Evidence>,
     findings: Vec<doctor_domain::Finding>,
+    projection: Option<doctor_domain::ProjectionReport>,
 }
 
 impl CheckContext {
-    pub fn new(request: &CheckRequest) -> Self {
+    pub fn new(plugin_id: &str, request: &CheckRequest) -> Self {
         Self {
             check_id: request.check_id.clone(),
             device_id: request.device_id.clone(),
+            plugin_id: doctor_domain::PluginId::from(plugin_id),
             started_at: chrono::Utc::now(),
             started: std::time::Instant::now(),
             observations: Vec::new(),
             evidence: Vec::new(),
             findings: Vec::new(),
+            projection: None,
         }
+    }
+
+    /// Build a comparison entity attributed to this check (Phase C2).
+    pub fn entity(
+        &self,
+        namespace: &str,
+        kind: &str,
+        key: impl Into<String>,
+        display_name: impl Into<String>,
+    ) -> doctor_domain::ComparisonEntity {
+        doctor_domain::ComparisonEntity::new(
+            doctor_domain::EntityKey::new(namespace, kind, key),
+            display_name,
+            &self.plugin_id,
+            &self.check_id,
+        )
+    }
+
+    /// Record that this check authoritatively observed `namespace`. An
+    /// empty entity list then means "genuinely nothing there", which
+    /// downstream may evaluate as UNSATISFIED.
+    pub fn observed(&mut self, namespace: &str, entities: Vec<doctor_domain::ComparisonEntity>) {
+        self.projection = Some(doctor_domain::ProjectionReport::observed(
+            namespace, entities,
+        ));
+    }
+
+    /// Record an authoritative observation of specific entity *kinds*.
+    ///
+    /// Prefer this over [`CheckContext::observed`] whenever an empty
+    /// result is itself a fact — a machine with no GPU must still declare
+    /// that `gpu` was looked at, or the expectation would be UNKNOWN
+    /// instead of UNSATISFIED.
+    pub fn observed_kinds(
+        &mut self,
+        namespace: &str,
+        kinds: &[&str],
+        entities: Vec<doctor_domain::ComparisonEntity>,
+    ) {
+        self.projection = Some(doctor_domain::ProjectionReport::observed_kinds(
+            namespace,
+            kinds.iter().copied(),
+            entities,
+        ));
+    }
+
+    /// Record that this check could *not* observe `namespace`, so absence
+    /// proves nothing and expectations must evaluate to UNKNOWN.
+    pub fn not_observed(&mut self, namespace: &str, reason: impl Into<String>) {
+        self.projection = Some(doctor_domain::ProjectionReport::not_observed(
+            namespace, reason,
+        ));
+    }
+
+    /// Record that this check could not observe specific kinds, leaving
+    /// the rest of the namespace to other checks.
+    pub fn not_observed_kinds(
+        &mut self,
+        namespace: &str,
+        kinds: &[&str],
+        reason: impl Into<String>,
+    ) {
+        self.projection = Some(doctor_domain::ProjectionReport::not_observed_kinds(
+            namespace,
+            kinds.iter().copied(),
+            reason,
+        ));
     }
 
     pub fn evidence(
@@ -149,6 +225,18 @@ impl CheckContext {
         !self.findings.is_empty()
     }
 
+    /// Observations collected so far — plugins build their comparison
+    /// projection from the same normalized values the UI sees.
+    pub fn observations(&self) -> &[doctor_domain::Observation] {
+        &self.observations
+    }
+
+    /// Evidence ids collected so far, for attaching provenance to
+    /// projected entities.
+    pub fn evidence_ids(&self) -> Vec<doctor_domain::EvidenceId> {
+        self.evidence.iter().map(|e| e.id.clone()).collect()
+    }
+
     /// Build the final result. For non-evaluated statuses pass a message
     /// explaining why the check could not run.
     pub fn finish(
@@ -177,6 +265,7 @@ impl CheckContext {
             evidence: self.evidence,
             findings: self.findings,
             error,
+            projection: self.projection,
         }
     }
 }
@@ -314,6 +403,7 @@ pub fn run_plugin_stdio<S: PluginService>(service: S) -> std::io::Result<()> {
                     checks: caps.checks,
                     actions: caps.actions,
                     max_concurrency: service.max_concurrency().max(1),
+                    baseline_projection: caps.baseline_projection,
                 });
             }
             HostMessage::Check { id, request } => {

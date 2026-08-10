@@ -5,9 +5,9 @@
 
 use chrono::{Local, Offset, Utc};
 use doctor_domain::{
-    CheckCost, CheckDeclaration, CheckId, CheckRequest, CheckResult, CheckStatus, DeviceId,
-    DiagnosticMode, Evidence, EvidenceKind, Finding, FindingId, Observation, PluginId, RuleId,
-    Severity,
+    AttributeValue, CheckCost, CheckDeclaration, CheckId, CheckRequest, CheckResult, CheckStatus,
+    ComparisonEntity, DeviceId, DiagnosticMode, EntityKey, Evidence, EvidenceKind, Finding,
+    FindingId, Observation, PluginId, ProjectionReport, RuleId, Severity,
 };
 use serde_json::json;
 use sysinfo::{Disks, ProcessesToUpdate, System, MINIMUM_CPU_UPDATE_INTERVAL};
@@ -151,6 +151,24 @@ pub fn run_check(request: &CheckRequest) -> CheckResult {
         }),
     };
 
+    // Baseline projection (C2): the system namespace is observable
+    // whenever a check evaluated; nothing here judges the values.
+    let projection = if status.evaluated() {
+        Some(ProjectionReport::observed_kinds(
+            NAMESPACE,
+            projected_kinds(&request.check_id).iter().copied(),
+            project(&request.check_id, &ctx.observations),
+        ))
+    } else if status == CheckStatus::Unsupported {
+        None
+    } else {
+        Some(ProjectionReport::not_observed_kinds(
+            NAMESPACE,
+            projected_kinds(&request.check_id).iter().copied(),
+            format!("check '{}' could not observe the system", request.check_id),
+        ))
+    };
+
     CheckResult {
         check_id: request.check_id.clone(),
         plugin_id: PluginId::from(PLUGIN_ID),
@@ -162,7 +180,145 @@ pub fn run_check(request: &CheckRequest) -> CheckResult {
         evidence: ctx.evidence,
         findings: ctx.findings,
         error,
+        projection,
     }
+}
+
+/// Namespace this plugin projects into for baseline comparison.
+pub const NAMESPACE: &str = "system";
+
+/// Entity kinds a given check speaks for, declared independently of what
+/// it happened to find: a machine with no mounted disk still counts as
+/// having been looked at.
+fn projected_kinds(check_id: &CheckId) -> &'static [&'static str] {
+    match check_id.as_str() {
+        "system.identity" => &["host"],
+        "system.os" => &["os"],
+        "system.cpu" => &["cpu"],
+        "system.memory" => &["memory"],
+        "system.swap" => &["swap"],
+        "system.disk" => &["disk"],
+        // Volatile checks project nothing at all.
+        _ => &[],
+    }
+}
+
+/// Translate this plugin's observations into stable comparison entities.
+///
+/// Structural facts only: identity, capacities and mount structure are
+/// compared; instantaneous load, free space and clock values are left as
+/// observations because diffing them would be meaningless noise.
+fn project(check_id: &CheckId, observations: &[Observation]) -> Vec<ComparisonEntity> {
+    let plugin_id = PluginId::from(PLUGIN_ID);
+    let entity = |kind: &str, key: &str, display: &str| {
+        ComparisonEntity::new(
+            EntityKey::new(NAMESPACE, kind, key),
+            display,
+            &plugin_id,
+            check_id,
+        )
+    };
+    let text = |key: &str| {
+        observations
+            .iter()
+            .find(|o| o.key == key)
+            .and_then(|o| o.as_text().map(str::to_owned))
+    };
+    let number = |key: &str| {
+        observations
+            .iter()
+            .find(|o| o.key == key)
+            .and_then(|o| o.as_number())
+    };
+    let evidence: Vec<_> = observations
+        .iter()
+        .flat_map(|o| o.evidence_ids.iter().cloned())
+        .take(4)
+        .collect();
+
+    let mut entities = Vec::new();
+    match check_id.as_str() {
+        "system.identity" => {
+            let mut host = entity("host", "primary", "This machine").with_evidence(evidence);
+            if let Some(name) = text("system.identity.hostname") {
+                host = host.with("hostname", AttributeValue::text(name));
+            }
+            if let Some(arch) = text("system.identity.arch") {
+                host = host.with("architecture", AttributeValue::text(arch));
+            }
+            if let Some(distribution) = text("system.identity.distribution") {
+                host = host.with("distribution", AttributeValue::text(distribution));
+            }
+            entities.push(host);
+        }
+        "system.os" => {
+            let mut os = entity("os", "primary", "Operating system").with_evidence(evidence);
+            for (field, key) in [
+                ("name", "system.os.name"),
+                ("version", "system.os.version"),
+                ("kernel", "system.os.kernel"),
+            ] {
+                if let Some(value) = text(key) {
+                    os = os.with(field, AttributeValue::text(value));
+                }
+            }
+            entities.push(os);
+        }
+        "system.cpu" => {
+            let mut cpu = entity("cpu", "primary", "CPU").with_evidence(evidence);
+            if let Some(brand) = text("system.cpu.brand") {
+                cpu = cpu.with("brand", AttributeValue::text(brand));
+            }
+            if let Some(cores) = number("system.cpu.logical_cores") {
+                cpu = cpu.with("logical_cores", AttributeValue::Number(cores));
+            }
+            entities.push(cpu);
+        }
+        "system.memory" => {
+            let mut memory = entity("memory", "primary", "Memory").with_evidence(evidence);
+            if let Some(total) = number("system.memory.total_bytes") {
+                memory = memory.with("total_bytes", AttributeValue::Number(total));
+            }
+            entities.push(memory);
+        }
+        "system.swap" => {
+            let mut swap = entity("swap", "primary", "Swap").with_evidence(evidence);
+            if let Some(total) = number("system.swap.total_bytes") {
+                swap = swap.with("total_bytes", AttributeValue::Number(total));
+            }
+            entities.push(swap);
+        }
+        "system.disk" => {
+            let mounts = observations
+                .iter()
+                .find(|o| o.key == "system.disk.mounts")
+                .and_then(|o| match &o.value {
+                    doctor_domain::ObservationValue::Json(v) => v.as_array().cloned(),
+                    _ => None,
+                })
+                .unwrap_or_default();
+            for mount in mounts {
+                let Some(path) = mount.get("mount").and_then(|v| v.as_str()) else {
+                    continue;
+                };
+                let mut disk = entity("disk", path, path).with_evidence(evidence.clone());
+                if let Some(total) = mount.get("total_bytes").and_then(|v| v.as_f64()) {
+                    disk = disk.with("total_bytes", AttributeValue::Number(total));
+                }
+                if let Some(fs) = mount.get("file_system").and_then(|v| v.as_str()) {
+                    disk = disk.with("file_system", AttributeValue::text(fs));
+                }
+                if let Some(free) = mount.get("free_percent").and_then(|v| v.as_f64()) {
+                    disk = disk.with("free_percent", AttributeValue::Number(free));
+                }
+                entities.push(disk);
+            }
+        }
+        // Uptime, process inventory and wall clock are inherently
+        // volatile: observed, never compared.
+        _ => {}
+    }
+    entities
 }
 
 /// Collection context for one check execution.

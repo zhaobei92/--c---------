@@ -129,6 +129,12 @@ pub struct CheckResult {
     /// Present when `status` is not Passed/Failed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<CheckError>,
+    /// Baseline-comparison projection (Phase C2). `None` means the plugin
+    /// does not implement projection, which is UNSUPPORTED for comparison
+    /// rather than an error. Backward compatible: older plugins simply
+    /// omit the field.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub projection: Option<crate::comparison::ProjectionReport>,
 }
 
 /// One diagnostic run: a set of check results for a device.
@@ -191,6 +197,7 @@ mod tests {
             evidence: vec![],
             findings,
             error: None,
+            projection: None,
         }
     }
 

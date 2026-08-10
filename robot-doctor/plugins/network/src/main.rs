@@ -24,6 +24,7 @@ impl PluginService for NetworkPlugin {
             capabilities: vec![PluginCapability("network".to_owned())],
             checks: plugin_network::check_declarations(),
             actions: vec![],
+            baseline_projection: true,
         }
     }
 

@@ -220,6 +220,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "doctor-profile"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "doctor-domain",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror 2.0.20",
+ "uuid",
+]
+
+[[package]]
 name = "doctor-storage"
 version = "0.1.0"
 dependencies = [

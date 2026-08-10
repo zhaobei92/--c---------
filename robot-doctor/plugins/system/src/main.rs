@@ -25,6 +25,7 @@ impl PluginService for SystemPlugin {
             capabilities: vec![PluginCapability("system".to_owned())],
             checks: plugin_system::check_declarations(),
             actions: vec![],
+            baseline_projection: true,
         }
     }
 

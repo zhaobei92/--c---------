@@ -50,6 +50,40 @@ pub struct RunSummaryRow {
     pub finding_count: i64,
 }
 
+/// Baseline header for list views (no entity payload).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct BaselineSummaryRow {
+    pub id: String,
+    pub device_id: String,
+    pub name: String,
+    pub description: String,
+    pub created_at: String,
+    pub source_count: i64,
+    pub entity_count: i64,
+}
+
+/// Profile header for list views.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProfileRow {
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    pub created_at: String,
+    pub latest_revision: u32,
+}
+
+/// One revision in a profile's history.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct ProfileRevisionRow {
+    pub revision: u32,
+    pub status: String,
+    pub created_at: String,
+    pub updated_at: String,
+    /// How many persisted evaluations reference this revision. Non-zero
+    /// means the revision may be archived but never deleted.
+    pub evaluation_count: i64,
+}
+
 /// A fully reconstructed historical run.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct StoredRun {

@@ -71,6 +71,8 @@ fn synthetic_result(
         evidence: vec![],
         findings: vec![],
         error: Some(CheckError { status, message }),
+        // Synthetic results make no observation claim at all.
+        projection: None,
     }
 }
 
@@ -354,6 +356,7 @@ async fn run_one(
                     status,
                     message: plugin_error.message,
                 }),
+                projection: None,
             }
         }
     }

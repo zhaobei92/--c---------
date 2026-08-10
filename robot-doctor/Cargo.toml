@@ -4,6 +4,7 @@ members = [
     "crates/doctor-domain",
     "crates/doctor-plugin-host",
     "crates/doctor-storage",
+    "crates/doctor-profile",
     "crates/doctor-core",
     "plugins/system",
     "plugins/network",
@@ -26,6 +27,7 @@ repository = "https://github.com/zhaobei92/robot-doctor"
 doctor-domain = { path = "crates/doctor-domain" }
 doctor-plugin-host = { path = "crates/doctor-plugin-host" }
 doctor-storage = { path = "crates/doctor-storage" }
+doctor-profile = { path = "crates/doctor-profile" }
 doctor-core = { path = "crates/doctor-core" }
 
 serde = { version = "1", features = ["derive"] }

@@ -179,6 +179,7 @@ impl Engine {
                                 status,
                                 message: err.to_string(),
                             }),
+                            projection: None,
                         })
                     }
                 };

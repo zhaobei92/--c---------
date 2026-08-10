@@ -1,0 +1,15 @@
+[package]
+name = "doctor-profile"
+description = "Baseline capture/diff, profile parsing/validation and expectation evaluation (Phase C2)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+doctor-domain.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+thiserror.workspace = true
+chrono.workspace = true
+uuid.workspace = true

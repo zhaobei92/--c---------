@@ -11,6 +11,7 @@
 pub mod bootstrap;
 pub mod cli_provider;
 pub mod error;
+pub mod projection;
 pub mod provider;
 pub mod rclpy_provider;
 
@@ -359,7 +360,7 @@ pub fn check_declarations() -> Vec<CheckDeclaration> {
 // ── check execution ────────────────────────────────────────────────────
 
 pub fn run_check(plugin: &RosPlugin, request: &CheckRequest) -> CheckResult {
-    let mut ctx = CheckContext::new(request);
+    let mut ctx = CheckContext::new(PLUGIN_ID, request);
     let check = request.check_id.as_str();
 
     // Runtime resolution. Without any runtime, only ros.environment can
@@ -400,7 +401,18 @@ pub fn run_check(plugin: &RosPlugin, request: &CheckRequest) -> CheckResult {
     };
     match status {
         Ok(status) => ctx.finish(PLUGIN_ID, status, None),
-        Err(err) => ctx.finish(PLUGIN_ID, err.kind.check_status(), Some(err.display())),
+        Err(err) => {
+            // Anything that prevented observation keeps the namespace
+            // NOT_OBSERVED, so downstream expectations stay UNKNOWN.
+            if err.kind != RosErrorKind::TypeSupportMissing {
+                ctx.not_observed_kinds(
+                    projection::NAMESPACE,
+                    projection::kinds_for(check),
+                    err.display(),
+                );
+            }
+            ctx.finish(PLUGIN_ID, err.kind.check_status(), Some(err.display()))
+        }
     }
 }
 
@@ -442,6 +454,7 @@ fn bootstrap_failure_result(
     runtime: &ActiveRuntime,
     err: RosError,
 ) -> CheckResult {
+    ctx.not_observed(projection::NAMESPACE, err.display());
     if err.kind == RosErrorKind::RosNotInstalled {
         return ctx.finish(PLUGIN_ID, CheckStatus::Unavailable, Some(err.display()));
     }
@@ -551,6 +564,12 @@ fn check_environment(ctx: &mut CheckContext, runtime: &ActiveRuntime) -> RosResu
     }
     // Unusual values are not classified as errors — observations only.
     if runtime.provider.is_some() {
+        let entity = projection::runtime_entity(ctx, info);
+        ctx.observed_kinds(
+            projection::NAMESPACE,
+            projection::kinds_for("ros.env"),
+            vec![entity],
+        );
         Ok(CheckStatus::Passed)
     } else {
         Err(RosError::new(
@@ -657,6 +676,12 @@ fn check_graph(
         serde_json::to_value(&snapshot).expect("snapshot serializes"),
         &ev,
     );
+    let entities = projection::graph_entities(ctx, &snapshot);
+    ctx.observed_kinds(
+        projection::NAMESPACE,
+        projection::kinds_for("ros.graph"),
+        entities,
+    );
     Ok(CheckStatus::Passed)
 }
 
@@ -743,6 +768,12 @@ fn check_diagnostics(
         serde_json::to_value(&statuses).expect("serializes"),
         &ev,
     );
+    let entities = projection::diagnostics_entities(ctx, &statuses);
+    ctx.observed_kinds(
+        projection::NAMESPACE,
+        projection::kinds_for("ros.diagnostics"),
+        entities,
+    );
     Ok(CheckStatus::Passed)
 }
 
@@ -814,15 +845,19 @@ fn check_topic_rate(
             json!({"configured_topics": 0}),
         );
         ctx.number("ros.sampling.topics", 0.0, "count", &ev);
+        // Nothing was requested: this check makes no claim about the
+        // namespace, so it emits no projection at all.
         return Ok(CheckStatus::Passed);
     }
     let duration = param_f64(request, "duration_s", if age_focus { 2.0 } else { 4.0 }).min(20.0);
     let mut worst: Option<RosError> = None;
     let mut successes = 0u32;
+    let mut sampled: Vec<doctor_domain::ros::RosTopicSample> = Vec::new();
     for topic in topics.iter().take(10) {
         match provider.topic_sample(topic, duration) {
             Ok(sample) => {
                 successes += 1;
+                sampled.push(sample.clone());
                 let ev = ctx.evidence(
                     EvidenceKind::Metric,
                     &format!("provider:{}", provider.name()),
@@ -886,6 +921,17 @@ fn check_topic_rate(
             }
         }
     }
+    if successes > 0 {
+        let entities = sampled
+            .iter()
+            .map(|sample| projection::sample_entity(ctx, sample))
+            .collect();
+        ctx.observed_kinds(
+            projection::NAMESPACE,
+            projection::kinds_for("ros.topic_rate"),
+            entities,
+        );
+    }
     // A failing topic (e.g. TYPE_SUPPORT_MISSING) never marks the topic —
     // or the check — broken while other samples succeeded. Only when
     // nothing could be sampled does the typed error become the status.
@@ -936,6 +982,12 @@ fn check_tf(
         "ros.tf.snapshot",
         serde_json::to_value(&snapshot).expect("serializes"),
         &ev,
+    );
+    let entities = projection::tf_entities(ctx, &snapshot);
+    ctx.observed_kinds(
+        projection::NAMESPACE,
+        projection::kinds_for("ros.tf"),
+        entities,
     );
 
     // Explicit CAN TRANSFORM queries (source/target pairs from params).
@@ -1012,6 +1064,12 @@ fn check_lifecycle(
         "ros.lifecycle.states",
         serde_json::to_value(&states).expect("serializes"),
         &ev,
+    );
+    let entities = projection::lifecycle_entities(ctx, &states);
+    ctx.observed_kinds(
+        projection::NAMESPACE,
+        projection::kinds_for("ros.lifecycle"),
+        entities,
     );
     // Nodes without managed lifecycle are not errors.
     Ok(CheckStatus::Passed)

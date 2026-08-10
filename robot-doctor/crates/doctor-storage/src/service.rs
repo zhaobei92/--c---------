@@ -3,6 +3,7 @@
 //! SQLite directly — they send messages and await replies. A storage failure
 //! is returned to the caller (and logged); it never corrupts the engine.
 
+use crate::c2::read_entities;
 use crate::schema;
 use crate::types::{PluginSnapshot, RunFilter, RunSummaryRow, StoredRun};
 use chrono::{DateTime, Utc};
@@ -60,6 +61,11 @@ enum Cmd {
     ListRuns(RunFilter, Reply<Vec<RunSummaryRow>>),
     GetRun(RunId, Reply<Option<StoredRun>>),
     DeleteRun(RunId, Reply<bool>),
+    /// Run a typed closure on the storage thread. Keeps the Phase C2
+    /// surface (baselines, profiles, evaluations) from doubling this
+    /// message enum while preserving full type safety: the closure owns
+    /// its own reply channel.
+    Exec(Box<dyn FnOnce(&mut Connection) + Send>),
     GetSetting(String, Reply<Option<String>>),
     SetSetting(String, String, Reply<()>),
     Close(Reply<()>),
@@ -98,6 +104,26 @@ impl Storage {
         let (tx, rx) = oneshot::channel();
         self.tx
             .send(build(tx))
+            .await
+            .map_err(|_| StorageError::ServiceStopped)?;
+        rx.await.map_err(|_| StorageError::ServiceStopped)?
+    }
+
+    /// Execute `work` on the storage thread and await its result.
+    ///
+    /// This is the extension point every Phase C2 operation uses: writes
+    /// stay serialized on one connection, and a storage failure is
+    /// returned to the caller instead of poisoning the engine.
+    pub async fn with_conn<T, F>(&self, work: F) -> Result<T, StorageError>
+    where
+        F: FnOnce(&mut Connection) -> Result<T, StorageError> + Send + 'static,
+        T: Send + 'static,
+    {
+        let (tx, rx) = oneshot::channel();
+        self.tx
+            .send(Cmd::Exec(Box::new(move |conn| {
+                let _ = tx.send(work(conn));
+            })))
             .await
             .map_err(|_| StorageError::ServiceStopped)?;
         rx.await.map_err(|_| StorageError::ServiceStopped)?
@@ -256,6 +282,7 @@ fn service_thread(
             Cmd::DeleteRun(run_id, reply) => {
                 let _ = reply.send(delete_run(&conn, &run_id));
             }
+            Cmd::Exec(work) => work(&mut conn),
             Cmd::GetSetting(key, reply) => {
                 let _ = reply.send(get_setting(&conn, &key));
             }
@@ -395,8 +422,9 @@ fn append_result(
     tx.execute(
         "INSERT INTO check_results
          (id, run_id, check_id, plugin_id, status, health, started_at, duration_ms,
-          error_kind, error_message, summary)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+          error_kind, error_message, summary,
+          projection_namespace, projection_observed, projection_reason, projection_kinds)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15)",
         params![
             result_id,
             run_id.as_str(),
@@ -409,8 +437,40 @@ fn append_result(
             result.error.as_ref().map(|e| enum_str(&e.status)),
             result.error.as_ref().map(|e| e.message.clone()),
             result_summary(result),
+            result.projection.as_ref().map(|p| p.namespace.clone()),
+            result.projection.as_ref().map(|p| i64::from(p.observed)),
+            result.projection.as_ref().and_then(|p| p.reason.clone()),
+            result
+                .projection
+                .as_ref()
+                .map(|p| serde_json::to_string(&p.kinds).expect("kinds serialize")),
         ],
     )?;
+    // Comparison entities (C2) are stored per run so baseline capture and
+    // profile evaluation never need to relaunch plugins.
+    if let Some(projection) = &result.projection {
+        for entity in &projection.entities {
+            tx.execute(
+                "INSERT INTO run_entities
+                 (id, run_id, result_id, namespace, kind, entity_key, display_name,
+                  attributes, source_plugin, source_check, evidence_ids)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+                params![
+                    uuid::Uuid::new_v4().to_string(),
+                    run_id.as_str(),
+                    result_id,
+                    entity.key.namespace,
+                    entity.key.kind,
+                    entity.key.key,
+                    entity.display_name,
+                    serde_json::to_string(&entity.attributes).expect("attributes serialize"),
+                    entity.source_plugin.as_str(),
+                    entity.source_check.as_str(),
+                    serde_json::to_string(&entity.source_evidence_ids).expect("ids serialize"),
+                ],
+            )?;
+        }
+    }
     for obs in &result.observations {
         tx.execute(
             "INSERT INTO observations (id, result_id, key, value, unit, evidence_ids, observed_at)
@@ -601,7 +661,8 @@ fn get_run(conn: &Connection, run_id: &RunId) -> Result<Option<StoredRun>, Stora
 
     // Check results (with their storage ids for child lookups).
     let mut stmt = conn.prepare(
-        "SELECT id, check_id, plugin_id, status, started_at, duration_ms, error_kind, error_message
+        "SELECT id, check_id, plugin_id, status, started_at, duration_ms, error_kind, error_message,
+                projection_namespace, projection_observed, projection_reason, projection_kinds
          FROM check_results WHERE run_id = ?1 ORDER BY started_at",
     )?;
     let result_rows: Vec<(String, CheckResult)> = stmt
@@ -615,12 +676,29 @@ fn get_run(conn: &Connection, run_id: &RunId) -> Result<Option<StoredRun>, Stora
                 row.get::<_, i64>(5)?,
                 row.get::<_, Option<String>>(6)?,
                 row.get::<_, Option<String>>(7)?,
+                row.get::<_, Option<String>>(8)?,
+                row.get::<_, Option<i64>>(9)?,
+                row.get::<_, Option<String>>(10)?,
+                row.get::<_, Option<String>>(11)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?
         .into_iter()
         .map(
-            |(rid, check_id, plugin_id, status, started, duration, ekind, emsg)| {
+            |(
+                rid,
+                check_id,
+                plugin_id,
+                status,
+                started,
+                duration,
+                ekind,
+                emsg,
+                pns,
+                pobs,
+                prsn,
+                pkinds,
+            )| {
                 let status: CheckStatus = enum_parse(&status)?;
                 let error = match (ekind, emsg) {
                     (Some(kind), msg) => Some(CheckError {
@@ -629,6 +707,19 @@ fn get_run(conn: &Connection, run_id: &RunId) -> Result<Option<StoredRun>, Stora
                     }),
                     _ => None,
                 };
+                // Entities are attached below; the header restores the
+                // namespace/observed signal that decides UNKNOWN semantics.
+                let kinds: Vec<String> = pkinds
+                    .as_deref()
+                    .and_then(|text| serde_json::from_str(text).ok())
+                    .unwrap_or_default();
+                let projection = pns.map(|namespace| doctor_domain::ProjectionReport {
+                    namespace,
+                    observed: pobs.unwrap_or(0) != 0,
+                    kinds,
+                    entities: vec![],
+                    reason: prsn,
+                });
                 Ok((
                     rid,
                     CheckResult {
@@ -642,6 +733,7 @@ fn get_run(conn: &Connection, run_id: &RunId) -> Result<Option<StoredRun>, Stora
                         evidence: vec![],
                         findings: vec![],
                         error,
+                        projection,
                     },
                 ))
             },
@@ -756,6 +848,11 @@ fn get_run(conn: &Connection, run_id: &RunId) -> Result<Option<StoredRun>, Stora
                 evidence_ids,
                 detected_at: parse_ts(&detected_at)?,
             });
+        }
+
+        // Comparison entities belonging to this result (C2).
+        if let Some(projection) = result.projection.as_mut() {
+            projection.entities = read_entities(conn, "result_id", &result_row_id)?;
         }
 
         results.push(result);

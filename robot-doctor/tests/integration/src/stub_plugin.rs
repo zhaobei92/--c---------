@@ -94,6 +94,9 @@ impl PluginService for StubPlugin {
             capabilities: vec![PluginCapability("stub".to_owned())],
             checks,
             actions: vec![],
+            // Stub projects a tiny `stub` namespace so C2 comparison and
+            // UNKNOWN semantics are exercised without a live system.
+            baseline_projection: true,
         }
     }
 
@@ -111,6 +114,7 @@ impl PluginService for StubPlugin {
             evidence: vec![],
             findings: vec![],
             error,
+            projection: None,
         };
         match request.check_id.as_str() {
             "stub.ok" | "stub.root" | "stub.child_ok" | "stub.fast" => {
@@ -128,6 +132,17 @@ impl PluginService for StubPlugin {
                     vec![ev.id.clone()],
                 );
                 let mut r = base(CheckStatus::Passed, None);
+                r.projection = Some(doctor_domain::ProjectionReport::observed(
+                    "stub",
+                    vec![doctor_domain::ComparisonEntity::new(
+                        doctor_domain::EntityKey::new("stub", "widget", request.check_id.as_str()),
+                        request.check_id.as_str(),
+                        &plugin_id,
+                        &request.check_id,
+                    )
+                    .with("value", doctor_domain::AttributeValue::Number(1.0))
+                    .with_evidence(vec![ev.id.clone()])],
+                ));
                 r.evidence.push(ev);
                 r.observations.push(obs);
                 r
@@ -157,13 +172,22 @@ impl PluginService for StubPlugin {
                 r.findings.push(finding);
                 r
             }
-            "stub.unavailable" => base(
-                CheckStatus::Unavailable,
-                Some(CheckError {
-                    status: CheckStatus::Unavailable,
-                    message: "simulated missing dependency (e.g. ROS not installed)".to_owned(),
-                }),
-            ),
+            "stub.unavailable" => {
+                let mut r = base(
+                    CheckStatus::Unavailable,
+                    Some(CheckError {
+                        status: CheckStatus::Unavailable,
+                        message: "simulated missing dependency (e.g. ROS not installed)".to_owned(),
+                    }),
+                );
+                // Could not observe: downstream expectations must be
+                // UNKNOWN rather than UNSATISFIED.
+                r.projection = Some(doctor_domain::ProjectionReport::not_observed(
+                    "stub",
+                    "simulated missing dependency",
+                ));
+                r
+            }
             "stub.slow" => {
                 std::thread::sleep(std::time::Duration::from_secs(3));
                 base(CheckStatus::Passed, None)

@@ -12,7 +12,9 @@
 pub mod action;
 pub mod baseline;
 pub mod check;
+pub mod comparison;
 pub mod device;
+pub mod evaluation;
 pub mod evidence;
 pub mod finding;
 pub mod health;
@@ -22,12 +24,20 @@ pub mod profile;
 pub mod ros;
 
 pub use action::{ActionDefinition, ActionResult, ActionStatus};
-pub use baseline::{Baseline, BaselineDiff, BaselineDiffEntry, BaselineDiffStatus, BaselineEntry};
+pub use baseline::{
+    Baseline, BaselineAttributeDiff, BaselineCompatibility, BaselineDiff, BaselineDiffEntity,
+    BaselineEntity, BaselineSource, CompatibilityNote, EntityDiffState, EntityStability,
+    NumericSummary, RunProjection,
+};
 pub use check::{
     CheckCost, CheckDefinition, CheckError, CheckRequest, CheckResult, CheckRun, DiagnosticMode,
     Platform,
 };
+pub use comparison::{
+    AttributeValue, ComparisonEntity, EntityKey, NamespaceAvailability, ProjectionReport,
+};
 pub use device::{Capability, ConnectionState, Device, DeviceEndpoint};
+pub use evaluation::{EvaluationRun, ExpectationResult, ExpectationStatus};
 pub use evidence::{Evidence, EvidenceKind, Metric, Observation, ObservationValue};
 pub use finding::{Finding, Incident, IncidentState, Remediation, RootCause};
 pub use health::{CheckStatus, HealthState, Severity};
@@ -37,6 +47,10 @@ pub use ids::{
 };
 pub use plugin::{
     ActionDeclaration, Architecture, CheckDeclaration, PluginCapability, PluginManifest,
+};
+pub use profile::{
+    Constraint, ConstraintValue, DeviceProfileAssignment, Expectation, Profile, ProfileStatus,
+    RelationshipMode, Requirement, Selector, PROFILE_SCHEMA_VERSION,
 };
 pub use ros::{
     QosCompatibility, QosDurability, QosDuration, QosHistory, QosLiveliness, QosReliability,

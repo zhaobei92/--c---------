@@ -24,6 +24,7 @@ impl PluginService for NvidiaPlugin {
             capabilities: vec![PluginCapability("gpu.nvidia".to_owned())],
             checks: plugin_nvidia::check_declarations(),
             actions: vec![],
+            baseline_projection: true,
         }
     }
 

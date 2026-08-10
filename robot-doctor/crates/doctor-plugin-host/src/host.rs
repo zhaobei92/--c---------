@@ -74,6 +74,8 @@ pub struct NegotiatedCapabilities {
     pub actions: Vec<ActionDeclaration>,
     /// Requests the plugin can process in parallel (>= 1).
     pub max_concurrency: u32,
+    /// Whether the plugin emits baseline-comparison projections (C2).
+    pub baseline_projection: bool,
 }
 
 type PendingMap = Arc<Mutex<HashMap<String, oneshot::Sender<PluginMessage>>>>;
@@ -296,12 +298,14 @@ impl PluginHandle {
                 checks,
                 actions,
                 max_concurrency,
+                baseline_projection,
                 ..
             } => Ok(NegotiatedCapabilities {
                 capabilities,
                 checks,
                 actions,
                 max_concurrency: max_concurrency.max(1),
+                baseline_projection,
             }),
             _ => Err(HostError::UnexpectedResponse {
                 plugin: self.plugin_id.to_string(),

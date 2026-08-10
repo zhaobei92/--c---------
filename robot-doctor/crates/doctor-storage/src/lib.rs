@@ -6,12 +6,16 @@
 //! await replies. Schema migrations run on open. Storage failures are
 //! returned to callers and logged — they never crash the engine.
 
+pub mod c2;
 pub mod schema;
 mod service;
 mod types;
 
 pub use service::{Storage, StorageError};
-pub use types::{PluginSnapshot, RunFilter, RunSummaryRow, StoredRun};
+pub use types::{
+    BaselineSummaryRow, PluginSnapshot, ProfileRevisionRow, ProfileRow, RunFilter, RunSummaryRow,
+    StoredRun,
+};
 
 #[cfg(test)]
 mod tests {
@@ -49,6 +53,21 @@ mod tests {
         } else {
             vec![]
         };
+        // Every sample result also projects one comparison entity, so
+        // the C2 persistence path is exercised by the ordinary
+        // round-trip tests rather than only by a dedicated one.
+        let projection = doctor_domain::ProjectionReport::observed_kinds(
+            "test",
+            ["widget", "gadget"],
+            vec![doctor_domain::ComparisonEntity::new(
+                doctor_domain::EntityKey::new("test", "widget", check),
+                check,
+                &PluginId::from("test"),
+                &check_id,
+            )
+            .with("value", doctor_domain::AttributeValue::Number(42.0))
+            .with_evidence(vec![ev.id.clone()])],
+        );
         CheckResult {
             check_id,
             plugin_id: PluginId::from("test"),
@@ -64,6 +83,7 @@ mod tests {
             evidence: vec![ev],
             findings,
             error: None,
+            projection: Some(projection),
         }
     }
 

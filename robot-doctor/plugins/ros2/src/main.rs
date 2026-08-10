@@ -38,6 +38,7 @@ impl PluginService for Ros2PluginService {
             capabilities,
             checks: check_declarations(),
             actions: vec![],
+            baseline_projection: true,
         }
     }
 

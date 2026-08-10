@@ -6,8 +6,8 @@
 //! ICMP sockets (which need elevated privileges on both platforms).
 
 use doctor_domain::{
-    CheckCost, CheckDeclaration, CheckId, CheckRequest, CheckResult, CheckStatus, DiagnosticMode,
-    EvidenceKind, Severity,
+    AttributeValue, CheckCost, CheckDeclaration, CheckId, CheckRequest, CheckResult, CheckStatus,
+    DiagnosticMode, EvidenceKind, Severity,
 };
 use doctor_plugin_host::CheckContext;
 use serde::{Deserialize, Serialize};
@@ -142,7 +142,7 @@ pub fn check_declarations() -> Vec<CheckDeclaration> {
 }
 
 pub fn run_check(request: &CheckRequest) -> CheckResult {
-    let mut ctx = CheckContext::new(request);
+    let mut ctx = CheckContext::new(PLUGIN_ID, request);
     let status = match request.check_id.as_str() {
         "network.interfaces" => check_interfaces(&mut ctx),
         "network.default_route" => check_default_route(&mut ctx),
@@ -165,11 +165,52 @@ pub fn run_check(request: &CheckRequest) -> CheckResult {
     ctx.finish(PLUGIN_ID, status, None)
 }
 
+/// Namespace this plugin projects into for baseline comparison.
+pub const NAMESPACE: &str = "network";
+
+/// Stable identity for a target entity: `host` or `host:port`.
+///
+/// The kind is declared even when no targets are configured, so "no
+/// targets" reads as an observed empty set rather than an unobserved one.
+fn target_entities(ctx: &mut CheckContext, kind: &str, results: Vec<(String, serde_json::Value)>) {
+    let entities = results
+        .into_iter()
+        .map(|(label, data)| {
+            let mut entity = ctx.entity(NAMESPACE, kind, label.clone(), label);
+            if let Some(outcome) = data.get("outcome").and_then(|v| v.as_str()) {
+                entity = entity.with("outcome", AttributeValue::text(outcome));
+            }
+            if let Some(reachable) = data.get("reachable").and_then(|v| v.as_bool()) {
+                entity = entity.with("reachable", AttributeValue::Bool(reachable));
+            }
+            for numeric in [
+                "latency_ms",
+                "connect_latency_ms",
+                "avg_ms",
+                "min_ms",
+                "max_ms",
+            ] {
+                if let Some(value) = data.get(numeric).and_then(|v| v.as_f64()) {
+                    entity = entity.with(numeric, AttributeValue::Number(value));
+                }
+            }
+            entity
+        })
+        .collect();
+    ctx.observed_kinds(NAMESPACE, &[kind], entities);
+}
+
 // ── interfaces ─────────────────────────────────────────────────────────
 
 fn check_interfaces(ctx: &mut CheckContext) -> CheckStatus {
     let interfaces = netdev::get_interfaces();
     if interfaces.is_empty() {
+        // Could not enumerate: absence proves nothing downstream.
+        ctx.not_observed_kinds(
+            NAMESPACE,
+            &["interface"],
+            "interface enumeration returned nothing",
+        );
         return CheckStatus::Error;
     }
     let table: Vec<serde_json::Value> = interfaces
@@ -199,7 +240,7 @@ fn check_interfaces(ctx: &mut CheckContext) -> CheckStatus {
         "Interface inventory from OS",
         json!({"interfaces": table}),
     );
-    ctx.json("network.interfaces.list", json!(table), &ev);
+    ctx.json("network.interfaces.list", json!(table.clone()), &ev);
     ctx.number(
         "network.interfaces.count",
         interfaces.len() as f64,
@@ -212,6 +253,41 @@ fn check_interfaces(ctx: &mut CheckContext) -> CheckStatus {
         "count",
         &ev,
     );
+
+    // Projection: interface name is the stable identity; addresses and
+    // MTU are structural. Byte counters and transient state are not
+    // projected — they would produce meaningless diffs.
+    let entities = table
+        .iter()
+        .filter_map(|iface| {
+            let name = iface.get("name")?.as_str()?;
+            let mut entity = ctx.entity(NAMESPACE, "interface", name, name);
+            if let Some(kind) = iface.get("type").and_then(|v| v.as_str()) {
+                entity = entity.with("type", AttributeValue::text(kind));
+            }
+            if let Some(up) = iface.get("up").and_then(|v| v.as_bool()) {
+                entity = entity.with("up", AttributeValue::Bool(up));
+            }
+            if let Some(loopback) = iface.get("loopback").and_then(|v| v.as_bool()) {
+                entity = entity.with("loopback", AttributeValue::Bool(loopback));
+            }
+            if let Some(mtu) = iface.get("mtu").and_then(|v| v.as_f64()) {
+                entity = entity.with("mtu", AttributeValue::Number(mtu));
+            }
+            if let Some(addrs) = iface.get("ipv4").and_then(|v| v.as_array()) {
+                entity = entity.with(
+                    "ipv4",
+                    AttributeValue::set(addrs.iter().filter_map(|a| a.as_str())),
+                );
+            }
+            if let Some(mac) = iface.get("mac").and_then(|v| v.as_str()) {
+                entity = entity.with("mac", AttributeValue::text(mac));
+            }
+            Some(entity.with_evidence(vec![ev.clone()]))
+        })
+        .collect();
+    ctx.observed_kinds(NAMESPACE, &["interface"], entities);
+
     // Virtual/down interfaces are not errors — Profiles decide relevance.
     CheckStatus::Passed
 }
@@ -388,6 +464,7 @@ pub fn tcp_probe(
 fn check_reachability(ctx: &mut CheckContext, request: &CheckRequest) -> CheckStatus {
     let targets = targets_from(request, &loopback_target());
     let mut all_ok = true;
+    let mut projected: Vec<(String, serde_json::Value)> = Vec::new();
     for target in &targets {
         let label = target.label();
         let (outcome, latency_ms, resolved, reachable) = match target.port {
@@ -431,11 +508,13 @@ fn check_reachability(ctx: &mut CheckContext, request: &CheckRequest) -> CheckSt
                 "method": "tcp_connect",
             }),
         );
+        let summary = json!({"reachable": reachable, "outcome": outcome, "latency_ms": latency_ms});
         ctx.json(
             &format!("network.reachability.{label}"),
-            json!({"reachable": reachable, "outcome": outcome, "latency_ms": latency_ms}),
+            summary.clone(),
             &ev,
         );
+        projected.push((label.clone(), summary));
         if !reachable {
             all_ok = false;
             ctx.finding(
@@ -460,6 +539,7 @@ fn check_reachability(ctx: &mut CheckContext, request: &CheckRequest) -> CheckSt
             );
         }
     }
+    target_entities(ctx, "target", projected);
     if all_ok {
         CheckStatus::Passed
     } else {
@@ -482,9 +562,12 @@ fn check_tcp_port(ctx: &mut CheckContext, request: &CheckRequest) -> CheckStatus
             json!({"configured_targets": 0}),
         );
         ctx.number("network.tcp_port.targets", 0.0, "count", &ev);
+        // Observed, and there is genuinely nothing configured.
+        ctx.observed_kinds(NAMESPACE, &["tcp_port"], vec![]);
         return CheckStatus::Passed;
     }
     let mut all_open = true;
+    let mut projected: Vec<(String, serde_json::Value)> = Vec::new();
     for target in &targets {
         let port = target.port.expect("filtered above");
         let label = target.label();
@@ -501,11 +584,9 @@ fn check_tcp_port(ctx: &mut CheckContext, request: &CheckRequest) -> CheckStatus
                 "connect_latency_ms": latency_ms,
             }),
         );
-        ctx.json(
-            &format!("network.tcp_port.{label}"),
-            json!({"outcome": outcome, "connect_latency_ms": latency_ms}),
-            &ev,
-        );
+        let summary = json!({"outcome": outcome, "connect_latency_ms": latency_ms});
+        ctx.json(&format!("network.tcp_port.{label}"), summary.clone(), &ev);
+        projected.push((label.clone(), summary));
         if outcome != ConnectOutcome::Open {
             all_open = false;
             ctx.finding(
@@ -518,6 +599,7 @@ fn check_tcp_port(ctx: &mut CheckContext, request: &CheckRequest) -> CheckStatus
             );
         }
     }
+    target_entities(ctx, "tcp_port", projected);
     if all_open {
         CheckStatus::Passed
     } else {
@@ -534,6 +616,7 @@ fn check_latency(ctx: &mut CheckContext, request: &CheckRequest) -> CheckStatus 
         Some(DiagnosticMode::Full) => 10,
         _ => 3,
     };
+    let mut projected: Vec<(String, serde_json::Value)> = Vec::new();
     for target in &targets {
         let label = target.label();
         let port = target.port.unwrap_or(9);
@@ -573,17 +656,15 @@ fn check_latency(ctx: &mut CheckContext, request: &CheckRequest) -> CheckStatus 
                 "raw_ms": ok,
             }),
         );
-        ctx.json(
-            &format!("network.latency.{label}"),
-            json!({
-                "successful": ok.len(),
-                "failed": failed,
-                "min_ms": min,
-                "max_ms": max,
-                "avg_ms": avg,
-            }),
-            &ev,
-        );
+        let summary = json!({
+            "successful": ok.len(),
+            "failed": failed,
+            "min_ms": min,
+            "max_ms": max,
+            "avg_ms": avg,
+        });
+        ctx.json(&format!("network.latency.{label}"), summary.clone(), &ev);
+        projected.push((label.clone(), summary));
         if ok.is_empty() {
             ctx.finding(
                 "TARGET_UNREACHABLE",
@@ -595,6 +676,7 @@ fn check_latency(ctx: &mut CheckContext, request: &CheckRequest) -> CheckStatus 
             );
         }
     }
+    target_entities(ctx, "latency_target", projected);
     if ctx.has_findings() {
         CheckStatus::Failed
     } else {

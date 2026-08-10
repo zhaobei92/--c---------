@@ -118,6 +118,11 @@ pub enum PluginMessage {
         /// 1 (the default) means strictly sequential processing.
         #[serde(default = "default_max_concurrency")]
         max_concurrency: u32,
+        /// Whether the plugin emits baseline-comparison projections
+        /// (Phase C2). Absent in older plugins → false → their
+        /// namespaces are UNSUPPORTED for comparison, never an error.
+        #[serde(default)]
+        baseline_projection: bool,
     },
     CheckResult {
         id: String,

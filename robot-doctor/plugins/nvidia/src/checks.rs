@@ -9,8 +9,8 @@
 //! decides display formatting.
 
 use doctor_domain::{
-    CheckCost, CheckDeclaration, CheckId, CheckRequest, CheckResult, CheckStatus, DiagnosticMode,
-    EvidenceKind,
+    AttributeValue, CheckCost, CheckDeclaration, CheckId, CheckRequest, CheckResult, CheckStatus,
+    DiagnosticMode, EvidenceKind,
 };
 use doctor_plugin_host::CheckContext;
 use nvml_wrapper::enum_wrappers::device::{Clock, TemperatureSensor};
@@ -31,6 +31,16 @@ fn nvml() -> Result<&'static Nvml, (CheckStatus, String)> {
         Ok(nvml) => Ok(nvml),
         Err(msg) => Err((CheckStatus::Unavailable, msg.clone())),
     }
+}
+
+/// Whether NVML's failure means "this machine genuinely has no NVIDIA
+/// support" (a successful observation of absence) rather than "we could
+/// not determine anything" (see the C2 UNKNOWN/UNSATISFIED distinction).
+fn nvidia_definitively_absent() -> bool {
+    matches!(
+        NVML.get(),
+        Some(Err(msg)) if msg.contains("NVML library not found")
+    )
 }
 
 fn init_error_text(err: &NvmlError) -> String {
@@ -145,11 +155,31 @@ pub fn check_declarations() -> Vec<CheckDeclaration> {
     ]
 }
 
+/// Namespace this plugin projects into for baseline comparison.
+pub const NAMESPACE: &str = "nvidia";
+
+/// Kinds this plugin is authoritative for. Declared explicitly so that a
+/// machine with zero GPUs still counts as *observed* (§43) instead of
+/// looking like a namespace nobody inspected.
+pub const KINDS: &[&str] = &["gpu", "driver"];
+
 pub fn run_check(request: &CheckRequest) -> CheckResult {
-    let mut ctx = CheckContext::new(request);
+    let mut ctx = CheckContext::new(PLUGIN_ID, request);
     let nvml = match nvml() {
         Ok(nvml) => nvml,
-        Err((status, msg)) => return ctx.finish(PLUGIN_ID, status, Some(msg)),
+        Err((status, msg)) => {
+            // Critical C2 distinction: a machine with no NVIDIA driver has
+            // been *successfully observed* to have no GPU, so a REQUIRED
+            // GPU expectation is legitimately UNSATISFIED. A driver/library
+            // mismatch or permission error means we could not look at all,
+            // so expectations must stay UNKNOWN.
+            if nvidia_definitively_absent() {
+                ctx.observed_kinds(NAMESPACE, KINDS, vec![]);
+            } else {
+                ctx.not_observed(NAMESPACE, msg.clone());
+            }
+            return ctx.finish(PLUGIN_ID, status, Some(msg));
+        }
     };
     let outcome = match request.check_id.as_str() {
         "nvidia.driver" => check_driver(&mut ctx, nvml),
@@ -169,9 +199,93 @@ pub fn run_check(request: &CheckRequest) -> CheckResult {
         )),
     };
     match outcome {
-        Ok(status) => ctx.finish(PLUGIN_ID, status, None),
-        Err((status, msg)) => ctx.finish(PLUGIN_ID, status, Some(msg)),
+        Ok(status) => {
+            project_gpus(&mut ctx);
+            ctx.finish(PLUGIN_ID, status, None)
+        }
+        Err((status, msg)) => {
+            if status == CheckStatus::Unsupported {
+                // Unknown check id says nothing about the namespace.
+            } else if status == CheckStatus::Unavailable {
+                ctx.observed_kinds(NAMESPACE, KINDS, vec![]);
+            } else {
+                ctx.not_observed(NAMESPACE, msg.clone());
+            }
+            ctx.finish(PLUGIN_ID, status, Some(msg))
+        }
     }
+}
+
+/// Project per-GPU entities keyed by **UUID** — the only stable identity
+/// across executions (index alone can change when devices are added,
+/// removed or re-enumerated). Units stay normalized; no formatting.
+fn project_gpus(ctx: &mut CheckContext) {
+    use std::collections::BTreeMap;
+
+    let evidence = ctx.evidence_ids();
+    // gpu index → (attribute name, value)
+    let mut per_index: BTreeMap<u32, BTreeMap<String, AttributeValue>> = BTreeMap::new();
+    for obs in ctx.observations() {
+        let Some(rest) = obs.key.strip_prefix("nvidia.gpu") else {
+            continue;
+        };
+        let Some((index, field)) = rest.split_once('.') else {
+            continue;
+        };
+        let Ok(index) = index.parse::<u32>() else {
+            continue;
+        };
+        let entry = per_index.entry(index).or_default();
+        match &obs.value {
+            doctor_domain::ObservationValue::Number(n) => {
+                entry.insert(field.to_owned(), AttributeValue::Number(*n));
+            }
+            doctor_domain::ObservationValue::Text(t) => {
+                entry.insert(field.to_owned(), AttributeValue::text(t.clone()));
+            }
+            _ => {}
+        }
+    }
+
+    let mut entities = Vec::new();
+    for (index, attributes) in per_index {
+        // Without a UUID the entity has no stable identity; fall back to
+        // the index and record that the identity is weaker.
+        let uuid = attributes
+            .get("uuid")
+            .and_then(|v| v.as_text().map(str::to_owned));
+        let key = uuid.clone().unwrap_or_else(|| format!("index:{index}"));
+        let display = attributes
+            .get("model")
+            .and_then(|v| v.as_text())
+            .unwrap_or("NVIDIA GPU")
+            .to_owned();
+        let mut entity = ctx
+            .entity(NAMESPACE, "gpu", key, display)
+            .with("index", AttributeValue::Number(index as f64))
+            .with_evidence(evidence.clone());
+        for (name, value) in attributes {
+            entity = entity.with(&name, value);
+        }
+        entities.push(entity);
+    }
+
+    // Driver facts are a separate entity so a profile can require a
+    // driver version without naming a GPU.
+    if let Some(version) = ctx
+        .observations()
+        .iter()
+        .find(|o| o.key == "nvidia.driver.version")
+        .and_then(|o| o.as_text())
+    {
+        entities.push(
+            ctx.entity(NAMESPACE, "driver", "primary", "NVIDIA driver")
+                .with("version", AttributeValue::text(version))
+                .with_evidence(evidence.clone()),
+        );
+    }
+
+    ctx.observed_kinds(NAMESPACE, KINDS, entities);
 }
 
 fn check_driver(ctx: &mut CheckContext, nvml: &Nvml) -> Result<CheckStatus, (CheckStatus, String)> {
