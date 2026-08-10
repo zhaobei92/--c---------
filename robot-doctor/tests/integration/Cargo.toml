@@ -23,6 +23,7 @@ doctor-domain.workspace = true
 doctor-plugin-host.workspace = true
 doctor-core.workspace = true
 doctor-storage.workspace = true
+doctor-profile.workspace = true
 plugin-ros2 = { path = "../../plugins/ros2", package = "robot-doctor-plugin-ros2" }
 serde_json.workspace = true
 chrono.workspace = true

@@ -183,6 +183,7 @@ dependencies = [
  "chrono",
  "doctor-domain",
  "doctor-plugin-host",
+ "doctor-profile",
  "doctor-storage",
  "serde",
  "serde_json",
@@ -190,6 +191,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -406,6 +408,7 @@ dependencies = [
  "doctor-core",
  "doctor-domain",
  "doctor-plugin-host",
+ "doctor-profile",
  "doctor-storage",
  "robot-doctor-plugin-ros2",
  "serde_json",

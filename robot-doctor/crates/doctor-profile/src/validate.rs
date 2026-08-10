@@ -375,11 +375,20 @@ mod tests {
                 },
                 key("/a"),
             ),
-            expectation("no-selector", Constraint::Exists, Selector::default()),
+            expectation(
+                "no-selector",
+                Constraint::Min {
+                    field: "hz".into(),
+                    value: 1.0,
+                },
+                Selector::default(),
+            ),
         ]))
         .unwrap_err();
         let codes = codes(err);
         assert!(codes.contains(&"REVERSED_RANGE".to_string()));
+        // A value operator still needs a selector; only existence and
+        // count operators may span a whole kind.
         assert!(codes.contains(&"EMPTY_SELECTOR".to_string()));
     }
 

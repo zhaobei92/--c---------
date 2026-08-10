@@ -204,12 +204,18 @@ impl Constraint {
     }
 
     /// Constraints that are meaningful without selecting a specific key.
+    ///
+    /// Existence operators qualify: "at least one entity of this kind"
+    /// and "none at all" are both well defined over a whole kind. Value
+    /// operators do not — an unselected `min` would silently apply to
+    /// everything the plugin happened to project.
     pub fn allows_empty_selector(&self) -> bool {
         matches!(
             self,
             Constraint::CountMin { .. }
                 | Constraint::CountMax { .. }
                 | Constraint::RelationshipExists { .. }
+                | Constraint::Exists
                 | Constraint::NotExists
         )
     }

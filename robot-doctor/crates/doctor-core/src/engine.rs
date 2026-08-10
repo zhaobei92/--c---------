@@ -63,6 +63,18 @@ pub enum DiagnosisEvent {
         /// False when persistence failed — the run exists only in memory.
         persisted: bool,
     },
+    /// The device's active profile was evaluated against the finished run
+    /// (Phase C2). Emitted only when a profile is assigned; the counts
+    /// are expectation outcomes, never a health verdict.
+    EvaluationCompleted {
+        run_id: RunId,
+        profile_id: doctor_domain::ProfileId,
+        profile_revision: u32,
+        satisfied: usize,
+        unsatisfied: usize,
+        unknown: usize,
+        not_applicable: usize,
+    },
 }
 
 /// The embedded diagnosis engine used by the desktop app (local device)
@@ -108,6 +120,10 @@ impl Engine {
 
     pub fn storage(&self) -> Option<&Storage> {
         self.storage.as_ref()
+    }
+
+    pub fn app_version(&self) -> &str {
+        &self.app_version
     }
 
     /// The devices this engine can diagnose. Phase B: the local machine.
@@ -417,12 +433,43 @@ impl Engine {
         }
         let _ = tx
             .send(DiagnosisEvent::RunCompleted {
-                run_id,
+                run_id: run_id.clone(),
                 health,
                 finished_at,
                 persisted,
             })
             .await;
+
+        // Expectation evaluation runs after the diagnosis is reported, so
+        // a profile problem can never delay or fail the run itself.
+        if persisted {
+            self.evaluate_active_profile(&run_id, &tx).await;
+        }
+    }
+
+    /// Evaluate the device's active profile against a finished run.
+    ///
+    /// Failures are logged and dropped: an evaluation is an *addition* to
+    /// a diagnostic run, never a precondition for it.
+    async fn evaluate_active_profile(&self, run_id: &RunId, tx: &mpsc::Sender<DiagnosisEvent>) {
+        match crate::c2::evaluate_run(self, run_id).await {
+            Ok(Some(evaluation)) => {
+                let _ = tx
+                    .send(DiagnosisEvent::EvaluationCompleted {
+                        run_id: run_id.clone(),
+                        profile_id: evaluation.profile_id.clone(),
+                        profile_revision: evaluation.profile_revision,
+                        satisfied: evaluation.satisfied(),
+                        unsatisfied: evaluation.unsatisfied(),
+                        unknown: evaluation.unknown(),
+                        not_applicable: evaluation.not_applicable(),
+                    })
+                    .await;
+            }
+            // No profile assigned: nothing to say.
+            Ok(None) => {}
+            Err(err) => tracing::error!("profile evaluation failed for run {run_id}: {err}"),
+        }
     }
 
     async fn record_result(

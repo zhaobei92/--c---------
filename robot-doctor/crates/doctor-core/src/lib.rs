@@ -7,11 +7,13 @@
 //! Platform-neutral by construction — all platform specifics live behind
 //! process plugins.
 
+pub mod c2;
 pub mod engine;
 pub mod registry;
 pub mod scheduler;
 pub mod store;
 
+pub use c2::{C2Error, CaptureCandidate, ComparisonView};
 pub use engine::{DiagnosisEvent, Engine};
 pub use registry::{PluginRegistry, PluginSummary, RegisteredPlugin};
 pub use scheduler::SchedulerLimits;

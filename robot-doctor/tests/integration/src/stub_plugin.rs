@@ -3,6 +3,10 @@
 //! `stub-plugin good`       → sequential (max_concurrency 1); checks:
 //!                            stub.ok (passes), stub.unavailable
 //!                            (UNAVAILABLE), stub.slow (sleeps 3 s).
+//!                            Projects a `stub` namespace where `widget`
+//!                            is observed and `gadget` is not, so C2's
+//!                            partial-observability semantics are
+//!                            exercised without a live system.
 //! `stub-plugin crashy`     → check stub.crash (exits the process abruptly).
 //! `stub-plugin concurrent` → max_concurrency 4; checks: stub.sleep
 //!                            (sleeps 1.5 s), stub.fast (immediate) — used
@@ -132,8 +136,9 @@ impl PluginService for StubPlugin {
                     vec![ev.id.clone()],
                 );
                 let mut r = base(CheckStatus::Passed, None);
-                r.projection = Some(doctor_domain::ProjectionReport::observed(
+                r.projection = Some(doctor_domain::ProjectionReport::observed_kinds(
                     "stub",
+                    ["widget"],
                     vec![doctor_domain::ComparisonEntity::new(
                         doctor_domain::EntityKey::new("stub", "widget", request.check_id.as_str()),
                         request.check_id.as_str(),
@@ -180,10 +185,12 @@ impl PluginService for StubPlugin {
                         message: "simulated missing dependency (e.g. ROS not installed)".to_owned(),
                     }),
                 );
-                // Could not observe: downstream expectations must be
-                // UNKNOWN rather than UNSATISFIED.
-                r.projection = Some(doctor_domain::ProjectionReport::not_observed(
+                // Could not observe *gadgets* specifically. Widgets were
+                // still observed by stub.ok, so only gadget expectations
+                // become UNKNOWN — the rest stay decidable.
+                r.projection = Some(doctor_domain::ProjectionReport::not_observed_kinds(
                     "stub",
+                    ["gadget"],
                     "simulated missing dependency",
                 ));
                 r
