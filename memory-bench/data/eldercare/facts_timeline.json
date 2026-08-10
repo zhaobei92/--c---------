@@ -1,0 +1,304 @@
+[
+  {
+    "fact_id": "eldercare.med.bp.v1",
+    "scenario": "eldercare",
+    "kind": "state",
+    "subject": "王秀兰",
+    "attribute": "降压药方案",
+    "value": "氨氯地平 5mg，每日一次，早饭后服用",
+    "value_keywords": [
+      "氨氯地平"
+    ],
+    "valid_from_day": 1,
+    "valid_to_day": 10,
+    "supersedes": null,
+    "superseded_by": "eldercare.med.bp.v2",
+    "evidence": [
+      "eld-d01-01",
+      "eld-d01-02",
+      "eld-d05-01",
+      "eld-d09-01",
+      "eld-d10-01"
+    ],
+    "valid_from": "2026-03-02",
+    "valid_to": "2026-03-11"
+  },
+  {
+    "fact_id": "eldercare.med.bp.v2",
+    "scenario": "eldercare",
+    "kind": "state",
+    "subject": "王秀兰",
+    "attribute": "降压药方案",
+    "value": "缬沙坦 80mg，每日一次，早饭后服用",
+    "value_keywords": [
+      "缬沙坦"
+    ],
+    "valid_from_day": 10,
+    "valid_to_day": null,
+    "supersedes": "eldercare.med.bp.v1",
+    "superseded_by": null,
+    "evidence": [
+      "eld-d10-01",
+      "eld-d10-02",
+      "eld-d14-01",
+      "eld-d24-01",
+      "eld-d29-01"
+    ],
+    "valid_from": "2026-03-11",
+    "valid_to": null
+  },
+  {
+    "fact_id": "eldercare.med.sleep.v1",
+    "scenario": "eldercare",
+    "kind": "state",
+    "subject": "王秀兰",
+    "attribute": "助眠用药",
+    "value": "右佐匹克隆 1mg，睡前服用，仅在夜里睡不着时使用",
+    "value_keywords": [
+      "右佐匹克隆"
+    ],
+    "valid_from_day": 18,
+    "valid_to_day": null,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "eld-d18-01",
+      "eld-d21-01"
+    ],
+    "valid_from": "2026-03-19",
+    "valid_to": null
+  },
+  {
+    "fact_id": "eldercare.activity.calligraphy.v1",
+    "scenario": "eldercare",
+    "kind": "state",
+    "subject": "王秀兰",
+    "attribute": "书法班时间",
+    "value": "每周三下午两点半，在二楼活动室",
+    "value_keywords": [
+      "周三"
+    ],
+    "valid_from_day": 1,
+    "valid_to_day": 18,
+    "supersedes": null,
+    "superseded_by": "eldercare.activity.calligraphy.v2",
+    "evidence": [
+      "eld-d03-01",
+      "eld-d10-03",
+      "eld-d17-02"
+    ],
+    "valid_from": "2026-03-02",
+    "valid_to": "2026-03-19"
+  },
+  {
+    "fact_id": "eldercare.activity.calligraphy.v2",
+    "scenario": "eldercare",
+    "kind": "state",
+    "subject": "王秀兰",
+    "attribute": "书法班时间",
+    "value": "每周四下午两点半，在二楼活动室",
+    "value_keywords": [
+      "周四"
+    ],
+    "valid_from_day": 18,
+    "valid_to_day": null,
+    "supersedes": "eldercare.activity.calligraphy.v1",
+    "superseded_by": null,
+    "evidence": [
+      "eld-d17-02",
+      "eld-d18-02",
+      "eld-d25-01"
+    ],
+    "valid_from": "2026-03-19",
+    "valid_to": null
+  },
+  {
+    "fact_id": "eldercare.diet.dislike",
+    "scenario": "eldercare",
+    "kind": "state",
+    "subject": "王秀兰",
+    "attribute": "饮食忌口",
+    "value": "不吃香菜",
+    "value_keywords": [
+      "香菜"
+    ],
+    "valid_from_day": 1,
+    "valid_to_day": null,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "eld-d02-01",
+      "eld-d20-01"
+    ],
+    "valid_from": "2026-03-02",
+    "valid_to": null
+  },
+  {
+    "fact_id": "eldercare.symptom.knee",
+    "scenario": "eldercare",
+    "kind": "event",
+    "subject": "王秀兰",
+    "attribute": "身体不适",
+    "value": "右腿膝盖发酸，上下楼梯的时候疼得厉害",
+    "value_keywords": [
+      "膝盖"
+    ],
+    "valid_from_day": 3,
+    "valid_to_day": 4,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "eld-d03-02",
+      "eld-d03-03"
+    ],
+    "valid_from": "2026-03-04",
+    "valid_to": "2026-03-05"
+  },
+  {
+    "fact_id": "eldercare.symptom.cough",
+    "scenario": "eldercare",
+    "kind": "event",
+    "subject": "王秀兰",
+    "attribute": "身体不适",
+    "value": "夜里咳嗽，躺下就咳，坐起来好一些",
+    "value_keywords": [
+      "咳嗽"
+    ],
+    "valid_from_day": 12,
+    "valid_to_day": 13,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "eld-d12-01",
+      "eld-d12-02"
+    ],
+    "valid_from": "2026-03-13",
+    "valid_to": "2026-03-14"
+  },
+  {
+    "fact_id": "eldercare.symptom.dizzy",
+    "scenario": "eldercare",
+    "kind": "event",
+    "subject": "王秀兰",
+    "attribute": "身体不适",
+    "value": "早上起床猛一站起来眼前发黑、头晕",
+    "value_keywords": [
+      "头晕"
+    ],
+    "valid_from_day": 21,
+    "valid_to_day": 22,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "eld-d21-02",
+      "eld-d21-03"
+    ],
+    "valid_from": "2026-03-22",
+    "valid_to": "2026-03-23"
+  },
+  {
+    "fact_id": "eldercare.visit.d02",
+    "scenario": "eldercare",
+    "kind": "event",
+    "subject": "王秀兰",
+    "attribute": "家属探视",
+    "value": "儿子-王建国 来探视，带了两盒您爱吃的核桃酥",
+    "value_keywords": [
+      "王建国"
+    ],
+    "valid_from_day": 2,
+    "valid_to_day": 3,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "eld-d02-02",
+      "eld-d02-03"
+    ],
+    "valid_from": "2026-03-03",
+    "valid_to": "2026-03-04"
+  },
+  {
+    "fact_id": "eldercare.visit.d09",
+    "scenario": "eldercare",
+    "kind": "event",
+    "subject": "王秀兰",
+    "attribute": "家属探视",
+    "value": "孙女-王小雨 来探视，带了一束满天星，还给您念了会儿报纸",
+    "value_keywords": [
+      "王小雨"
+    ],
+    "valid_from_day": 9,
+    "valid_to_day": 10,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "eld-d09-02",
+      "eld-d09-03"
+    ],
+    "valid_from": "2026-03-10",
+    "valid_to": "2026-03-11"
+  },
+  {
+    "fact_id": "eldercare.visit.d16",
+    "scenario": "eldercare",
+    "kind": "event",
+    "subject": "王秀兰",
+    "attribute": "家属探视",
+    "value": "儿子-王建国 来探视，带来一件新棉马甲，试了正合身",
+    "value_keywords": [
+      "王建国"
+    ],
+    "valid_from_day": 16,
+    "valid_to_day": 17,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "eld-d16-01",
+      "eld-d16-02"
+    ],
+    "valid_from": "2026-03-17",
+    "valid_to": "2026-03-18"
+  },
+  {
+    "fact_id": "eldercare.visit.d23",
+    "scenario": "eldercare",
+    "kind": "event",
+    "subject": "王秀兰",
+    "attribute": "家属探视",
+    "value": "儿子-王建国、孙女-王小雨 来探视，爷孙俩一起来的，带了一台新收音机",
+    "value_keywords": [
+      "王小雨"
+    ],
+    "valid_from_day": 23,
+    "valid_to_day": 24,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "eld-d23-01",
+      "eld-d23-02"
+    ],
+    "valid_from": "2026-03-24",
+    "valid_to": "2026-03-25"
+  },
+  {
+    "fact_id": "eldercare.visit.d28",
+    "scenario": "eldercare",
+    "kind": "event",
+    "subject": "王秀兰",
+    "attribute": "家属探视",
+    "value": "儿子-王建国 来探视，陪着聊了一个多小时，说下月接您回家住几天",
+    "value_keywords": [
+      "王建国"
+    ],
+    "valid_from_day": 28,
+    "valid_to_day": 29,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "eld-d28-01",
+      "eld-d28-02"
+    ],
+    "valid_from": "2026-03-29",
+    "valid_to": "2026-03-30"
+  }
+]

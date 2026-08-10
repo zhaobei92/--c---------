@@ -1,0 +1,4 @@
+{"utt_id": "pet-d05-03", "scenario": "pet", "day": 5, "ts": "2026-03-06T09:35:00", "speaker": "陈屿", "text": "它最近特别喜欢趴在空调出风口底下。", "fact_refs": []}
+{"utt_id": "pet-d05-02", "scenario": "pet", "day": 5, "ts": "2026-03-06T20:11:00", "speaker": "陈屿", "text": "刷牙的时候它躲，只刷了前面几颗。", "fact_refs": []}
+{"utt_id": "pet-d05-01", "scenario": "pet", "day": 5, "ts": "2026-03-06T20:30:00", "speaker": "陈屿", "text": "豆包今天趁我不在家把沙发角咬烂了一块，海绵都掏出来了。", "fact_refs": ["pet.behavior.chew"]}
+{"utt_id": "pet-d05-04", "scenario": "pet", "day": 5, "ts": "2026-03-06T22:17:00", "speaker": "陈屿", "text": "豆包睡在它自己的窝里，打呼噜。", "fact_refs": []}

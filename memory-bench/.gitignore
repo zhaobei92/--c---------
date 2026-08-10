@@ -1,0 +1,5 @@
+# 各框架的独立虚拟环境不入库（宪法第3条：安装命令写在 setup.sh 里，环境本身可重建）
+frameworks/*/.venv/
+frameworks/*/venv/
+__pycache__/
+*.pyc

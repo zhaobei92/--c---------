@@ -1,0 +1,4 @@
+{"utt_id": "rob-d23-03", "scenario": "robot", "day": 23, "ts": "2026-03-24T09:45:00", "speaker": "前台-苏婷", "text": "有访客问这个机器人是干嘛的，我说是送文件的。", "fact_refs": []}
+{"utt_id": "rob-d23-02", "scenario": "robot", "day": 23, "ts": "2026-03-24T15:48:00", "speaker": "RB-07", "text": "路径被临时堆放的纸箱阻挡，已重新规划绕行。", "fact_refs": []}
+{"utt_id": "rob-d23-04", "scenario": "robot", "day": 23, "ts": "2026-03-24T16:55:00", "speaker": "工程师-郑昊", "text": "看了下日志，今天没有异常告警。", "fact_refs": []}
+{"utt_id": "rob-d23-01", "scenario": "robot", "day": 23, "ts": "2026-03-24T17:37:00", "speaker": "RB-07", "text": "今日累计行驶 4.2 公里，任务完成率 100%。", "fact_refs": []}

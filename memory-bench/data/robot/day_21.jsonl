@@ -1,0 +1,4 @@
+{"utt_id": "rob-d21-01", "scenario": "robot", "day": 21, "ts": "2026-03-22T12:46:00", "speaker": "RB-07", "text": "午间低峰，返回待命点待命。", "fact_refs": []}
+{"utt_id": "rob-d21-04", "scenario": "robot", "day": 21, "ts": "2026-03-22T13:21:00", "speaker": "RB-07", "text": "接收到清洁机器人的避让请求，已让行。", "fact_refs": []}
+{"utt_id": "rob-d21-02", "scenario": "robot", "day": 21, "ts": "2026-03-22T14:00:00", "speaker": "RB-07", "text": "电梯调度成功，从 1F 前往 2F。", "fact_refs": []}
+{"utt_id": "rob-d21-03", "scenario": "robot", "day": 21, "ts": "2026-03-22T17:30:00", "speaker": "RB-07", "text": "今日累计行驶 4.2 公里，任务完成率 100%。", "fact_refs": []}

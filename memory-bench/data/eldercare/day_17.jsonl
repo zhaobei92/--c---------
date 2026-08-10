@@ -1,0 +1,5 @@
+{"utt_id": "eld-d17-04", "scenario": "eldercare", "day": 17, "ts": "2026-03-18T08:50:00", "speaker": "王秀兰", "text": "小梅啊，今天的粥熬得挺稠，我喜欢。", "fact_refs": []}
+{"utt_id": "eld-d17-05", "scenario": "eldercare", "day": 17, "ts": "2026-03-18T09:29:00", "speaker": "王秀兰", "text": "今天天气比昨天暖和，窗户开一条缝就行。", "fact_refs": []}
+{"utt_id": "eld-d17-02", "scenario": "eldercare", "day": 17, "ts": "2026-03-18T15:00:00", "speaker": "护工-李梅", "text": "通知一下，书法班的周老师调课，从这周起改到周四下午两点半，还是二楼活动室。", "fact_refs": ["eldercare.activity.calligraphy.v1", "eldercare.activity.calligraphy.v2"]}
+{"utt_id": "eld-d17-03", "scenario": "eldercare", "day": 17, "ts": "2026-03-18T15:16:00", "speaker": "护工-李梅", "text": "隔壁房的赵爷爷下棋又赢了，正得意呢。", "fact_refs": []}
+{"utt_id": "eld-d17-01", "scenario": "eldercare", "day": 17, "ts": "2026-03-18T21:30:00", "speaker": "王秀兰", "text": "这几天夜里翻来覆去睡不着，天快亮了才迷糊一会儿。", "fact_refs": []}

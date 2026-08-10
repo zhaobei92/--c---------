@@ -1,0 +1,5 @@
+{"utt_id": "rob-d19-05", "scenario": "robot", "day": 19, "ts": "2026-03-20T09:03:00", "speaker": "RB-07", "text": "已从充电桩脱离，进入待命状态。", "fact_refs": []}
+{"utt_id": "rob-d19-04", "scenario": "robot", "day": 19, "ts": "2026-03-20T09:55:00", "speaker": "前台-苏婷", "text": "有访客问这个机器人是干嘛的，我说是送文件的。", "fact_refs": []}
+{"utt_id": "rob-d19-01", "scenario": "robot", "day": 19, "ts": "2026-03-20T14:01:00", "speaker": "RB-07", "text": "电梯调度成功，从 1F 前往 2F。", "fact_refs": []}
+{"utt_id": "rob-d19-03", "scenario": "robot", "day": 19, "ts": "2026-03-20T16:52:00", "speaker": "工程师-郑昊", "text": "看了下日志，今天没有异常告警。", "fact_refs": []}
+{"utt_id": "rob-d19-02", "scenario": "robot", "day": 19, "ts": "2026-03-20T18:16:00", "speaker": "RB-07", "text": "返回充电桩，开始充电，当前电量 23%。", "fact_refs": []}

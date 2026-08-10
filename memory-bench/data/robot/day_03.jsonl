@@ -1,0 +1,5 @@
+{"utt_id": "rob-d03-04", "scenario": "robot", "day": 3, "ts": "2026-03-04T08:12:00", "speaker": "RB-07", "text": "系统自检完成，电量 98%，导航地图版本 v3.2。", "fact_refs": []}
+{"utt_id": "rob-d03-03", "scenario": "robot", "day": 3, "ts": "2026-03-04T09:52:00", "speaker": "前台-苏婷", "text": "有访客问这个机器人是干嘛的，我说是送文件的。", "fact_refs": []}
+{"utt_id": "rob-d03-01", "scenario": "robot", "day": 3, "ts": "2026-03-04T12:38:00", "speaker": "RB-07", "text": "午间低峰，返回待命点待命。", "fact_refs": []}
+{"utt_id": "rob-d03-02", "scenario": "robot", "day": 3, "ts": "2026-03-04T16:51:00", "speaker": "工程师-郑昊", "text": "看了下日志，今天没有异常告警。", "fact_refs": []}
+{"utt_id": "rob-d03-05", "scenario": "robot", "day": 3, "ts": "2026-03-04T17:30:00", "speaker": "RB-07", "text": "今日累计行驶 4.2 公里，任务完成率 100%。", "fact_refs": []}

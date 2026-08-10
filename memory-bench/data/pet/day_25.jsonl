@@ -1,0 +1,5 @@
+{"utt_id": "pet-d25-01", "scenario": "pet", "day": 25, "ts": "2026-03-26T07:35:00", "speaker": "陈屿", "text": "现在一顿 100 克，它吃完还盯着碗看。", "fact_refs": ["pet.food.amount.v2"]}
+{"utt_id": "pet-d25-02", "scenario": "pet", "day": 25, "ts": "2026-03-26T13:17:00", "speaker": "陈屿", "text": "中午太阳好，它趴在阳台上睡了一下午。", "fact_refs": []}
+{"utt_id": "pet-d25-03", "scenario": "pet", "day": 25, "ts": "2026-03-26T16:18:00", "speaker": "陈屿", "text": "带豆包去了趟宠物店剪指甲，它全程发抖。", "fact_refs": []}
+{"utt_id": "pet-d25-05", "scenario": "pet", "day": 25, "ts": "2026-03-26T17:24:00", "speaker": "陈屿", "text": "邻居家小孩来摸它，它很温顺，一动不动。", "fact_refs": []}
+{"utt_id": "pet-d25-04", "scenario": "pet", "day": 25, "ts": "2026-03-26T20:17:00", "speaker": "陈屿", "text": "刷牙的时候它躲，只刷了前面几颗。", "fact_refs": []}

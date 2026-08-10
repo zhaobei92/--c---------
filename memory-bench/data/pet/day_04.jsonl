@@ -1,0 +1,4 @@
+{"utt_id": "pet-d04-02", "scenario": "pet", "day": 4, "ts": "2026-03-05T09:42:00", "speaker": "陈屿", "text": "它最近特别喜欢趴在空调出风口底下。", "fact_refs": []}
+{"utt_id": "pet-d04-03", "scenario": "pet", "day": 4, "ts": "2026-03-05T12:36:00", "speaker": "陈屿", "text": "豆包又把玩具球叼到沙发底下去了，够了半天才拿出来。", "fact_refs": []}
+{"utt_id": "pet-d04-01", "scenario": "pet", "day": 4, "ts": "2026-03-05T18:30:00", "speaker": "陈屿", "text": "买零食的时候得看配料，豆包对鸡肉过敏，吃了浑身起红点。", "fact_refs": ["pet.allergy.chicken"]}
+{"utt_id": "pet-d04-04", "scenario": "pet", "day": 4, "ts": "2026-03-05T22:11:00", "speaker": "陈屿", "text": "豆包睡在它自己的窝里，打呼噜。", "fact_refs": []}

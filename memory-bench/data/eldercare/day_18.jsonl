@@ -1,0 +1,5 @@
+{"utt_id": "eld-d18-05", "scenario": "eldercare", "day": 18, "ts": "2026-03-19T09:26:00", "speaker": "王秀兰", "text": "今天天气比昨天暖和，窗户开一条缝就行。", "fact_refs": []}
+{"utt_id": "eld-d18-01", "scenario": "eldercare", "day": 18, "ts": "2026-03-19T10:00:00", "speaker": "陈医生", "text": "针对失眠加一个右佐匹克隆 1mg，睡前吃，睡得着就别吃，别每天都用。", "fact_refs": ["eldercare.med.sleep.v1"]}
+{"utt_id": "eld-d18-04", "scenario": "eldercare", "day": 18, "ts": "2026-03-19T11:04:00", "speaker": "护工-李梅", "text": "王奶奶，一会儿量个血压，例行的。", "fact_refs": []}
+{"utt_id": "eld-d18-02", "scenario": "eldercare", "day": 18, "ts": "2026-03-19T14:30:00", "speaker": "护工-李梅", "text": "王奶奶，周四下午的书法班到点了，咱们上二楼。", "fact_refs": ["eldercare.activity.calligraphy.v2"]}
+{"utt_id": "eld-d18-03", "scenario": "eldercare", "day": 18, "ts": "2026-03-19T16:01:00", "speaker": "王秀兰", "text": "我年轻那会儿在纺织厂上班，一个班站八个钟头都不觉得累。", "fact_refs": []}

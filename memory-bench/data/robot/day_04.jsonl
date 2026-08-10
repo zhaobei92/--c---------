@@ -1,0 +1,4 @@
+{"utt_id": "rob-d04-04", "scenario": "robot", "day": 4, "ts": "2026-03-05T09:56:00", "speaker": "前台-苏婷", "text": "有访客问这个机器人是干嘛的，我说是送文件的。", "fact_refs": []}
+{"utt_id": "rob-d04-01", "scenario": "robot", "day": 4, "ts": "2026-03-05T10:10:00", "speaker": "前台-苏婷", "text": "打印纸和硒鼓都在 3F 储物间，需要的时候让 RB-07 去取。", "fact_refs": ["robot.storage.location.v1"]}
+{"utt_id": "rob-d04-03", "scenario": "robot", "day": 4, "ts": "2026-03-05T12:36:00", "speaker": "RB-07", "text": "午间低峰，返回待命点待命。", "fact_refs": []}
+{"utt_id": "rob-d04-02", "scenario": "robot", "day": 4, "ts": "2026-03-05T13:25:00", "speaker": "RB-07", "text": "接收到清洁机器人的避让请求，已让行。", "fact_refs": []}

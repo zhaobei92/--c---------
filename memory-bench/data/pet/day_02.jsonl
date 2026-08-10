@@ -1,0 +1,5 @@
+{"utt_id": "pet-d02-01", "scenario": "pet", "day": 2, "ts": "2026-03-03T07:30:00", "speaker": "陈屿", "text": "一直是早晚两顿，一顿 80 克，用量杯量的。", "fact_refs": ["pet.food.amount.v1"]}
+{"utt_id": "pet-d02-04", "scenario": "pet", "day": 2, "ts": "2026-03-03T08:09:00", "speaker": "陈屿", "text": "今天出门前给它留了个漏食球，回来发现已经空了。", "fact_refs": []}
+{"utt_id": "pet-d02-02", "scenario": "pet", "day": 2, "ts": "2026-03-03T13:16:00", "speaker": "陈屿", "text": "中午太阳好，它趴在阳台上睡了一下午。", "fact_refs": []}
+{"utt_id": "pet-d02-03", "scenario": "pet", "day": 2, "ts": "2026-03-03T17:28:00", "speaker": "陈屿", "text": "邻居家小孩来摸它，它很温顺，一动不动。", "fact_refs": []}
+{"utt_id": "pet-d02-05", "scenario": "pet", "day": 2, "ts": "2026-03-03T21:04:00", "speaker": "陈屿", "text": "豆包今天挺乖的，没拆家。", "fact_refs": []}

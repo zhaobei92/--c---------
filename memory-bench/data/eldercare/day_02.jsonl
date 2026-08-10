@@ -1,0 +1,8 @@
+{"utt_id": "eld-d02-04", "scenario": "eldercare", "day": 2, "ts": "2026-03-03T08:32:00", "speaker": "护工-李梅", "text": "王奶奶早，今天精神看着不错，先把早饭吃了吧。", "fact_refs": []}
+{"utt_id": "eld-d02-06", "scenario": "eldercare", "day": 2, "ts": "2026-03-03T08:47:00", "speaker": "王秀兰", "text": "小梅啊，今天的粥熬得挺稠，我喜欢。", "fact_refs": []}
+{"utt_id": "eld-d02-05", "scenario": "eldercare", "day": 2, "ts": "2026-03-03T11:00:00", "speaker": "护工-李梅", "text": "王奶奶，一会儿量个血压，例行的。", "fact_refs": []}
+{"utt_id": "eld-d02-01", "scenario": "eldercare", "day": 2, "ts": "2026-03-03T11:50:00", "speaker": "王秀兰", "text": "小梅，我这碗汤里别放香菜，我一点都闻不得那个味儿。", "fact_refs": ["eldercare.diet.dislike"]}
+{"utt_id": "eld-d02-08", "scenario": "eldercare", "day": 2, "ts": "2026-03-03T13:42:00", "speaker": "王秀兰", "text": "午觉睡得沉，做了个梦，梦见回老家了。", "fact_refs": []}
+{"utt_id": "eld-d02-02", "scenario": "eldercare", "day": 2, "ts": "2026-03-03T15:00:00", "speaker": "护工-李梅", "text": "王奶奶，儿子-王建国来看您了，带了两盒您爱吃的核桃酥。", "fact_refs": ["eldercare.visit.d02"]}
+{"utt_id": "eld-d02-03", "scenario": "eldercare", "day": 2, "ts": "2026-03-03T15:10:00", "speaker": "王秀兰", "text": "来了就好，别老惦记着买东西，钱留着自己花。", "fact_refs": ["eldercare.visit.d02"]}
+{"utt_id": "eld-d02-07", "scenario": "eldercare", "day": 2, "ts": "2026-03-03T16:37:00", "speaker": "护工-李梅", "text": "王奶奶，晚饭想吃面条还是米饭？", "fact_refs": []}

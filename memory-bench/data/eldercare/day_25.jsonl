@@ -1,0 +1,5 @@
+{"utt_id": "eld-d25-03", "scenario": "eldercare", "day": 25, "ts": "2026-03-26T08:36:00", "speaker": "护工-李梅", "text": "王奶奶早，今天精神看着不错，先把早饭吃了吧。", "fact_refs": []}
+{"utt_id": "eld-d25-01", "scenario": "eldercare", "day": 25, "ts": "2026-03-26T14:30:00", "speaker": "护工-李梅", "text": "王奶奶，周四下午的书法班到点了，咱们上二楼。", "fact_refs": ["eldercare.activity.calligraphy.v2"]}
+{"utt_id": "eld-d25-02", "scenario": "eldercare", "day": 25, "ts": "2026-03-26T16:32:00", "speaker": "护工-李梅", "text": "王奶奶，晚饭想吃面条还是米饭？", "fact_refs": []}
+{"utt_id": "eld-d25-05", "scenario": "eldercare", "day": 25, "ts": "2026-03-26T17:16:00", "speaker": "护工-李梅", "text": "食堂今天有您爱吃的南瓜羹，我给您留了一份。", "fact_refs": []}
+{"utt_id": "eld-d25-04", "scenario": "eldercare", "day": 25, "ts": "2026-03-26T19:44:00", "speaker": "护工-李梅", "text": "王奶奶，睡前记得少喝点水，免得夜里起夜。", "fact_refs": []}

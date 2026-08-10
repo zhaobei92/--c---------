@@ -1,0 +1,5 @@
+{"utt_id": "rob-d22-03", "scenario": "robot", "day": 22, "ts": "2026-03-23T08:05:00", "speaker": "RB-07", "text": "系统自检完成，电量 98%，导航地图版本 v3.2。", "fact_refs": []}
+{"utt_id": "rob-d22-02", "scenario": "robot", "day": 22, "ts": "2026-03-23T09:02:00", "speaker": "RB-07", "text": "已从充电桩脱离，进入待命状态。", "fact_refs": []}
+{"utt_id": "rob-d22-05", "scenario": "robot", "day": 22, "ts": "2026-03-23T09:47:00", "speaker": "前台-苏婷", "text": "有访客问这个机器人是干嘛的，我说是送文件的。", "fact_refs": []}
+{"utt_id": "rob-d22-04", "scenario": "robot", "day": 22, "ts": "2026-03-23T12:36:00", "speaker": "RB-07", "text": "午间低峰，返回待命点待命。", "fact_refs": []}
+{"utt_id": "rob-d22-01", "scenario": "robot", "day": 22, "ts": "2026-03-23T13:30:00", "speaker": "RB-07", "text": "接收到清洁机器人的避让请求，已让行。", "fact_refs": []}

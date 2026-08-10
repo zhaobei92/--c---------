@@ -1,0 +1,6 @@
+{"utt_id": "rob-d20-02", "scenario": "robot", "day": 20, "ts": "2026-03-21T08:05:00", "speaker": "RB-07", "text": "系统自检完成，电量 98%，导航地图版本 v3.2。", "fact_refs": []}
+{"utt_id": "rob-d20-01", "scenario": "robot", "day": 20, "ts": "2026-03-21T09:30:00", "speaker": "前台-苏婷", "text": "行政把耗材从 3F 储物间搬到 2F 储物间了，以后取件去 2F。", "fact_refs": ["robot.storage.location.v1", "robot.storage.location.v2"]}
+{"utt_id": "rob-d20-06", "scenario": "robot", "day": 20, "ts": "2026-03-21T10:27:00", "speaker": "前台-苏婷", "text": "RB-07 今天看着挺利索的，没在门口卡住。", "fact_refs": []}
+{"utt_id": "rob-d20-03", "scenario": "robot", "day": 20, "ts": "2026-03-21T12:40:00", "speaker": "RB-07", "text": "午间低峰，返回待命点待命。", "fact_refs": []}
+{"utt_id": "rob-d20-05", "scenario": "robot", "day": 20, "ts": "2026-03-21T16:56:00", "speaker": "工程师-郑昊", "text": "看了下日志，今天没有异常告警。", "fact_refs": []}
+{"utt_id": "rob-d20-04", "scenario": "robot", "day": 20, "ts": "2026-03-21T18:08:00", "speaker": "RB-07", "text": "返回充电桩，开始充电，当前电量 23%。", "fact_refs": []}

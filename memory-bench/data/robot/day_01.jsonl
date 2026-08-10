@@ -1,0 +1,4 @@
+{"utt_id": "rob-d01-03", "scenario": "robot", "day": 1, "ts": "2026-03-02T08:07:00", "speaker": "RB-07", "text": "系统自检完成，电量 98%，导航地图版本 v3.2。", "fact_refs": []}
+{"utt_id": "rob-d01-04", "scenario": "robot", "day": 1, "ts": "2026-03-02T13:31:00", "speaker": "RB-07", "text": "接收到清洁机器人的避让请求，已让行。", "fact_refs": []}
+{"utt_id": "rob-d01-02", "scenario": "robot", "day": 1, "ts": "2026-03-02T16:53:00", "speaker": "工程师-郑昊", "text": "看了下日志，今天没有异常告警。", "fact_refs": []}
+{"utt_id": "rob-d01-01", "scenario": "robot", "day": 1, "ts": "2026-03-02T18:20:00", "speaker": "RB-07", "text": "任务结束，返回 B1 东侧充电桩，开始充电。", "fact_refs": ["robot.dock.location.v1"]}

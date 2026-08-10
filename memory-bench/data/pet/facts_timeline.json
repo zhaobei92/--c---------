@@ -1,0 +1,294 @@
+[
+  {
+    "fact_id": "pet.food.brand.v1",
+    "scenario": "pet",
+    "kind": "state",
+    "subject": "豆包",
+    "attribute": "主粮品牌",
+    "value": "皇家幼犬粮",
+    "value_keywords": [
+      "皇家"
+    ],
+    "valid_from_day": 1,
+    "valid_to_day": 10,
+    "supersedes": null,
+    "superseded_by": "pet.food.brand.v2",
+    "evidence": [
+      "pet-d01-01",
+      "pet-d06-01",
+      "pet-d10-01"
+    ],
+    "valid_from": "2026-03-02",
+    "valid_to": "2026-03-11"
+  },
+  {
+    "fact_id": "pet.food.brand.v2",
+    "scenario": "pet",
+    "kind": "state",
+    "subject": "豆包",
+    "attribute": "主粮品牌",
+    "value": "渴望成犬粮",
+    "value_keywords": [
+      "渴望"
+    ],
+    "valid_from_day": 10,
+    "valid_to_day": null,
+    "supersedes": "pet.food.brand.v1",
+    "superseded_by": null,
+    "evidence": [
+      "pet-d10-01",
+      "pet-d17-01",
+      "pet-d27-01"
+    ],
+    "valid_from": "2026-03-11",
+    "valid_to": null
+  },
+  {
+    "fact_id": "pet.food.amount.v1",
+    "scenario": "pet",
+    "kind": "state",
+    "subject": "豆包",
+    "attribute": "每日喂食量",
+    "value": "每天两顿，每顿 80 克",
+    "value_keywords": [
+      "80"
+    ],
+    "valid_from_day": 1,
+    "valid_to_day": 20,
+    "supersedes": null,
+    "superseded_by": "pet.food.amount.v2",
+    "evidence": [
+      "pet-d02-01",
+      "pet-d20-01"
+    ],
+    "valid_from": "2026-03-02",
+    "valid_to": "2026-03-21"
+  },
+  {
+    "fact_id": "pet.food.amount.v2",
+    "scenario": "pet",
+    "kind": "state",
+    "subject": "豆包",
+    "attribute": "每日喂食量",
+    "value": "每天两顿，每顿 100 克",
+    "value_keywords": [
+      "100"
+    ],
+    "valid_from_day": 20,
+    "valid_to_day": null,
+    "supersedes": "pet.food.amount.v1",
+    "superseded_by": null,
+    "evidence": [
+      "pet-d20-01",
+      "pet-d25-01"
+    ],
+    "valid_from": "2026-03-21",
+    "valid_to": null
+  },
+  {
+    "fact_id": "pet.weight.v1",
+    "scenario": "pet",
+    "kind": "state",
+    "subject": "豆包",
+    "attribute": "体重",
+    "value": "9.2 公斤",
+    "value_keywords": [
+      "9.2"
+    ],
+    "valid_from_day": 8,
+    "valid_to_day": 19,
+    "supersedes": null,
+    "superseded_by": "pet.weight.v2",
+    "evidence": [
+      "pet-d08-03"
+    ],
+    "valid_from": "2026-03-09",
+    "valid_to": "2026-03-20"
+  },
+  {
+    "fact_id": "pet.weight.v2",
+    "scenario": "pet",
+    "kind": "state",
+    "subject": "豆包",
+    "attribute": "体重",
+    "value": "9.5 公斤",
+    "value_keywords": [
+      "9.5"
+    ],
+    "valid_from_day": 19,
+    "valid_to_day": 26,
+    "supersedes": "pet.weight.v1",
+    "superseded_by": "pet.weight.v3",
+    "evidence": [
+      "pet-d19-02"
+    ],
+    "valid_from": "2026-03-20",
+    "valid_to": "2026-03-27"
+  },
+  {
+    "fact_id": "pet.weight.v3",
+    "scenario": "pet",
+    "kind": "state",
+    "subject": "豆包",
+    "attribute": "体重",
+    "value": "10.1 公斤",
+    "value_keywords": [
+      "10.1"
+    ],
+    "valid_from_day": 26,
+    "valid_to_day": null,
+    "supersedes": "pet.weight.v2",
+    "superseded_by": null,
+    "evidence": [
+      "pet-d26-02"
+    ],
+    "valid_from": "2026-03-27",
+    "valid_to": null
+  },
+  {
+    "fact_id": "pet.allergy.chicken",
+    "scenario": "pet",
+    "kind": "state",
+    "subject": "豆包",
+    "attribute": "过敏源",
+    "value": "对鸡肉过敏，吃了会全身起红点、挠个不停",
+    "value_keywords": [
+      "鸡肉"
+    ],
+    "valid_from_day": 1,
+    "valid_to_day": null,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "pet-d04-01",
+      "pet-d23-01"
+    ],
+    "valid_from": "2026-03-02",
+    "valid_to": null
+  },
+  {
+    "fact_id": "pet.vet.d08",
+    "scenario": "pet",
+    "kind": "event",
+    "subject": "豆包",
+    "attribute": "就医记录",
+    "value": "因软便到安康动物医院就诊，刘医生诊断为换粮不当引起的肠胃不适，开了益生菌",
+    "value_keywords": [
+      "软便",
+      "益生菌"
+    ],
+    "valid_from_day": 8,
+    "valid_to_day": 9,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "pet-d08-01",
+      "pet-d08-02"
+    ],
+    "valid_from": "2026-03-09",
+    "valid_to": "2026-03-10"
+  },
+  {
+    "fact_id": "pet.vet.d19",
+    "scenario": "pet",
+    "kind": "event",
+    "subject": "豆包",
+    "attribute": "就医记录",
+    "value": "到安康动物医院打狂犬疫苗年度加强针",
+    "value_keywords": [
+      "狂犬",
+      "疫苗"
+    ],
+    "valid_from_day": 19,
+    "valid_to_day": 20,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "pet-d19-01",
+      "pet-d19-02"
+    ],
+    "valid_from": "2026-03-20",
+    "valid_to": "2026-03-21"
+  },
+  {
+    "fact_id": "pet.vet.d26",
+    "scenario": "pet",
+    "kind": "event",
+    "subject": "豆包",
+    "attribute": "就医记录",
+    "value": "到安康动物医院复查肠胃，刘医生说恢复良好，益生菌可以停",
+    "value_keywords": [
+      "复查"
+    ],
+    "valid_from_day": 26,
+    "valid_to_day": 27,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "pet-d26-01",
+      "pet-d26-02"
+    ],
+    "valid_from": "2026-03-27",
+    "valid_to": "2026-03-28"
+  },
+  {
+    "fact_id": "pet.behavior.chew",
+    "scenario": "pet",
+    "kind": "event",
+    "subject": "豆包",
+    "attribute": "行为记录",
+    "value": "趁我不在家把沙发角咬烂了一块，海绵都掏出来了",
+    "value_keywords": [
+      "沙发"
+    ],
+    "valid_from_day": 5,
+    "valid_to_day": 6,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "pet-d05-01"
+    ],
+    "valid_from": "2026-03-06",
+    "valid_to": "2026-03-07"
+  },
+  {
+    "fact_id": "pet.behavior.thunder",
+    "scenario": "pet",
+    "kind": "event",
+    "subject": "豆包",
+    "attribute": "行为记录",
+    "value": "打雷的时候钻到床底下不肯出来，抖得厉害",
+    "value_keywords": [
+      "打雷"
+    ],
+    "valid_from_day": 14,
+    "valid_to_day": 15,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "pet-d14-01"
+    ],
+    "valid_from": "2026-03-15",
+    "valid_to": "2026-03-16"
+  },
+  {
+    "fact_id": "pet.behavior.shakehand",
+    "scenario": "pet",
+    "kind": "event",
+    "subject": "豆包",
+    "attribute": "行为记录",
+    "value": "学会握手了，教了三天，一说'握手'就把爪子抬起来",
+    "value_keywords": [
+      "握手"
+    ],
+    "valid_from_day": 22,
+    "valid_to_day": 23,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "pet-d22-01"
+    ],
+    "valid_from": "2026-03-23",
+    "valid_to": "2026-03-24"
+  }
+]

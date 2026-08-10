@@ -1,0 +1,8 @@
+{"utt_id": "eld-d09-08", "scenario": "eldercare", "day": 9, "ts": "2026-03-10T08:45:00", "speaker": "王秀兰", "text": "小梅啊，今天的粥熬得挺稠，我喜欢。", "fact_refs": []}
+{"utt_id": "eld-d09-01", "scenario": "eldercare", "day": 9, "ts": "2026-03-10T09:10:00", "speaker": "张护士", "text": "连着三天高压都在 150 上下，我跟陈医生反映一下，看要不要换药。", "fact_refs": ["eldercare.med.bp.v1"]}
+{"utt_id": "eld-d09-04", "scenario": "eldercare", "day": 9, "ts": "2026-03-10T10:46:00", "speaker": "王秀兰", "text": "院子里那几盆月季又开花了，比上回开得旺。", "fact_refs": []}
+{"utt_id": "eld-d09-06", "scenario": "eldercare", "day": 9, "ts": "2026-03-10T13:40:00", "speaker": "王秀兰", "text": "午觉睡得沉，做了个梦，梦见回老家了。", "fact_refs": []}
+{"utt_id": "eld-d09-05", "scenario": "eldercare", "day": 9, "ts": "2026-03-10T14:26:00", "speaker": "王秀兰", "text": "下午我想听会儿评剧，你帮我把收音机调一下。", "fact_refs": []}
+{"utt_id": "eld-d09-02", "scenario": "eldercare", "day": 9, "ts": "2026-03-10T14:30:00", "speaker": "护工-李梅", "text": "王奶奶，孙女-王小雨来看您了，带了一束满天星，还给您念了会儿报纸。", "fact_refs": ["eldercare.visit.d09"]}
+{"utt_id": "eld-d09-03", "scenario": "eldercare", "day": 9, "ts": "2026-03-10T14:40:00", "speaker": "王秀兰", "text": "来了就好，别老惦记着买东西，钱留着自己花。", "fact_refs": ["eldercare.visit.d09"]}
+{"utt_id": "eld-d09-07", "scenario": "eldercare", "day": 9, "ts": "2026-03-10T19:19:00", "speaker": "王秀兰", "text": "电视里这个节目我看过，讲的是老北京的胡同。", "fact_refs": []}

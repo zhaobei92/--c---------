@@ -1,0 +1,6 @@
+{"utt_id": "eld-d28-03", "scenario": "eldercare", "day": 28, "ts": "2026-03-29T10:22:00", "speaker": "护工-李梅", "text": "王奶奶，扶您到院子里晒会儿太阳，风不大。", "fact_refs": []}
+{"utt_id": "eld-d28-04", "scenario": "eldercare", "day": 28, "ts": "2026-03-29T10:35:00", "speaker": "王秀兰", "text": "院子里那几盆月季又开花了，比上回开得旺。", "fact_refs": []}
+{"utt_id": "eld-d28-01", "scenario": "eldercare", "day": 28, "ts": "2026-03-29T16:00:00", "speaker": "护工-李梅", "text": "王奶奶，儿子-王建国来看您了，陪着聊了一个多小时，说下月接您回家住几天。", "fact_refs": ["eldercare.visit.d28"]}
+{"utt_id": "eld-d28-02", "scenario": "eldercare", "day": 28, "ts": "2026-03-29T16:10:00", "speaker": "王秀兰", "text": "来了就好，别老惦记着买东西，钱留着自己花。", "fact_refs": ["eldercare.visit.d28"]}
+{"utt_id": "eld-d28-05", "scenario": "eldercare", "day": 28, "ts": "2026-03-29T19:14:00", "speaker": "王秀兰", "text": "电视里这个节目我看过，讲的是老北京的胡同。", "fact_refs": []}
+{"utt_id": "eld-d28-06", "scenario": "eldercare", "day": 28, "ts": "2026-03-29T20:16:00", "speaker": "王秀兰", "text": "我这记性不如从前了，刚说过的话转脸就忘。", "fact_refs": []}

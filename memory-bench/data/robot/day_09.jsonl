@@ -1,0 +1,4 @@
+{"utt_id": "rob-d09-03", "scenario": "robot", "day": 9, "ts": "2026-03-10T09:02:00", "speaker": "RB-07", "text": "已从充电桩脱离，进入待命状态。", "fact_refs": []}
+{"utt_id": "rob-d09-02", "scenario": "robot", "day": 9, "ts": "2026-03-10T09:46:00", "speaker": "前台-苏婷", "text": "有访客问这个机器人是干嘛的，我说是送文件的。", "fact_refs": []}
+{"utt_id": "rob-d09-04", "scenario": "robot", "day": 9, "ts": "2026-03-10T11:21:00", "speaker": "RB-07", "text": "在 1F 大厅巡航，识别到 3 名行人，已减速避让。", "fact_refs": []}
+{"utt_id": "rob-d09-01", "scenario": "robot", "day": 9, "ts": "2026-03-10T14:00:00", "speaker": "RB-07", "text": "电梯调度成功，从 1F 前往 2F。", "fact_refs": []}

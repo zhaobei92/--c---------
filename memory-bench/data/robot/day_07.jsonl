@@ -1,0 +1,6 @@
+{"utt_id": "rob-d07-04", "scenario": "robot", "day": 7, "ts": "2026-03-08T08:04:00", "speaker": "RB-07", "text": "系统自检完成，电量 98%，导航地图版本 v3.2。", "fact_refs": []}
+{"utt_id": "rob-d07-06", "scenario": "robot", "day": 7, "ts": "2026-03-08T09:57:00", "speaker": "前台-苏婷", "text": "有访客问这个机器人是干嘛的，我说是送文件的。", "fact_refs": []}
+{"utt_id": "rob-d07-02", "scenario": "robot", "day": 7, "ts": "2026-03-08T11:30:00", "speaker": "RB-07", "text": "告警 E-204：左前轮打滑，在 1F 大厅湿滑地面上原地空转了约 5 秒。", "fact_refs": ["robot.fault.d07"]}
+{"utt_id": "rob-d07-03", "scenario": "robot", "day": 7, "ts": "2026-03-08T11:50:00", "speaker": "工程师-郑昊", "text": "收到 E-204 告警，已现场处理并记录。", "fact_refs": ["robot.fault.d07"]}
+{"utt_id": "rob-d07-05", "scenario": "robot", "day": 7, "ts": "2026-03-08T15:51:00", "speaker": "RB-07", "text": "路径被临时堆放的纸箱阻挡，已重新规划绕行。", "fact_refs": []}
+{"utt_id": "rob-d07-01", "scenario": "robot", "day": 7, "ts": "2026-03-08T18:15:00", "speaker": "RB-07", "text": "返回 B1 东侧充电桩，开始充电。", "fact_refs": ["robot.dock.location.v1"]}

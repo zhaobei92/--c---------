@@ -1,0 +1,5 @@
+{"utt_id": "pet-d23-01", "scenario": "pet", "day": 23, "ts": "2026-03-24T15:00:00", "speaker": "陈屿", "text": "同事想喂豆包鸡胸肉干，我赶紧拦下了，它鸡肉过敏。", "fact_refs": ["pet.allergy.chicken"]}
+{"utt_id": "pet-d23-05", "scenario": "pet", "day": 23, "ts": "2026-03-24T17:35:00", "speaker": "陈屿", "text": "邻居家小孩来摸它，它很温顺，一动不动。", "fact_refs": []}
+{"utt_id": "pet-d23-03", "scenario": "pet", "day": 23, "ts": "2026-03-24T19:30:00", "speaker": "陈屿", "text": "给豆包梳了梳毛，掉毛季地上全是。", "fact_refs": []}
+{"utt_id": "pet-d23-02", "scenario": "pet", "day": 23, "ts": "2026-03-24T20:14:00", "speaker": "陈屿", "text": "刷牙的时候它躲，只刷了前面几颗。", "fact_refs": []}
+{"utt_id": "pet-d23-04", "scenario": "pet", "day": 23, "ts": "2026-03-24T22:06:00", "speaker": "陈屿", "text": "豆包睡在它自己的窝里，打呼噜。", "fact_refs": []}

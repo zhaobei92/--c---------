@@ -1,0 +1,4 @@
+{"utt_id": "pet-d20-02", "scenario": "pet", "day": 20, "ts": "2026-03-21T08:15:00", "speaker": "陈屿", "text": "今天出门前给它留了个漏食球，回来发现已经空了。", "fact_refs": []}
+{"utt_id": "pet-d20-03", "scenario": "pet", "day": 20, "ts": "2026-03-21T13:15:00", "speaker": "陈屿", "text": "中午太阳好，它趴在阳台上睡了一下午。", "fact_refs": []}
+{"utt_id": "pet-d20-04", "scenario": "pet", "day": 20, "ts": "2026-03-21T18:38:00", "speaker": "陈屿", "text": "晚上遛弯遇到楼下那只金毛，两个狗玩疯了。", "fact_refs": []}
+{"utt_id": "pet-d20-01", "scenario": "pet", "day": 20, "ts": "2026-03-21T19:10:00", "speaker": "陈屿", "text": "刘医生说豆包偏瘦，让加量，从今天起每顿从 80 克加到 100 克。", "fact_refs": ["pet.food.amount.v1", "pet.food.amount.v2"]}

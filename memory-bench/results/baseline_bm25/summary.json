@@ -1,0 +1,139 @@
+{
+  "framework": "baseline_bm25",
+  "adapter_describe": {
+    "name": "baseline_bm25",
+    "kind": "检索基线（无 LLM 生成）",
+    "memory_representation": "倒排索引 / BM25，记忆单元 = 单条对话原文",
+    "supports_as_of": true,
+    "top_k": 8,
+    "llm": null,
+    "embedding": null,
+    "bm25": {
+      "k1": 1.5,
+      "b": 0.75,
+      "score_floor": 1.0
+    },
+    "caveat": "无生成能力：需要归纳、计数、比较的题目基本答不对，不可与带 LLM 的框架比总分"
+  },
+  "question_set_version": "draft-1",
+  "question_set_frozen": false,
+  "scenarios": [
+    "eldercare",
+    "pet",
+    "robot"
+  ],
+  "n_questions": 60,
+  "accuracy": {
+    "overall": {
+      "correct": 29,
+      "total": 60,
+      "accuracy": 0.4833
+    },
+    "by_type": {
+      "cross_session": {
+        "correct": 7,
+        "total": 12,
+        "accuracy": 0.5833
+      },
+      "fact_change": {
+        "correct": 4,
+        "total": 12,
+        "accuracy": 0.3333
+      },
+      "fact_recall": {
+        "correct": 10,
+        "total": 12,
+        "accuracy": 0.8333
+      },
+      "refusal": {
+        "correct": 0,
+        "total": 12,
+        "accuracy": 0.0
+      },
+      "temporal_locate": {
+        "correct": 8,
+        "total": 12,
+        "accuracy": 0.6667
+      }
+    },
+    "by_scenario": {
+      "eldercare": {
+        "correct": 11,
+        "total": 20,
+        "accuracy": 0.55
+      },
+      "pet": {
+        "correct": 8,
+        "total": 20,
+        "accuracy": 0.4
+      },
+      "robot": {
+        "correct": 10,
+        "total": 20,
+        "accuracy": 0.5
+      }
+    },
+    "as_of_questions": {
+      "correct": 3,
+      "total": 3,
+      "accuracy": 1.0
+    },
+    "mean_gold_evidence_recall": 0.6007
+  },
+  "latency": {
+    "n": 60,
+    "p50_ms": 0.74,
+    "p95_ms": 1.52,
+    "mean_ms": 0.87,
+    "min_ms": 0.31,
+    "max_ms": 1.81
+  },
+  "ingest": {
+    "eldercare": {
+      "n_items": 154,
+      "wall_seconds": 0.004,
+      "tokens_in": 4322,
+      "tokens_out": 0,
+      "notes": "纯本地倒排索引，未调用任何模型；tokens_in 仅为语料规模参照值"
+    },
+    "pet": {
+      "n_items": 132,
+      "wall_seconds": 0.004,
+      "tokens_in": 3185,
+      "tokens_out": 0,
+      "notes": "纯本地倒排索引，未调用任何模型；tokens_in 仅为语料规模参照值"
+    },
+    "robot": {
+      "n_items": 144,
+      "wall_seconds": 0.003,
+      "tokens_in": 3283,
+      "tokens_out": 0,
+      "notes": "纯本地倒排索引，未调用任何模型；tokens_in 仅为语料规模参照值"
+    }
+  },
+  "ingest_total": {
+    "tokens_in": 10790,
+    "tokens_out": 0,
+    "wall_seconds": 0.011
+  },
+  "query_tokens_avg": {
+    "tokens_in": 16.8,
+    "tokens_out": 223.9
+  },
+  "resources": {
+    "peak_rss_mb": 16.0,
+    "mean_rss_mb": 14.6,
+    "samples": 1,
+    "gpu_available": false,
+    "peak_gpu_mb": null
+  },
+  "environment": {
+    "python": "3.11.15",
+    "platform": "Linux-6.18.5-fc-v20-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "cpu_count": 4,
+    "tokenizer": "heuristic:cjk1+word0.75",
+    "git_commit": "3de3599",
+    "run_at": "2026-08-10T18:31:43"
+  }
+}

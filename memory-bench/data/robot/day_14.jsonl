@@ -1,0 +1,3 @@
+{"utt_id": "rob-d14-01", "scenario": "robot", "day": 14, "ts": "2026-03-15T11:24:00", "speaker": "RB-07", "text": "在 1F 大厅巡航，识别到 3 名行人，已减速避让。", "fact_refs": []}
+{"utt_id": "rob-d14-02", "scenario": "robot", "day": 14, "ts": "2026-03-15T14:07:00", "speaker": "RB-07", "text": "电梯调度成功，从 1F 前往 2F。", "fact_refs": []}
+{"utt_id": "rob-d14-03", "scenario": "robot", "day": 14, "ts": "2026-03-15T16:57:00", "speaker": "工程师-郑昊", "text": "看了下日志，今天没有异常告警。", "fact_refs": []}

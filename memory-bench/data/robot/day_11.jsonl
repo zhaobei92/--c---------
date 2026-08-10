@@ -1,0 +1,4 @@
+{"utt_id": "rob-d11-02", "scenario": "robot", "day": 11, "ts": "2026-03-12T08:05:00", "speaker": "RB-07", "text": "系统自检完成，电量 98%，导航地图版本 v3.2。", "fact_refs": []}
+{"utt_id": "rob-d11-01", "scenario": "robot", "day": 11, "ts": "2026-03-12T09:20:00", "speaker": "工程师-郑昊", "text": "我搬工位了，从 2F-A12 换到 3F-C03，以后东西送 3F。", "fact_refs": ["robot.person.zhenghao.desk.v1", "robot.person.zhenghao.desk.v2"]}
+{"utt_id": "rob-d11-04", "scenario": "robot", "day": 11, "ts": "2026-03-12T09:47:00", "speaker": "前台-苏婷", "text": "有访客问这个机器人是干嘛的，我说是送文件的。", "fact_refs": []}
+{"utt_id": "rob-d11-03", "scenario": "robot", "day": 11, "ts": "2026-03-12T14:01:00", "speaker": "RB-07", "text": "电梯调度成功，从 1F 前往 2F。", "fact_refs": []}

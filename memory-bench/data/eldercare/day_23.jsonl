@@ -1,0 +1,5 @@
+{"utt_id": "eld-d23-03", "scenario": "eldercare", "day": 23, "ts": "2026-03-24T09:23:00", "speaker": "王秀兰", "text": "今天天气比昨天暖和，窗户开一条缝就行。", "fact_refs": []}
+{"utt_id": "eld-d23-04", "scenario": "eldercare", "day": 23, "ts": "2026-03-24T11:03:00", "speaker": "护工-李梅", "text": "王奶奶，一会儿量个血压，例行的。", "fact_refs": []}
+{"utt_id": "eld-d23-01", "scenario": "eldercare", "day": 23, "ts": "2026-03-24T14:50:00", "speaker": "护工-李梅", "text": "王奶奶，儿子-王建国、孙女-王小雨来看您了，爷孙俩一起来的，带了一台新收音机。", "fact_refs": ["eldercare.visit.d23"]}
+{"utt_id": "eld-d23-02", "scenario": "eldercare", "day": 23, "ts": "2026-03-24T15:00:00", "speaker": "王秀兰", "text": "来了就好，别老惦记着买东西，钱留着自己花。", "fact_refs": ["eldercare.visit.d23"]}
+{"utt_id": "eld-d23-05", "scenario": "eldercare", "day": 23, "ts": "2026-03-24T20:15:00", "speaker": "王秀兰", "text": "我这记性不如从前了，刚说过的话转脸就忘。", "fact_refs": []}

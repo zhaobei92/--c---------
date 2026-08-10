@@ -1,0 +1,240 @@
+[
+  {
+    "fact_id": "robot.dock.location.v1",
+    "scenario": "robot",
+    "kind": "state",
+    "subject": "RB-07",
+    "attribute": "充电桩位置",
+    "value": "B1 层东侧，靠近货梯",
+    "value_keywords": [
+      "东侧"
+    ],
+    "valid_from_day": 1,
+    "valid_to_day": 13,
+    "supersedes": null,
+    "superseded_by": "robot.dock.location.v2",
+    "evidence": [
+      "rob-d01-01",
+      "rob-d07-01",
+      "rob-d13-01"
+    ],
+    "valid_from": "2026-03-02",
+    "valid_to": "2026-03-14"
+  },
+  {
+    "fact_id": "robot.dock.location.v2",
+    "scenario": "robot",
+    "kind": "state",
+    "subject": "RB-07",
+    "attribute": "充电桩位置",
+    "value": "B1 层西侧，靠近楼梯间",
+    "value_keywords": [
+      "西侧"
+    ],
+    "valid_from_day": 13,
+    "valid_to_day": null,
+    "supersedes": "robot.dock.location.v1",
+    "superseded_by": null,
+    "evidence": [
+      "rob-d13-01",
+      "rob-d13-02",
+      "rob-d28-01"
+    ],
+    "valid_from": "2026-03-14",
+    "valid_to": null
+  },
+  {
+    "fact_id": "robot.storage.location.v1",
+    "scenario": "robot",
+    "kind": "state",
+    "subject": "打印耗材",
+    "attribute": "存放位置",
+    "value": "3F 储物间",
+    "value_keywords": [
+      "3F"
+    ],
+    "valid_from_day": 1,
+    "valid_to_day": 20,
+    "supersedes": null,
+    "superseded_by": "robot.storage.location.v2",
+    "evidence": [
+      "rob-d04-01",
+      "rob-d20-01"
+    ],
+    "valid_from": "2026-03-02",
+    "valid_to": "2026-03-21"
+  },
+  {
+    "fact_id": "robot.storage.location.v2",
+    "scenario": "robot",
+    "kind": "state",
+    "subject": "打印耗材",
+    "attribute": "存放位置",
+    "value": "2F 储物间",
+    "value_keywords": [
+      "2F"
+    ],
+    "valid_from_day": 20,
+    "valid_to_day": null,
+    "supersedes": "robot.storage.location.v1",
+    "superseded_by": null,
+    "evidence": [
+      "rob-d20-01",
+      "rob-d24-01"
+    ],
+    "valid_from": "2026-03-21",
+    "valid_to": null
+  },
+  {
+    "fact_id": "robot.person.zhenghao.desk.v1",
+    "scenario": "robot",
+    "kind": "state",
+    "subject": "工程师-郑昊",
+    "attribute": "工位",
+    "value": "2F-A12",
+    "value_keywords": [
+      "A12"
+    ],
+    "valid_from_day": 1,
+    "valid_to_day": 11,
+    "supersedes": null,
+    "superseded_by": "robot.person.zhenghao.desk.v2",
+    "evidence": [
+      "rob-d02-01",
+      "rob-d11-01"
+    ],
+    "valid_from": "2026-03-02",
+    "valid_to": "2026-03-12"
+  },
+  {
+    "fact_id": "robot.person.zhenghao.desk.v2",
+    "scenario": "robot",
+    "kind": "state",
+    "subject": "工程师-郑昊",
+    "attribute": "工位",
+    "value": "3F-C03",
+    "value_keywords": [
+      "C03"
+    ],
+    "valid_from_day": 11,
+    "valid_to_day": null,
+    "supersedes": "robot.person.zhenghao.desk.v1",
+    "superseded_by": null,
+    "evidence": [
+      "rob-d11-01",
+      "rob-d15-01",
+      "rob-d18-02",
+      "rob-d27-01"
+    ],
+    "valid_from": "2026-03-12",
+    "valid_to": null
+  },
+  {
+    "fact_id": "robot.fault.d07",
+    "scenario": "robot",
+    "kind": "event",
+    "subject": "RB-07",
+    "attribute": "故障记录",
+    "value": "E-204：左前轮打滑，在 1F 大厅湿滑地面上原地空转了约 5 秒",
+    "value_keywords": [
+      "E-204",
+      "左前轮"
+    ],
+    "valid_from_day": 7,
+    "valid_to_day": 8,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "rob-d07-02",
+      "rob-d07-03"
+    ],
+    "valid_from": "2026-03-08",
+    "valid_to": "2026-03-09"
+  },
+  {
+    "fact_id": "robot.fault.d15",
+    "scenario": "robot",
+    "kind": "event",
+    "subject": "RB-07",
+    "attribute": "故障记录",
+    "value": "E-311：激光雷达镜面积尘，测距置信度下降到 0.62，触发降速",
+    "value_keywords": [
+      "E-311",
+      "激光雷达"
+    ],
+    "valid_from_day": 15,
+    "valid_to_day": 16,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "rob-d15-02",
+      "rob-d15-03"
+    ],
+    "valid_from": "2026-03-16",
+    "valid_to": "2026-03-17"
+  },
+  {
+    "fact_id": "robot.fault.d24",
+    "scenario": "robot",
+    "kind": "event",
+    "subject": "RB-07",
+    "attribute": "故障记录",
+    "value": "E-508：电池健康度告警，容量衰减至标称值的 81%",
+    "value_keywords": [
+      "E-508",
+      "电池健康度"
+    ],
+    "valid_from_day": 24,
+    "valid_to_day": 25,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "rob-d24-02",
+      "rob-d24-03"
+    ],
+    "valid_from": "2026-03-25",
+    "valid_to": "2026-03-26"
+  },
+  {
+    "fact_id": "robot.visit.d06",
+    "scenario": "robot",
+    "kind": "event",
+    "subject": "访客-林工",
+    "attribute": "访客接待",
+    "value": "访客-林工 来访，由 RB-07 从 1F 前台引导至 2F 会议室",
+    "value_keywords": [
+      "林工"
+    ],
+    "valid_from_day": 6,
+    "valid_to_day": 7,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "rob-d06-01",
+      "rob-d06-02"
+    ],
+    "valid_from": "2026-03-07",
+    "valid_to": "2026-03-08"
+  },
+  {
+    "fact_id": "robot.visit.d18",
+    "scenario": "robot",
+    "kind": "event",
+    "subject": "访客-林工",
+    "attribute": "访客接待",
+    "value": "访客-林工 第二次来访，由 RB-07 引导至 3F-C03 找郑昊",
+    "value_keywords": [
+      "林工"
+    ],
+    "valid_from_day": 18,
+    "valid_to_day": 19,
+    "supersedes": null,
+    "superseded_by": null,
+    "evidence": [
+      "rob-d18-01",
+      "rob-d18-02"
+    ],
+    "valid_from": "2026-03-19",
+    "valid_to": "2026-03-20"
+  }
+]

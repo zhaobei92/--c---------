@@ -1,0 +1,4 @@
+{"utt_id": "pet-d10-01", "scenario": "pet", "day": 10, "ts": "2026-03-11T11:00:00", "speaker": "陈屿", "text": "决定换粮了，皇家幼犬粮停掉，改喂渴望成犬粮，按七天过渡法慢慢换。", "fact_refs": ["pet.food.brand.v1", "pet.food.brand.v2"]}
+{"utt_id": "pet-d10-03", "scenario": "pet", "day": 10, "ts": "2026-03-11T12:23:00", "speaker": "陈屿", "text": "豆包又把玩具球叼到沙发底下去了，够了半天才拿出来。", "fact_refs": []}
+{"utt_id": "pet-d10-04", "scenario": "pet", "day": 10, "ts": "2026-03-11T20:20:00", "speaker": "陈屿", "text": "刷牙的时候它躲，只刷了前面几颗。", "fact_refs": []}
+{"utt_id": "pet-d10-02", "scenario": "pet", "day": 10, "ts": "2026-03-11T21:00:00", "speaker": "陈屿", "text": "豆包今天挺乖的，没拆家。", "fact_refs": []}

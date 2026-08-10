@@ -1,0 +1,7 @@
+{"utt_id": "pet-d19-04", "scenario": "pet", "day": 19, "ts": "2026-03-20T07:56:00", "speaker": "陈屿", "text": "早上遛了四十分钟，绕着小区走了两圈。", "fact_refs": []}
+{"utt_id": "pet-d19-01", "scenario": "pet", "day": 19, "ts": "2026-03-20T10:00:00", "speaker": "陈屿", "text": "今天带豆包去打狂犬疫苗，一年一次的加强针。", "fact_refs": ["pet.vet.d19"]}
+{"utt_id": "pet-d19-02", "scenario": "pet", "day": 19, "ts": "2026-03-20T10:20:00", "speaker": "刘医生", "text": "疫苗打完了，观察半小时没反应就可以走。体重 9.5 公斤，比上次长了点。", "fact_refs": ["pet.vet.d19", "pet.weight.v2"]}
+{"utt_id": "pet-d19-06", "scenario": "pet", "day": 19, "ts": "2026-03-20T13:12:00", "speaker": "陈屿", "text": "中午太阳好，它趴在阳台上睡了一下午。", "fact_refs": []}
+{"utt_id": "pet-d19-05", "scenario": "pet", "day": 19, "ts": "2026-03-20T19:32:00", "speaker": "陈屿", "text": "给豆包梳了梳毛，掉毛季地上全是。", "fact_refs": []}
+{"utt_id": "pet-d19-03", "scenario": "pet", "day": 19, "ts": "2026-03-20T20:20:00", "speaker": "陈屿", "text": "刷牙的时候它躲，只刷了前面几颗。", "fact_refs": []}
+{"utt_id": "pet-d19-07", "scenario": "pet", "day": 19, "ts": "2026-03-20T21:00:00", "speaker": "陈屿", "text": "豆包今天挺乖的，没拆家。", "fact_refs": []}

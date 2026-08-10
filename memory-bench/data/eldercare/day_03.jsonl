@@ -1,0 +1,8 @@
+{"utt_id": "eld-d03-06", "scenario": "eldercare", "day": 3, "ts": "2026-03-04T08:52:00", "speaker": "王秀兰", "text": "小梅啊，今天的粥熬得挺稠，我喜欢。", "fact_refs": []}
+{"utt_id": "eld-d03-02", "scenario": "eldercare", "day": 3, "ts": "2026-03-04T10:20:00", "speaker": "王秀兰", "text": "我右腿膝盖发酸，上下楼梯的时候疼得厉害。", "fact_refs": ["eldercare.symptom.knee"]}
+{"utt_id": "eld-d03-03", "scenario": "eldercare", "day": 3, "ts": "2026-03-04T10:25:00", "speaker": "护工-李梅", "text": "我记一下，王奶奶今天说膝盖不舒服，回头跟护士站说。", "fact_refs": ["eldercare.symptom.knee"]}
+{"utt_id": "eld-d03-07", "scenario": "eldercare", "day": 3, "ts": "2026-03-04T10:36:00", "speaker": "王秀兰", "text": "院子里那几盆月季又开花了，比上回开得旺。", "fact_refs": []}
+{"utt_id": "eld-d03-05", "scenario": "eldercare", "day": 3, "ts": "2026-03-04T13:44:00", "speaker": "王秀兰", "text": "午觉睡得沉，做了个梦，梦见回老家了。", "fact_refs": []}
+{"utt_id": "eld-d03-01", "scenario": "eldercare", "day": 3, "ts": "2026-03-04T14:30:00", "speaker": "护工-李梅", "text": "王奶奶，周三下午的书法班开始了，我陪您上二楼活动室。", "fact_refs": ["eldercare.activity.calligraphy.v1"]}
+{"utt_id": "eld-d03-04", "scenario": "eldercare", "day": 3, "ts": "2026-03-04T17:19:00", "speaker": "护工-李梅", "text": "食堂今天有您爱吃的南瓜羹，我给您留了一份。", "fact_refs": []}
+{"utt_id": "eld-d03-08", "scenario": "eldercare", "day": 3, "ts": "2026-03-04T19:46:00", "speaker": "护工-李梅", "text": "王奶奶，睡前记得少喝点水，免得夜里起夜。", "fact_refs": []}

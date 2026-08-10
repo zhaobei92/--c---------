@@ -1,0 +1,7 @@
+{"utt_id": "eld-d10-05", "scenario": "eldercare", "day": 10, "ts": "2026-03-11T08:51:00", "speaker": "王秀兰", "text": "小梅啊，今天的粥熬得挺稠，我喜欢。", "fact_refs": []}
+{"utt_id": "eld-d10-01", "scenario": "eldercare", "day": 10, "ts": "2026-03-11T10:30:00", "speaker": "陈医生", "text": "王奶奶的氨氯地平从今天停掉，换成缬沙坦 80mg，还是每天早饭后一片，两周后复查。", "fact_refs": ["eldercare.med.bp.v1", "eldercare.med.bp.v2"]}
+{"utt_id": "eld-d10-02", "scenario": "eldercare", "day": 10, "ts": "2026-03-11T10:35:00", "speaker": "护工-李梅", "text": "记下了，明天开始给王奶奶发缬沙坦，原来那个氨氯地平我收走。", "fact_refs": ["eldercare.med.bp.v2"]}
+{"utt_id": "eld-d10-07", "scenario": "eldercare", "day": 10, "ts": "2026-03-11T14:13:00", "speaker": "王秀兰", "text": "下午我想听会儿评剧，你帮我把收音机调一下。", "fact_refs": []}
+{"utt_id": "eld-d10-03", "scenario": "eldercare", "day": 10, "ts": "2026-03-11T14:30:00", "speaker": "护工-李梅", "text": "王奶奶，周三下午的书法班开始了，我陪您上二楼活动室。", "fact_refs": ["eldercare.activity.calligraphy.v1"]}
+{"utt_id": "eld-d10-04", "scenario": "eldercare", "day": 10, "ts": "2026-03-11T16:09:00", "speaker": "王秀兰", "text": "我年轻那会儿在纺织厂上班，一个班站八个钟头都不觉得累。", "fact_refs": []}
+{"utt_id": "eld-d10-06", "scenario": "eldercare", "day": 10, "ts": "2026-03-11T19:19:00", "speaker": "王秀兰", "text": "电视里这个节目我看过，讲的是老北京的胡同。", "fact_refs": []}

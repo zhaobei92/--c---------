@@ -1,0 +1,6 @@
+{"utt_id": "eld-d20-06", "scenario": "eldercare", "day": 20, "ts": "2026-03-21T11:07:00", "speaker": "护工-李梅", "text": "王奶奶，一会儿量个血压，例行的。", "fact_refs": []}
+{"utt_id": "eld-d20-01", "scenario": "eldercare", "day": 20, "ts": "2026-03-21T12:00:00", "speaker": "护工-李梅", "text": "食堂师傅，王奶奶的菜不要香菜，她忌口。", "fact_refs": ["eldercare.diet.dislike"]}
+{"utt_id": "eld-d20-02", "scenario": "eldercare", "day": 20, "ts": "2026-03-21T14:26:00", "speaker": "王秀兰", "text": "下午我想听会儿评剧，你帮我把收音机调一下。", "fact_refs": []}
+{"utt_id": "eld-d20-03", "scenario": "eldercare", "day": 20, "ts": "2026-03-21T16:09:00", "speaker": "王秀兰", "text": "我年轻那会儿在纺织厂上班，一个班站八个钟头都不觉得累。", "fact_refs": []}
+{"utt_id": "eld-d20-04", "scenario": "eldercare", "day": 20, "ts": "2026-03-21T17:20:00", "speaker": "护工-李梅", "text": "食堂今天有您爱吃的南瓜羹，我给您留了一份。", "fact_refs": []}
+{"utt_id": "eld-d20-05", "scenario": "eldercare", "day": 20, "ts": "2026-03-21T19:17:00", "speaker": "王秀兰", "text": "电视里这个节目我看过，讲的是老北京的胡同。", "fact_refs": []}

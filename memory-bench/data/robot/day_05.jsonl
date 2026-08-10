@@ -1,0 +1,5 @@
+{"utt_id": "rob-d05-03", "scenario": "robot", "day": 5, "ts": "2026-03-06T08:09:00", "speaker": "RB-07", "text": "系统自检完成，电量 98%，导航地图版本 v3.2。", "fact_refs": []}
+{"utt_id": "rob-d05-05", "scenario": "robot", "day": 5, "ts": "2026-03-06T09:00:00", "speaker": "RB-07", "text": "已从充电桩脱离，进入待命状态。", "fact_refs": []}
+{"utt_id": "rob-d05-02", "scenario": "robot", "day": 5, "ts": "2026-03-06T11:19:00", "speaker": "RB-07", "text": "在 1F 大厅巡航，识别到 3 名行人，已减速避让。", "fact_refs": []}
+{"utt_id": "rob-d05-04", "scenario": "robot", "day": 5, "ts": "2026-03-06T15:52:00", "speaker": "RB-07", "text": "路径被临时堆放的纸箱阻挡，已重新规划绕行。", "fact_refs": []}
+{"utt_id": "rob-d05-01", "scenario": "robot", "day": 5, "ts": "2026-03-06T17:34:00", "speaker": "RB-07", "text": "今日累计行驶 4.2 公里，任务完成率 100%。", "fact_refs": []}

@@ -1,0 +1,6 @@
+{"utt_id": "rob-d28-04", "scenario": "robot", "day": 28, "ts": "2026-03-29T09:02:00", "speaker": "RB-07", "text": "已从充电桩脱离，进入待命状态。", "fact_refs": []}
+{"utt_id": "rob-d28-06", "scenario": "robot", "day": 28, "ts": "2026-03-29T11:18:00", "speaker": "RB-07", "text": "在 1F 大厅巡航，识别到 3 名行人，已减速避让。", "fact_refs": []}
+{"utt_id": "rob-d28-03", "scenario": "robot", "day": 28, "ts": "2026-03-29T13:31:00", "speaker": "RB-07", "text": "接收到清洁机器人的避让请求，已让行。", "fact_refs": []}
+{"utt_id": "rob-d28-02", "scenario": "robot", "day": 28, "ts": "2026-03-29T16:54:00", "speaker": "工程师-郑昊", "text": "看了下日志，今天没有异常告警。", "fact_refs": []}
+{"utt_id": "rob-d28-05", "scenario": "robot", "day": 28, "ts": "2026-03-29T17:24:00", "speaker": "RB-07", "text": "今日累计行驶 4.2 公里，任务完成率 100%。", "fact_refs": []}
+{"utt_id": "rob-d28-01", "scenario": "robot", "day": 28, "ts": "2026-03-29T18:25:00", "speaker": "RB-07", "text": "返回 B1 西侧充电桩，开始充电，当前电量 19%。", "fact_refs": ["robot.dock.location.v2"]}

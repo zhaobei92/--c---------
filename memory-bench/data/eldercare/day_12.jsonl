@@ -1,0 +1,7 @@
+{"utt_id": "eld-d12-04", "scenario": "eldercare", "day": 12, "ts": "2026-03-13T08:31:00", "speaker": "护工-李梅", "text": "王奶奶早，今天精神看着不错，先把早饭吃了吧。", "fact_refs": []}
+{"utt_id": "eld-d12-03", "scenario": "eldercare", "day": 12, "ts": "2026-03-13T11:04:00", "speaker": "护工-李梅", "text": "王奶奶，一会儿量个血压，例行的。", "fact_refs": []}
+{"utt_id": "eld-d12-06", "scenario": "eldercare", "day": 12, "ts": "2026-03-13T19:20:00", "speaker": "王秀兰", "text": "电视里这个节目我看过，讲的是老北京的胡同。", "fact_refs": []}
+{"utt_id": "eld-d12-07", "scenario": "eldercare", "day": 12, "ts": "2026-03-13T19:44:00", "speaker": "护工-李梅", "text": "王奶奶，睡前记得少喝点水，免得夜里起夜。", "fact_refs": []}
+{"utt_id": "eld-d12-05", "scenario": "eldercare", "day": 12, "ts": "2026-03-13T20:12:00", "speaker": "王秀兰", "text": "我这记性不如从前了，刚说过的话转脸就忘。", "fact_refs": []}
+{"utt_id": "eld-d12-01", "scenario": "eldercare", "day": 12, "ts": "2026-03-13T22:15:00", "speaker": "王秀兰", "text": "我夜里咳嗽，躺下就咳，坐起来好一些。", "fact_refs": ["eldercare.symptom.cough"]}
+{"utt_id": "eld-d12-02", "scenario": "eldercare", "day": 12, "ts": "2026-03-13T22:20:00", "speaker": "护工-李梅", "text": "我记一下，王奶奶今天说咳嗽不舒服，回头跟护士站说。", "fact_refs": ["eldercare.symptom.cough"]}

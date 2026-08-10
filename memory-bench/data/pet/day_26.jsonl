@@ -1,0 +1,5 @@
+{"utt_id": "pet-d26-03", "scenario": "pet", "day": 26, "ts": "2026-03-27T07:27:00", "speaker": "陈屿", "text": "豆包今天起得比我还早，在门口坐着等遛弯。", "fact_refs": []}
+{"utt_id": "pet-d26-01", "scenario": "pet", "day": 26, "ts": "2026-03-27T10:15:00", "speaker": "陈屿", "text": "带豆包回安康动物医院复查肠胃。", "fact_refs": ["pet.vet.d26"]}
+{"utt_id": "pet-d26-02", "scenario": "pet", "day": 26, "ts": "2026-03-27T10:40:00", "speaker": "刘医生", "text": "恢复得不错，益生菌可以停了。体重 10.1 公斤，这一个月长了差不多一公斤。", "fact_refs": ["pet.vet.d26", "pet.weight.v3"]}
+{"utt_id": "pet-d26-04", "scenario": "pet", "day": 26, "ts": "2026-03-27T18:43:00", "speaker": "陈屿", "text": "晚上遛弯遇到楼下那只金毛，两个狗玩疯了。", "fact_refs": []}
+{"utt_id": "pet-d26-05", "scenario": "pet", "day": 26, "ts": "2026-03-27T19:35:00", "speaker": "陈屿", "text": "给豆包梳了梳毛，掉毛季地上全是。", "fact_refs": []}

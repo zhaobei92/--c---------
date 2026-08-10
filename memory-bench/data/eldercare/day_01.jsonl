@@ -1,0 +1,5 @@
+{"utt_id": "eld-d01-01", "scenario": "eldercare", "day": 1, "ts": "2026-03-02T08:05:00", "speaker": "护工-李梅", "text": "王奶奶，早饭后的氨氯地平吃了没有？一天就这一片，别落下。", "fact_refs": ["eldercare.med.bp.v1"]}
+{"utt_id": "eld-d01-02", "scenario": "eldercare", "day": 1, "ts": "2026-03-02T08:08:00", "speaker": "王秀兰", "text": "吃了，那个白色的小片，我记着呢。", "fact_refs": ["eldercare.med.bp.v1"]}
+{"utt_id": "eld-d01-04", "scenario": "eldercare", "day": 1, "ts": "2026-03-02T09:27:00", "speaker": "王秀兰", "text": "今天天气比昨天暖和，窗户开一条缝就行。", "fact_refs": []}
+{"utt_id": "eld-d01-03", "scenario": "eldercare", "day": 1, "ts": "2026-03-02T10:21:00", "speaker": "护工-李梅", "text": "王奶奶，扶您到院子里晒会儿太阳，风不大。", "fact_refs": []}
+{"utt_id": "eld-d01-05", "scenario": "eldercare", "day": 1, "ts": "2026-03-02T19:27:00", "speaker": "王秀兰", "text": "电视里这个节目我看过，讲的是老北京的胡同。", "fact_refs": []}

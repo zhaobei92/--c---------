@@ -1,0 +1,5 @@
+{"utt_id": "rob-d27-02", "scenario": "robot", "day": 27, "ts": "2026-03-28T10:29:00", "speaker": "前台-苏婷", "text": "RB-07 今天看着挺利索的，没在门口卡住。", "fact_refs": []}
+{"utt_id": "rob-d27-01", "scenario": "robot", "day": 27, "ts": "2026-03-28T10:40:00", "speaker": "RB-07", "text": "配送任务：签字文件一份，收件人 工程师-郑昊，送达 3F-C03。", "fact_refs": ["robot.person.zhenghao.desk.v2"]}
+{"utt_id": "rob-d27-05", "scenario": "robot", "day": 27, "ts": "2026-03-28T13:26:00", "speaker": "RB-07", "text": "接收到清洁机器人的避让请求，已让行。", "fact_refs": []}
+{"utt_id": "rob-d27-03", "scenario": "robot", "day": 27, "ts": "2026-03-28T17:29:00", "speaker": "RB-07", "text": "今日累计行驶 4.2 公里，任务完成率 100%。", "fact_refs": []}
+{"utt_id": "rob-d27-04", "scenario": "robot", "day": 27, "ts": "2026-03-28T18:14:00", "speaker": "RB-07", "text": "返回充电桩，开始充电，当前电量 23%。", "fact_refs": []}

@@ -1,0 +1,4 @@
+{"utt_id": "pet-d22-04", "scenario": "pet", "day": 22, "ts": "2026-03-23T13:15:00", "speaker": "陈屿", "text": "中午太阳好，它趴在阳台上睡了一下午。", "fact_refs": []}
+{"utt_id": "pet-d22-02", "scenario": "pet", "day": 22, "ts": "2026-03-23T16:17:00", "speaker": "陈屿", "text": "带豆包去了趟宠物店剪指甲，它全程发抖。", "fact_refs": []}
+{"utt_id": "pet-d22-01", "scenario": "pet", "day": 22, "ts": "2026-03-23T19:00:00", "speaker": "陈屿", "text": "豆包今天学会握手了，教了三天，一说'握手'就把爪子抬起来。", "fact_refs": ["pet.behavior.shakehand"]}
+{"utt_id": "pet-d22-03", "scenario": "pet", "day": 22, "ts": "2026-03-23T22:11:00", "speaker": "陈屿", "text": "豆包睡在它自己的窝里，打呼噜。", "fact_refs": []}

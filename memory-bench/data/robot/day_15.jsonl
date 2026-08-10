@@ -1,0 +1,6 @@
+{"utt_id": "rob-d15-04", "scenario": "robot", "day": 15, "ts": "2026-03-16T09:43:00", "speaker": "前台-苏婷", "text": "有访客问这个机器人是干嘛的，我说是送文件的。", "fact_refs": []}
+{"utt_id": "rob-d15-01", "scenario": "robot", "day": 15, "ts": "2026-03-16T14:05:00", "speaker": "RB-07", "text": "配送任务：备件盒一个，收件人 工程师-郑昊，送达 3F-C03。", "fact_refs": ["robot.person.zhenghao.desk.v2"]}
+{"utt_id": "rob-d15-06", "scenario": "robot", "day": 15, "ts": "2026-03-16T15:52:00", "speaker": "RB-07", "text": "路径被临时堆放的纸箱阻挡，已重新规划绕行。", "fact_refs": []}
+{"utt_id": "rob-d15-02", "scenario": "robot", "day": 15, "ts": "2026-03-16T16:20:00", "speaker": "RB-07", "text": "告警 E-311：激光雷达镜面积尘，测距置信度下降到 0.62，触发降速。", "fact_refs": ["robot.fault.d15"]}
+{"utt_id": "rob-d15-03", "scenario": "robot", "day": 15, "ts": "2026-03-16T16:40:00", "speaker": "工程师-郑昊", "text": "收到 E-311 告警，已现场处理并记录。", "fact_refs": ["robot.fault.d15"]}
+{"utt_id": "rob-d15-05", "scenario": "robot", "day": 15, "ts": "2026-03-16T17:31:00", "speaker": "RB-07", "text": "今日累计行驶 4.2 公里，任务完成率 100%。", "fact_refs": []}

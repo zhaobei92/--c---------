@@ -1,0 +1,6 @@
+{"utt_id": "eld-d14-01", "scenario": "eldercare", "day": 14, "ts": "2026-03-15T08:10:00", "speaker": "护工-李梅", "text": "王奶奶，缬沙坦一片，早饭后吃。", "fact_refs": ["eldercare.med.bp.v2"]}
+{"utt_id": "eld-d14-03", "scenario": "eldercare", "day": 14, "ts": "2026-03-15T08:25:00", "speaker": "护工-李梅", "text": "王奶奶早，今天精神看着不错，先把早饭吃了吧。", "fact_refs": []}
+{"utt_id": "eld-d14-02", "scenario": "eldercare", "day": 14, "ts": "2026-03-15T16:08:00", "speaker": "王秀兰", "text": "我年轻那会儿在纺织厂上班，一个班站八个钟头都不觉得累。", "fact_refs": []}
+{"utt_id": "eld-d14-04", "scenario": "eldercare", "day": 14, "ts": "2026-03-15T16:26:00", "speaker": "护工-李梅", "text": "王奶奶，晚饭想吃面条还是米饭？", "fact_refs": []}
+{"utt_id": "eld-d14-05", "scenario": "eldercare", "day": 14, "ts": "2026-03-15T17:15:00", "speaker": "护工-李梅", "text": "食堂今天有您爱吃的南瓜羹，我给您留了一份。", "fact_refs": []}
+{"utt_id": "eld-d14-06", "scenario": "eldercare", "day": 14, "ts": "2026-03-15T19:40:00", "speaker": "护工-李梅", "text": "王奶奶，睡前记得少喝点水，免得夜里起夜。", "fact_refs": []}

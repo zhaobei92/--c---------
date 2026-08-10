@@ -1,0 +1,33 @@
+{
+  "seed": 20260310,
+  "start_date": "2026-03-02",
+  "end_date": "2026-03-31",
+  "num_days": 30,
+  "note": "模拟数据，非真实录音转写。真实数据到位后需重测关键项。",
+  "scenarios": {
+    "eldercare": {
+      "title": "养老院长者日常对话",
+      "utterances": 154,
+      "facts": 14,
+      "state_facts": 6,
+      "event_facts": 8,
+      "superseded_facts": 2
+    },
+    "pet": {
+      "title": "宠物主人日常记录",
+      "utterances": 132,
+      "facts": 14,
+      "state_facts": 8,
+      "event_facts": 6,
+      "superseded_facts": 4
+    },
+    "robot": {
+      "title": "机器人任务日志",
+      "utterances": 144,
+      "facts": 11,
+      "state_facts": 6,
+      "event_facts": 5,
+      "superseded_facts": 3
+    }
+  }
+}

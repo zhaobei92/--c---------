@@ -1,0 +1,7 @@
+{"utt_id": "rob-d13-06", "scenario": "robot", "day": 13, "ts": "2026-03-14T08:14:00", "speaker": "RB-07", "text": "系统自检完成，电量 98%，导航地图版本 v3.2。", "fact_refs": []}
+{"utt_id": "rob-d13-01", "scenario": "robot", "day": 13, "ts": "2026-03-14T09:00:00", "speaker": "工程师-郑昊", "text": "B1 东侧要做管道改造，充电桩今天挪到 B1 西侧楼梯间旁边，地图已经更新。", "fact_refs": ["robot.dock.location.v1", "robot.dock.location.v2"]}
+{"utt_id": "rob-d13-05", "scenario": "robot", "day": 13, "ts": "2026-03-14T09:01:00", "speaker": "RB-07", "text": "已从充电桩脱离，进入待命状态。", "fact_refs": []}
+{"utt_id": "rob-d13-04", "scenario": "robot", "day": 13, "ts": "2026-03-14T14:04:00", "speaker": "RB-07", "text": "电梯调度成功，从 1F 前往 2F。", "fact_refs": []}
+{"utt_id": "rob-d13-07", "scenario": "robot", "day": 13, "ts": "2026-03-14T15:42:00", "speaker": "RB-07", "text": "路径被临时堆放的纸箱阻挡，已重新规划绕行。", "fact_refs": []}
+{"utt_id": "rob-d13-03", "scenario": "robot", "day": 13, "ts": "2026-03-14T18:13:00", "speaker": "RB-07", "text": "返回充电桩，开始充电，当前电量 23%。", "fact_refs": []}
+{"utt_id": "rob-d13-02", "scenario": "robot", "day": 13, "ts": "2026-03-14T18:30:00", "speaker": "RB-07", "text": "返回 B1 西侧充电桩，开始充电。", "fact_refs": ["robot.dock.location.v2"]}

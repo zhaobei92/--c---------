@@ -1,0 +1,5 @@
+{"utt_id": "pet-d14-05", "scenario": "pet", "day": 14, "ts": "2026-03-15T07:26:00", "speaker": "陈屿", "text": "豆包今天起得比我还早，在门口坐着等遛弯。", "fact_refs": []}
+{"utt_id": "pet-d14-03", "scenario": "pet", "day": 14, "ts": "2026-03-15T13:06:00", "speaker": "陈屿", "text": "中午太阳好，它趴在阳台上睡了一下午。", "fact_refs": []}
+{"utt_id": "pet-d14-02", "scenario": "pet", "day": 14, "ts": "2026-03-15T18:47:00", "speaker": "陈屿", "text": "晚上遛弯遇到楼下那只金毛，两个狗玩疯了。", "fact_refs": []}
+{"utt_id": "pet-d14-04", "scenario": "pet", "day": 14, "ts": "2026-03-15T21:05:00", "speaker": "陈屿", "text": "豆包今天挺乖的，没拆家。", "fact_refs": []}
+{"utt_id": "pet-d14-01", "scenario": "pet", "day": 14, "ts": "2026-03-15T22:40:00", "speaker": "陈屿", "text": "豆包今天打雷的时候钻到床底下不肯出来，抖得厉害。", "fact_refs": ["pet.behavior.thunder"]}

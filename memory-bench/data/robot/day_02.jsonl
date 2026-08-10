@@ -1,0 +1,5 @@
+{"utt_id": "rob-d02-04", "scenario": "robot", "day": 2, "ts": "2026-03-03T10:28:00", "speaker": "前台-苏婷", "text": "RB-07 今天看着挺利索的，没在门口卡住。", "fact_refs": []}
+{"utt_id": "rob-d02-05", "scenario": "robot", "day": 2, "ts": "2026-03-03T11:18:00", "speaker": "RB-07", "text": "在 1F 大厅巡航，识别到 3 名行人，已减速避让。", "fact_refs": []}
+{"utt_id": "rob-d02-02", "scenario": "robot", "day": 2, "ts": "2026-03-03T14:06:00", "speaker": "RB-07", "text": "电梯调度成功，从 1F 前往 2F。", "fact_refs": []}
+{"utt_id": "rob-d02-01", "scenario": "robot", "day": 2, "ts": "2026-03-03T14:10:00", "speaker": "RB-07", "text": "配送任务：文件袋一个，收件人 工程师-郑昊，送达 2F-A12。", "fact_refs": ["robot.person.zhenghao.desk.v1"]}
+{"utt_id": "rob-d02-03", "scenario": "robot", "day": 2, "ts": "2026-03-03T17:25:00", "speaker": "RB-07", "text": "今日累计行驶 4.2 公里，任务完成率 100%。", "fact_refs": []}

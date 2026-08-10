@@ -1,0 +1,6 @@
+{"utt_id": "eld-d21-05", "scenario": "eldercare", "day": 21, "ts": "2026-03-22T08:40:00", "speaker": "王秀兰", "text": "小梅啊，今天的粥熬得挺稠，我喜欢。", "fact_refs": []}
+{"utt_id": "eld-d21-02", "scenario": "eldercare", "day": 21, "ts": "2026-03-22T09:40:00", "speaker": "王秀兰", "text": "我早上起床猛一站起来眼前发黑、头晕。", "fact_refs": ["eldercare.symptom.dizzy"]}
+{"utt_id": "eld-d21-03", "scenario": "eldercare", "day": 21, "ts": "2026-03-22T09:45:00", "speaker": "护工-李梅", "text": "我记一下，王奶奶今天说头晕不舒服，回头跟护士站说。", "fact_refs": ["eldercare.symptom.dizzy"]}
+{"utt_id": "eld-d21-06", "scenario": "eldercare", "day": 21, "ts": "2026-03-22T16:00:00", "speaker": "王秀兰", "text": "我年轻那会儿在纺织厂上班，一个班站八个钟头都不觉得累。", "fact_refs": []}
+{"utt_id": "eld-d21-04", "scenario": "eldercare", "day": 21, "ts": "2026-03-22T17:11:00", "speaker": "护工-李梅", "text": "食堂今天有您爱吃的南瓜羹，我给您留了一份。", "fact_refs": []}
+{"utt_id": "eld-d21-01", "scenario": "eldercare", "day": 21, "ts": "2026-03-22T20:50:00", "speaker": "护工-李梅", "text": "王奶奶今晚要右佐匹克隆吗？睡得着就先不吃。", "fact_refs": ["eldercare.med.sleep.v1"]}

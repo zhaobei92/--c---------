@@ -1,0 +1,5 @@
+{"utt_id": "rob-d25-05", "scenario": "robot", "day": 25, "ts": "2026-03-26T09:06:00", "speaker": "RB-07", "text": "已从充电桩脱离，进入待命状态。", "fact_refs": []}
+{"utt_id": "rob-d25-02", "scenario": "robot", "day": 25, "ts": "2026-03-26T13:30:00", "speaker": "RB-07", "text": "接收到清洁机器人的避让请求，已让行。", "fact_refs": []}
+{"utt_id": "rob-d25-03", "scenario": "robot", "day": 25, "ts": "2026-03-26T14:00:00", "speaker": "RB-07", "text": "电梯调度成功，从 1F 前往 2F。", "fact_refs": []}
+{"utt_id": "rob-d25-01", "scenario": "robot", "day": 25, "ts": "2026-03-26T15:51:00", "speaker": "RB-07", "text": "路径被临时堆放的纸箱阻挡，已重新规划绕行。", "fact_refs": []}
+{"utt_id": "rob-d25-04", "scenario": "robot", "day": 25, "ts": "2026-03-26T16:51:00", "speaker": "工程师-郑昊", "text": "看了下日志，今天没有异常告警。", "fact_refs": []}

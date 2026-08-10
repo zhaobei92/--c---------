@@ -1,0 +1,7 @@
+{"utt_id": "rob-d24-02", "scenario": "robot", "day": 24, "ts": "2026-03-25T08:40:00", "speaker": "RB-07", "text": "告警 E-508：电池健康度告警，容量衰减至标称值的 81%。", "fact_refs": ["robot.fault.d24"]}
+{"utt_id": "rob-d24-03", "scenario": "robot", "day": 24, "ts": "2026-03-25T09:00:00", "speaker": "工程师-郑昊", "text": "收到 E-508 告警，已现场处理并记录。", "fact_refs": ["robot.fault.d24"]}
+{"utt_id": "rob-d24-07", "scenario": "robot", "day": 24, "ts": "2026-03-25T09:50:00", "speaker": "前台-苏婷", "text": "有访客问这个机器人是干嘛的，我说是送文件的。", "fact_refs": []}
+{"utt_id": "rob-d24-06", "scenario": "robot", "day": 24, "ts": "2026-03-25T10:23:00", "speaker": "前台-苏婷", "text": "RB-07 今天看着挺利索的，没在门口卡住。", "fact_refs": []}
+{"utt_id": "rob-d24-01", "scenario": "robot", "day": 24, "ts": "2026-03-25T11:15:00", "speaker": "RB-07", "text": "前往 2F 储物间取硒鼓一只。", "fact_refs": ["robot.storage.location.v2"]}
+{"utt_id": "rob-d24-04", "scenario": "robot", "day": 24, "ts": "2026-03-25T12:35:00", "speaker": "RB-07", "text": "午间低峰，返回待命点待命。", "fact_refs": []}
+{"utt_id": "rob-d24-05", "scenario": "robot", "day": 24, "ts": "2026-03-25T18:03:00", "speaker": "RB-07", "text": "返回充电桩，开始充电，当前电量 23%。", "fact_refs": []}

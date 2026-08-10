@@ -1,0 +1,6 @@
+{"utt_id": "rob-d06-03", "scenario": "robot", "day": 6, "ts": "2026-03-07T08:17:00", "speaker": "RB-07", "text": "系统自检完成，电量 98%，导航地图版本 v3.2。", "fact_refs": []}
+{"utt_id": "rob-d06-04", "scenario": "robot", "day": 6, "ts": "2026-03-07T09:00:00", "speaker": "RB-07", "text": "已从充电桩脱离，进入待命状态。", "fact_refs": []}
+{"utt_id": "rob-d06-01", "scenario": "robot", "day": 6, "ts": "2026-03-07T10:00:00", "speaker": "前台-苏婷", "text": "林工到了，RB-07 带他去 2F 会议室。", "fact_refs": ["robot.visit.d06"]}
+{"utt_id": "rob-d06-02", "scenario": "robot", "day": 6, "ts": "2026-03-07T10:05:00", "speaker": "RB-07", "text": "引导任务开始：访客-林工，1F 前台 → 2F 会议室。", "fact_refs": ["robot.visit.d06"]}
+{"utt_id": "rob-d06-06", "scenario": "robot", "day": 6, "ts": "2026-03-07T11:24:00", "speaker": "RB-07", "text": "在 1F 大厅巡航，识别到 3 名行人，已减速避让。", "fact_refs": []}
+{"utt_id": "rob-d06-05", "scenario": "robot", "day": 6, "ts": "2026-03-07T16:54:00", "speaker": "工程师-郑昊", "text": "看了下日志，今天没有异常告警。", "fact_refs": []}

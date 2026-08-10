@@ -1,0 +1,2062 @@
+{
+  "version": "draft-1",
+  "frozen": false,
+  "note": "阶段1草案，待确认后冻结。基于模拟数据；真实数据到位后需重新生成。",
+  "data_window": {
+    "start": "2026-03-02",
+    "end": "2026-03-31",
+    "days": 30
+  },
+  "relative_time_convention": "『上周三』= 提问日所在自然周（周一为一周之始）的前一周的周三。『上午』= 06:00–12:00，『下午』= 12:00–18:00，『晚上/夜里』= 18:00–次日 06:00。",
+  "question_types": {
+    "fact_recall": "事实回忆：某人某天说过/发生过什么",
+    "temporal_locate": "时间定位：按（可能是相对的）时间锚点检索当时的内容",
+    "fact_change": "事实变更：考察新旧事实覆盖，含按历史时点回溯提问",
+    "cross_session": "跨会话综合：需要拼接多天信息才能回答",
+    "refusal": "拒答/防编造：数据中不存在的事，看框架会不会瞎编"
+  },
+  "questions": [
+    {
+      "qid": "Q001",
+      "scenario": "eldercare",
+      "type": "fact_recall",
+      "question": "3月11日陈医生对王秀兰的降压用药做了什么交代？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "停用氨氯地平，改为缬沙坦 80mg，每天早饭后一片，两周后复查。",
+      "gold_evidence": [
+        "eld-d10-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "缬沙坦"
+        ],
+        "any_of": [
+          [
+            "80"
+          ],
+          [
+            "氨氯地平"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：停用氨氯地平，改为缬沙坦 80mg，每天早饭后一片，两周后复查。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q002",
+      "scenario": "eldercare",
+      "type": "fact_recall",
+      "question": "3月4日王秀兰说自己身体哪里不舒服？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "右腿膝盖发酸，上下楼梯时疼得厉害。",
+      "gold_evidence": [
+        "eld-d03-02",
+        "eld-d03-03"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "膝盖"
+        ],
+        "any_of": []
+      },
+      "llm_judge_rubric": "标准答案：右腿膝盖发酸，上下楼梯时疼得厉害。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q003",
+      "scenario": "eldercare",
+      "type": "fact_recall",
+      "question": "3月19日陈医生给王秀兰新加了什么药，怎么吃？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "加了右佐匹克隆 1mg，睡前服用，睡得着就不吃，不要每天用。",
+      "gold_evidence": [
+        "eld-d18-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "右佐匹克隆"
+        ],
+        "any_of": [
+          [
+            "睡前",
+            "1mg"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：加了右佐匹克隆 1mg，睡前服用，睡得着就不吃，不要每天用。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q004",
+      "scenario": "eldercare",
+      "type": "fact_recall",
+      "question": "3月3日王秀兰对护工提了什么饮食要求？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "汤里不要放香菜，她闻不得那个味道。",
+      "gold_evidence": [
+        "eld-d02-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "香菜"
+        ],
+        "any_of": []
+      },
+      "llm_judge_rubric": "标准答案：汤里不要放香菜，她闻不得那个味道。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q005",
+      "scenario": "pet",
+      "type": "fact_recall",
+      "question": "3月11日陈屿决定把豆包的主粮换成什么？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "换成渴望成犬粮，按七天过渡法慢慢换。",
+      "gold_evidence": [
+        "pet-d10-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "渴望"
+        ],
+        "any_of": []
+      },
+      "llm_judge_rubric": "标准答案：换成渴望成犬粮，按七天过渡法慢慢换。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q006",
+      "scenario": "pet",
+      "type": "fact_recall",
+      "question": "3月9日刘医生对豆包的诊断和处置是什么？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "肠胃敏感、不是感染，先吃一周益生菌，建议换低敏粮。",
+      "gold_evidence": [
+        "pet-d08-02"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "益生菌"
+        ],
+        "any_of": [
+          [
+            "肠胃",
+            "敏感"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：肠胃敏感、不是感染，先吃一周益生菌，建议换低敏粮。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q007",
+      "scenario": "pet",
+      "type": "fact_recall",
+      "question": "3月5日陈屿提到豆包对什么食物过敏？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "对鸡肉过敏，吃了浑身起红点。",
+      "gold_evidence": [
+        "pet-d04-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "鸡肉"
+        ],
+        "any_of": []
+      },
+      "llm_judge_rubric": "标准答案：对鸡肉过敏，吃了浑身起红点。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q008",
+      "scenario": "pet",
+      "type": "fact_recall",
+      "question": "3月20日豆包去医院做了什么？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "打狂犬疫苗的年度加强针。",
+      "gold_evidence": [
+        "pet-d19-01",
+        "pet-d19-02"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "疫苗"
+        ],
+        "any_of": [
+          [
+            "狂犬"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：打狂犬疫苗的年度加强针。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q009",
+      "scenario": "robot",
+      "type": "fact_recall",
+      "question": "3月14日郑昊通知了充电桩的什么变动？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "因为 B1 东侧做管道改造，充电桩挪到 B1 西侧楼梯间旁边，地图已更新。",
+      "gold_evidence": [
+        "rob-d13-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "西侧"
+        ],
+        "any_of": [
+          [
+            "B1"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：因为 B1 东侧做管道改造，充电桩挪到 B1 西侧楼梯间旁边，地图已更新。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q010",
+      "scenario": "robot",
+      "type": "fact_recall",
+      "question": "3月8日 RB-07 报了什么故障？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "E-204 告警：左前轮在 1F 大厅湿滑地面打滑，原地空转约 5 秒。",
+      "gold_evidence": [
+        "rob-d07-02",
+        "rob-d07-03"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [],
+        "any_of": [
+          [
+            "E-204",
+            "左前轮",
+            "打滑"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：E-204 告警：左前轮在 1F 大厅湿滑地面打滑，原地空转约 5 秒。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q011",
+      "scenario": "robot",
+      "type": "fact_recall",
+      "question": "3月12日郑昊说自己的工位有什么变化？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "从 2F-A12 搬到 3F-C03，以后东西送 3F。",
+      "gold_evidence": [
+        "rob-d11-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "C03"
+        ],
+        "any_of": [
+          [
+            "A12"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：从 2F-A12 搬到 3F-C03，以后东西送 3F。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q012",
+      "scenario": "robot",
+      "type": "fact_recall",
+      "question": "3月21日前台苏婷通知打印耗材放到哪里了？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "行政把耗材从 3F 储物间搬到了 2F 储物间，以后取件去 2F。",
+      "gold_evidence": [
+        "rob-d20-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "2F"
+        ],
+        "any_of": [
+          [
+            "储物间"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：行政把耗材从 3F 储物间搬到了 2F 储物间，以后取件去 2F。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q013",
+      "scenario": "eldercare",
+      "type": "temporal_locate",
+      "question": "上周三下午护工通知了什么事？",
+      "as_of": "2026-03-25T20:00:00",
+      "as_of_day": 24,
+      "gold_answer": "书法班的周老师调课，从当周起改到周四下午两点半，地点仍是二楼活动室。",
+      "gold_evidence": [
+        "eld-d17-02"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "书法"
+        ],
+        "any_of": [
+          [
+            "周四"
+          ]
+        ]
+      },
+      "note": "按本项目约定，'上周三'= 提问日所在自然周（周一为首）的前一周的周三，此处解析为 3 月 18 日。",
+      "llm_judge_rubric": "标准答案：书法班的周老师调课，从当周起改到周四下午两点半，地点仍是二楼活动室。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q014",
+      "scenario": "eldercare",
+      "type": "temporal_locate",
+      "question": "上周三下午王秀兰参加了什么活动？",
+      "as_of": "2026-03-13T20:00:00",
+      "as_of_day": 12,
+      "gold_answer": "参加书法班，在二楼活动室。",
+      "gold_evidence": [
+        "eld-d03-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "书法"
+        ],
+        "any_of": []
+      },
+      "note": "'上周三'解析为 3 月 4 日。",
+      "llm_judge_rubric": "标准答案：参加书法班，在二楼活动室。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q015",
+      "scenario": "eldercare",
+      "type": "temporal_locate",
+      "question": "3月24日下午王秀兰这边发生了什么？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "儿子王建国和孙女王小雨一起来探视，带了一台新收音机。",
+      "gold_evidence": [
+        "eld-d23-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "收音机"
+        ],
+        "any_of": [
+          [
+            "儿子",
+            "建国"
+          ],
+          [
+            "孙女",
+            "小雨"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：儿子王建国和孙女王小雨一起来探视，带了一台新收音机。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q016",
+      "scenario": "eldercare",
+      "type": "temporal_locate",
+      "question": "3月13日夜里王秀兰报告了什么身体状况？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "夜里咳嗽，躺下就咳，坐起来好一些。",
+      "gold_evidence": [
+        "eld-d12-01",
+        "eld-d12-02"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "咳嗽"
+        ],
+        "any_of": []
+      },
+      "llm_judge_rubric": "标准答案：夜里咳嗽，躺下就咳，坐起来好一些。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q017",
+      "scenario": "pet",
+      "type": "temporal_locate",
+      "question": "上周三早上陈屿记录了豆包吃粮的什么情况？",
+      "as_of": "2026-03-27T20:00:00",
+      "as_of_day": 26,
+      "gold_answer": "七天过渡期结束，豆包已经在吃纯渴望成犬粮。",
+      "gold_evidence": [
+        "pet-d17-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "渴望"
+        ],
+        "any_of": [
+          [
+            "过渡",
+            "纯"
+          ]
+        ]
+      },
+      "note": "'上周三'解析为 3 月 18 日。",
+      "llm_judge_rubric": "标准答案：七天过渡期结束，豆包已经在吃纯渴望成犬粮。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q018",
+      "scenario": "pet",
+      "type": "temporal_locate",
+      "question": "3月21日晚上陈屿对豆包的喂食量做了什么调整？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "因为刘医生说偏瘦，每顿从 80 克加到 100 克。",
+      "gold_evidence": [
+        "pet-d20-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "100"
+        ],
+        "any_of": [
+          [
+            "80"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：因为刘医生说偏瘦，每顿从 80 克加到 100 克。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q019",
+      "scenario": "pet",
+      "type": "temporal_locate",
+      "question": "3月23日晚上豆包做了什么？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "学会了握手，教了三天，一说'握手'就抬爪子。",
+      "gold_evidence": [
+        "pet-d22-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "握手"
+        ],
+        "any_of": []
+      },
+      "llm_judge_rubric": "标准答案：学会了握手，教了三天，一说'握手'就抬爪子。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q020",
+      "scenario": "pet",
+      "type": "temporal_locate",
+      "question": "3月9日上午豆包在医院称的体重是多少？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "9.2 公斤。",
+      "gold_evidence": [
+        "pet-d08-03"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "9.2"
+        ],
+        "any_of": []
+      },
+      "llm_judge_rubric": "标准答案：9.2 公斤。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q021",
+      "scenario": "robot",
+      "type": "temporal_locate",
+      "question": "3月16日下午 RB-07 报了什么告警？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "E-311 告警：激光雷达镜面积尘，测距置信度降到 0.62，触发降速。",
+      "gold_evidence": [
+        "rob-d15-02",
+        "rob-d15-03"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [],
+        "any_of": [
+          [
+            "E-311",
+            "激光雷达"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：E-311 告警：激光雷达镜面积尘，测距置信度降到 0.62，触发降速。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q022",
+      "scenario": "robot",
+      "type": "temporal_locate",
+      "question": "上周三上午 RB-07 报了什么告警？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "E-508 告警：电池健康度告警，容量衰减至标称值的 81%。",
+      "gold_evidence": [
+        "rob-d24-02",
+        "rob-d24-03"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [],
+        "any_of": [
+          [
+            "E-508",
+            "电池"
+          ]
+        ]
+      },
+      "note": "'上周三'解析为 3 月 25 日。",
+      "llm_judge_rubric": "标准答案：E-508 告警：电池健康度告警，容量衰减至标称值的 81%。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q023",
+      "scenario": "robot",
+      "type": "temporal_locate",
+      "question": "3月19日下午前台安排 RB-07 做了什么？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "引导第二次来访的林工从 1F 前台去 3F-C03 找郑昊。",
+      "gold_evidence": [
+        "rob-d18-01",
+        "rob-d18-02"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "林工"
+        ],
+        "any_of": [
+          [
+            "3F",
+            "C03"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：引导第二次来访的林工从 1F 前台去 3F-C03 找郑昊。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q024",
+      "scenario": "robot",
+      "type": "temporal_locate",
+      "question": "3月5日上午前台苏婷说打印耗材放在哪里？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "打印纸和硒鼓都在 3F 储物间。",
+      "gold_evidence": [
+        "rob-d04-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "3F"
+        ],
+        "any_of": []
+      },
+      "llm_judge_rubric": "标准答案：打印纸和硒鼓都在 3F 储物间。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q025",
+      "scenario": "eldercare",
+      "type": "fact_change",
+      "question": "王秀兰现在的降压药方案是什么？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "缬沙坦 80mg，每日一次，早饭后服用。",
+      "gold_evidence": [
+        "eld-d10-01",
+        "eld-d24-01"
+      ],
+      "scoring": {
+        "rule": "supersede",
+        "must_include": [
+          "缬沙坦"
+        ],
+        "any_of": [],
+        "stale_values": [
+          "氨氯地平"
+        ],
+        "change_markers": [
+          "之前",
+          "原来",
+          "原先",
+          "此前",
+          "先前",
+          "以前",
+          "早期",
+          "已停",
+          "停用",
+          "停掉",
+          "改为",
+          "改成",
+          "换成",
+          "换为",
+          "更换",
+          "调整为",
+          "调整成",
+          "不再",
+          "旧",
+          "曾",
+          "变更",
+          "→",
+          "->"
+        ]
+      },
+      "llm_judge_rubric": "标准答案：缬沙坦 80mg，每日一次，早饭后服用。\n判对的条件：给出当前有效的值，且不得把旧值 ['氨氯地平'] 当作现行值陈述。以'之前是…现在是…'方式提及旧值不扣分。"
+    },
+    {
+      "qid": "Q026",
+      "scenario": "eldercare",
+      "type": "fact_change",
+      "question": "王秀兰的书法班现在是周几下午？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "周四下午两点半，二楼活动室。",
+      "gold_evidence": [
+        "eld-d17-02",
+        "eld-d25-01"
+      ],
+      "scoring": {
+        "rule": "supersede",
+        "must_include": [
+          "周四"
+        ],
+        "any_of": [],
+        "stale_values": [
+          "周三"
+        ],
+        "change_markers": [
+          "之前",
+          "原来",
+          "原先",
+          "此前",
+          "先前",
+          "以前",
+          "早期",
+          "已停",
+          "停用",
+          "停掉",
+          "改为",
+          "改成",
+          "换成",
+          "换为",
+          "更换",
+          "调整为",
+          "调整成",
+          "不再",
+          "旧",
+          "曾",
+          "变更",
+          "→",
+          "->"
+        ]
+      },
+      "llm_judge_rubric": "标准答案：周四下午两点半，二楼活动室。\n判对的条件：给出当前有效的值，且不得把旧值 ['周三'] 当作现行值陈述。以'之前是…现在是…'方式提及旧值不扣分。"
+    },
+    {
+      "qid": "Q027",
+      "scenario": "eldercare",
+      "type": "fact_change",
+      "question": "截至3月9日，王秀兰吃的降压药是什么？",
+      "as_of": "2026-03-09T20:00:00",
+      "as_of_day": 8,
+      "gold_answer": "氨氯地平 5mg，每日一次（3 月 11 日才换成缬沙坦，此时尚未更换）。",
+      "gold_evidence": [
+        "eld-d01-01",
+        "eld-d05-01"
+      ],
+      "scoring": {
+        "rule": "supersede",
+        "must_include": [
+          "氨氯地平"
+        ],
+        "any_of": [],
+        "stale_values": [
+          "缬沙坦"
+        ],
+        "change_markers": [
+          "之前",
+          "原来",
+          "原先",
+          "此前",
+          "先前",
+          "以前",
+          "早期",
+          "已停",
+          "停用",
+          "停掉",
+          "改为",
+          "改成",
+          "换成",
+          "换为",
+          "更换",
+          "调整为",
+          "调整成",
+          "不再",
+          "旧",
+          "曾",
+          "变更",
+          "→",
+          "->"
+        ]
+      },
+      "requires_as_of": true,
+      "note": "按历史时点回溯提问。只保留'最新事实'的框架会答成缬沙坦，属于典型失分点。",
+      "llm_judge_rubric": "标准答案：氨氯地平 5mg，每日一次（3 月 11 日才换成缬沙坦，此时尚未更换）。\n判对的条件：给出当前有效的值，且不得把旧值 ['缬沙坦'] 当作现行值陈述。以'之前是…现在是…'方式提及旧值不扣分。"
+    },
+    {
+      "qid": "Q028",
+      "scenario": "eldercare",
+      "type": "fact_change",
+      "question": "王秀兰的助眠药是什么？从哪天开始吃的？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "右佐匹克隆 1mg 睡前服用，从 3 月 19 日开始，且只在睡不着时吃。",
+      "gold_evidence": [
+        "eld-d18-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "右佐匹克隆"
+        ],
+        "any_of": [
+          [
+            "3月19",
+            "19日"
+          ]
+        ]
+      },
+      "derived_terms": [
+        "3月19",
+        "19日"
+      ],
+      "llm_judge_rubric": "标准答案：右佐匹克隆 1mg 睡前服用，从 3 月 19 日开始，且只在睡不着时吃。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q029",
+      "scenario": "pet",
+      "type": "fact_change",
+      "question": "豆包现在吃的是什么牌子的粮？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "渴望成犬粮。",
+      "gold_evidence": [
+        "pet-d10-01",
+        "pet-d27-01"
+      ],
+      "scoring": {
+        "rule": "supersede",
+        "must_include": [
+          "渴望"
+        ],
+        "any_of": [],
+        "stale_values": [
+          "皇家"
+        ],
+        "change_markers": [
+          "之前",
+          "原来",
+          "原先",
+          "此前",
+          "先前",
+          "以前",
+          "早期",
+          "已停",
+          "停用",
+          "停掉",
+          "改为",
+          "改成",
+          "换成",
+          "换为",
+          "更换",
+          "调整为",
+          "调整成",
+          "不再",
+          "旧",
+          "曾",
+          "变更",
+          "→",
+          "->"
+        ]
+      },
+      "llm_judge_rubric": "标准答案：渴望成犬粮。\n判对的条件：给出当前有效的值，且不得把旧值 ['皇家'] 当作现行值陈述。以'之前是…现在是…'方式提及旧值不扣分。"
+    },
+    {
+      "qid": "Q030",
+      "scenario": "pet",
+      "type": "fact_change",
+      "question": "豆包现在每顿喂多少克？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "每顿 100 克，每天两顿。",
+      "gold_evidence": [
+        "pet-d20-01",
+        "pet-d25-01"
+      ],
+      "scoring": {
+        "rule": "supersede",
+        "must_include": [
+          "100"
+        ],
+        "any_of": [],
+        "stale_values": [
+          "80"
+        ],
+        "change_markers": [
+          "之前",
+          "原来",
+          "原先",
+          "此前",
+          "先前",
+          "以前",
+          "早期",
+          "已停",
+          "停用",
+          "停掉",
+          "改为",
+          "改成",
+          "换成",
+          "换为",
+          "更换",
+          "调整为",
+          "调整成",
+          "不再",
+          "旧",
+          "曾",
+          "变更",
+          "→",
+          "->"
+        ]
+      },
+      "llm_judge_rubric": "标准答案：每顿 100 克，每天两顿。\n判对的条件：给出当前有效的值，且不得把旧值 ['80'] 当作现行值陈述。以'之前是…现在是…'方式提及旧值不扣分。"
+    },
+    {
+      "qid": "Q031",
+      "scenario": "pet",
+      "type": "fact_change",
+      "question": "豆包最新一次称重是多少？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "10.1 公斤（3 月 27 日复查时称的）。",
+      "gold_evidence": [
+        "pet-d26-02"
+      ],
+      "scoring": {
+        "rule": "supersede",
+        "must_include": [
+          "10.1"
+        ],
+        "any_of": [],
+        "stale_values": [
+          "9.2",
+          "9.5"
+        ],
+        "change_markers": [
+          "之前",
+          "原来",
+          "原先",
+          "此前",
+          "先前",
+          "以前",
+          "早期",
+          "已停",
+          "停用",
+          "停掉",
+          "改为",
+          "改成",
+          "换成",
+          "换为",
+          "更换",
+          "调整为",
+          "调整成",
+          "不再",
+          "旧",
+          "曾",
+          "变更",
+          "→",
+          "->"
+        ]
+      },
+      "llm_judge_rubric": "标准答案：10.1 公斤（3 月 27 日复查时称的）。\n判对的条件：给出当前有效的值，且不得把旧值 ['9.2', '9.5'] 当作现行值陈述。以'之前是…现在是…'方式提及旧值不扣分。"
+    },
+    {
+      "qid": "Q032",
+      "scenario": "pet",
+      "type": "fact_change",
+      "question": "截至3月16日，豆包每顿的喂食量是多少？",
+      "as_of": "2026-03-16T20:00:00",
+      "as_of_day": 15,
+      "gold_answer": "每顿 80 克（3 月 21 日才加到 100 克）。",
+      "gold_evidence": [
+        "pet-d02-01"
+      ],
+      "scoring": {
+        "rule": "supersede",
+        "must_include": [
+          "80"
+        ],
+        "any_of": [],
+        "stale_values": [
+          "100"
+        ],
+        "change_markers": [
+          "之前",
+          "原来",
+          "原先",
+          "此前",
+          "先前",
+          "以前",
+          "早期",
+          "已停",
+          "停用",
+          "停掉",
+          "改为",
+          "改成",
+          "换成",
+          "换为",
+          "更换",
+          "调整为",
+          "调整成",
+          "不再",
+          "旧",
+          "曾",
+          "变更",
+          "→",
+          "->"
+        ]
+      },
+      "requires_as_of": true,
+      "llm_judge_rubric": "标准答案：每顿 80 克（3 月 21 日才加到 100 克）。\n判对的条件：给出当前有效的值，且不得把旧值 ['100'] 当作现行值陈述。以'之前是…现在是…'方式提及旧值不扣分。"
+    },
+    {
+      "qid": "Q033",
+      "scenario": "robot",
+      "type": "fact_change",
+      "question": "RB-07 现在的充电桩在什么位置？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "B1 层西侧，靠近楼梯间。",
+      "gold_evidence": [
+        "rob-d13-01",
+        "rob-d28-01"
+      ],
+      "scoring": {
+        "rule": "supersede",
+        "must_include": [
+          "西侧"
+        ],
+        "any_of": [],
+        "stale_values": [
+          "东侧"
+        ],
+        "change_markers": [
+          "之前",
+          "原来",
+          "原先",
+          "此前",
+          "先前",
+          "以前",
+          "早期",
+          "已停",
+          "停用",
+          "停掉",
+          "改为",
+          "改成",
+          "换成",
+          "换为",
+          "更换",
+          "调整为",
+          "调整成",
+          "不再",
+          "旧",
+          "曾",
+          "变更",
+          "→",
+          "->"
+        ]
+      },
+      "llm_judge_rubric": "标准答案：B1 层西侧，靠近楼梯间。\n判对的条件：给出当前有效的值，且不得把旧值 ['东侧'] 当作现行值陈述。以'之前是…现在是…'方式提及旧值不扣分。"
+    },
+    {
+      "qid": "Q034",
+      "scenario": "robot",
+      "type": "fact_change",
+      "question": "打印耗材现在存放在哪里？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "2F 储物间。",
+      "gold_evidence": [
+        "rob-d20-01",
+        "rob-d24-01"
+      ],
+      "scoring": {
+        "rule": "supersede",
+        "must_include": [
+          "2F"
+        ],
+        "any_of": [],
+        "stale_values": [
+          "3F"
+        ],
+        "change_markers": [
+          "之前",
+          "原来",
+          "原先",
+          "此前",
+          "先前",
+          "以前",
+          "早期",
+          "已停",
+          "停用",
+          "停掉",
+          "改为",
+          "改成",
+          "换成",
+          "换为",
+          "更换",
+          "调整为",
+          "调整成",
+          "不再",
+          "旧",
+          "曾",
+          "变更",
+          "→",
+          "->"
+        ]
+      },
+      "llm_judge_rubric": "标准答案：2F 储物间。\n判对的条件：给出当前有效的值，且不得把旧值 ['3F'] 当作现行值陈述。以'之前是…现在是…'方式提及旧值不扣分。"
+    },
+    {
+      "qid": "Q035",
+      "scenario": "robot",
+      "type": "fact_change",
+      "question": "郑昊现在的工位在哪里？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "3F-C03。",
+      "gold_evidence": [
+        "rob-d11-01",
+        "rob-d27-01"
+      ],
+      "scoring": {
+        "rule": "supersede",
+        "must_include": [
+          "C03"
+        ],
+        "any_of": [],
+        "stale_values": [
+          "A12"
+        ],
+        "change_markers": [
+          "之前",
+          "原来",
+          "原先",
+          "此前",
+          "先前",
+          "以前",
+          "早期",
+          "已停",
+          "停用",
+          "停掉",
+          "改为",
+          "改成",
+          "换成",
+          "换为",
+          "更换",
+          "调整为",
+          "调整成",
+          "不再",
+          "旧",
+          "曾",
+          "变更",
+          "→",
+          "->"
+        ]
+      },
+      "llm_judge_rubric": "标准答案：3F-C03。\n判对的条件：给出当前有效的值，且不得把旧值 ['A12'] 当作现行值陈述。以'之前是…现在是…'方式提及旧值不扣分。"
+    },
+    {
+      "qid": "Q036",
+      "scenario": "robot",
+      "type": "fact_change",
+      "question": "截至3月10日，RB-07 的充电桩在什么位置？",
+      "as_of": "2026-03-10T20:00:00",
+      "as_of_day": 9,
+      "gold_answer": "B1 层东侧，靠近货梯（3 月 14 日才挪到西侧）。",
+      "gold_evidence": [
+        "rob-d01-01",
+        "rob-d07-01"
+      ],
+      "scoring": {
+        "rule": "supersede",
+        "must_include": [
+          "东侧"
+        ],
+        "any_of": [],
+        "stale_values": [
+          "西侧"
+        ],
+        "change_markers": [
+          "之前",
+          "原来",
+          "原先",
+          "此前",
+          "先前",
+          "以前",
+          "早期",
+          "已停",
+          "停用",
+          "停掉",
+          "改为",
+          "改成",
+          "换成",
+          "换为",
+          "更换",
+          "调整为",
+          "调整成",
+          "不再",
+          "旧",
+          "曾",
+          "变更",
+          "→",
+          "->"
+        ]
+      },
+      "requires_as_of": true,
+      "llm_judge_rubric": "标准答案：B1 层东侧，靠近货梯（3 月 14 日才挪到西侧）。\n判对的条件：给出当前有效的值，且不得把旧值 ['西侧'] 当作现行值陈述。以'之前是…现在是…'方式提及旧值不扣分。"
+    },
+    {
+      "qid": "Q037",
+      "scenario": "eldercare",
+      "type": "cross_session",
+      "question": "这一个月里王秀兰的家属一共来看过几次？分别是谁来的？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "5 次：3 月 3 日儿子王建国、3 月 10 日孙女王小雨、3 月 17 日儿子、3 月 24 日儿子和孙女同来、3 月 31 日儿子。",
+      "gold_evidence": [
+        "eld-d02-02",
+        "eld-d09-02",
+        "eld-d16-01",
+        "eld-d23-01",
+        "eld-d28-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "5"
+        ],
+        "any_of": [
+          [
+            "建国",
+            "儿子"
+          ],
+          [
+            "小雨",
+            "孙女"
+          ]
+        ]
+      },
+      "derived_terms": [
+        "5"
+      ],
+      "llm_judge_rubric": "标准答案：5 次：3 月 3 日儿子王建国、3 月 10 日孙女王小雨、3 月 17 日儿子、3 月 24 日儿子和孙女同来、3 月 31 日儿子。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q038",
+      "scenario": "eldercare",
+      "type": "cross_session",
+      "question": "王秀兰的降压药换过几次？从什么换成了什么？为什么换？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "换过 1 次：3 月 11 日因血压持续偏高（150 上下），从氨氯地平 5mg 换成缬沙坦 80mg。",
+      "gold_evidence": [
+        "eld-d05-01",
+        "eld-d09-01",
+        "eld-d10-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "氨氯地平",
+          "缬沙坦"
+        ],
+        "any_of": [
+          [
+            "血压",
+            "偏高",
+            "150"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：换过 1 次：3 月 11 日因血压持续偏高（150 上下），从氨氯地平 5mg 换成缬沙坦 80mg。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q039",
+      "scenario": "eldercare",
+      "type": "cross_session",
+      "question": "王秀兰这个月总共报告过哪些身体不适？分别是哪天？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "3 次：3 月 4 日膝盖疼、3 月 13 日夜间咳嗽、3 月 22 日头晕。",
+      "gold_evidence": [
+        "eld-d03-02",
+        "eld-d12-01",
+        "eld-d21-02"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "膝盖",
+          "咳嗽",
+          "头晕"
+        ],
+        "any_of": []
+      },
+      "llm_judge_rubric": "标准答案：3 次：3 月 4 日膝盖疼、3 月 13 日夜间咳嗽、3 月 22 日头晕。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q040",
+      "scenario": "eldercare",
+      "type": "cross_session",
+      "question": "王秀兰换降压药前后，血压读数有什么变化？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "换药前 3 月 6 日 152/94、3 月 10 日连续三天 150 上下；换药后 3 月 25 日降到 132/82。",
+      "gold_evidence": [
+        "eld-d05-01",
+        "eld-d09-01",
+        "eld-d24-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "132"
+        ],
+        "any_of": [
+          [
+            "152",
+            "150"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：换药前 3 月 6 日 152/94、3 月 10 日连续三天 150 上下；换药后 3 月 25 日降到 132/82。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q041",
+      "scenario": "pet",
+      "type": "cross_session",
+      "question": "豆包从第一次称重到最后一次称重，体重长了多少？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "从 9.2 公斤长到 10.1 公斤，涨了约 0.9 公斤。",
+      "gold_evidence": [
+        "pet-d08-03",
+        "pet-d19-02",
+        "pet-d26-02"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "9.2",
+          "10.1"
+        ],
+        "any_of": [
+          [
+            "0.9",
+            "0.90"
+          ]
+        ]
+      },
+      "derived_terms": [
+        "0.9",
+        "0.90"
+      ],
+      "llm_judge_rubric": "标准答案：从 9.2 公斤长到 10.1 公斤，涨了约 0.9 公斤。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q042",
+      "scenario": "pet",
+      "type": "cross_session",
+      "question": "豆包为什么换粮？换粮前后分别吃的是什么？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "因为软便、肠胃敏感（3 月 9 日就诊后刘医生建议换低敏粮），从皇家幼犬粮换成渴望成犬粮。",
+      "gold_evidence": [
+        "pet-d06-01",
+        "pet-d08-02",
+        "pet-d10-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "皇家",
+          "渴望"
+        ],
+        "any_of": [
+          [
+            "软便",
+            "肠胃",
+            "便便"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：因为软便、肠胃敏感（3 月 9 日就诊后刘医生建议换低敏粮），从皇家幼犬粮换成渴望成犬粮。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q043",
+      "scenario": "pet",
+      "type": "cross_session",
+      "question": "豆包这个月去过几次宠物医院？分别是为什么？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "3 次：3 月 9 日看软便、3 月 20 日打狂犬疫苗、3 月 27 日复查肠胃。",
+      "gold_evidence": [
+        "pet-d08-01",
+        "pet-d19-01",
+        "pet-d26-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "3"
+        ],
+        "any_of": [
+          [
+            "软便",
+            "肠胃"
+          ],
+          [
+            "疫苗"
+          ],
+          [
+            "复查"
+          ]
+        ]
+      },
+      "derived_terms": [
+        "3"
+      ],
+      "llm_judge_rubric": "标准答案：3 次：3 月 9 日看软便、3 月 20 日打狂犬疫苗、3 月 27 日复查肠胃。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q044",
+      "scenario": "pet",
+      "type": "cross_session",
+      "question": "豆包的喂食量调整和它的体重变化之间有什么关系？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "3 月 21 日因偏瘦把每顿 80 克加到 100 克；此前 3 月 20 日体重 9.5 公斤，加量后 3 月 27 日复查涨到 10.1 公斤。",
+      "gold_evidence": [
+        "pet-d20-01",
+        "pet-d19-02",
+        "pet-d26-02"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "100",
+          "10.1"
+        ],
+        "any_of": [
+          [
+            "9.5"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：3 月 21 日因偏瘦把每顿 80 克加到 100 克；此前 3 月 20 日体重 9.5 公斤，加量后 3 月 27 日复查涨到 10.1 公斤。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q045",
+      "scenario": "robot",
+      "type": "cross_session",
+      "question": "RB-07 这个月出现过几次告警？分别是什么？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "3 次：3 月 8 日 E-204 左前轮打滑、3 月 16 日 E-311 激光雷达积尘、3 月 25 日 E-508 电池健康度告警。",
+      "gold_evidence": [
+        "rob-d07-02",
+        "rob-d15-02",
+        "rob-d24-02"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "E-204",
+          "E-311",
+          "E-508"
+        ],
+        "any_of": []
+      },
+      "llm_judge_rubric": "标准答案：3 次：3 月 8 日 E-204 左前轮打滑、3 月 16 日 E-311 激光雷达积尘、3 月 25 日 E-508 电池健康度告警。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q046",
+      "scenario": "robot",
+      "type": "cross_session",
+      "question": "访客林工来过几次？每次分别去了哪里？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "2 次：3 月 7 日由 RB-07 从 1F 前台引导到 2F 会议室；3 月 19 日引导到 3F-C03 找郑昊。",
+      "gold_evidence": [
+        "rob-d06-01",
+        "rob-d06-02",
+        "rob-d18-01",
+        "rob-d18-02"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "林工"
+        ],
+        "any_of": [
+          [
+            "会议室"
+          ],
+          [
+            "C03",
+            "3F"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：2 次：3 月 7 日由 RB-07 从 1F 前台引导到 2F 会议室；3 月 19 日引导到 3F-C03 找郑昊。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q047",
+      "scenario": "robot",
+      "type": "cross_session",
+      "question": "给郑昊送东西的地点前后有什么不同？为什么会变？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "3 月 3 日送到 2F-A12；3 月 12 日他搬工位后，3 月 16 日和 3 月 28 日都送到 3F-C03。",
+      "gold_evidence": [
+        "rob-d02-01",
+        "rob-d11-01",
+        "rob-d15-01",
+        "rob-d27-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "A12",
+          "C03"
+        ],
+        "any_of": [
+          [
+            "搬",
+            "换",
+            "调整"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：3 月 3 日送到 2F-A12；3 月 12 日他搬工位后，3 月 16 日和 3 月 28 日都送到 3F-C03。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q048",
+      "scenario": "robot",
+      "type": "cross_session",
+      "question": "这个月办公楼里一共发生了哪些位置变更？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "3 项：3 月 12 日郑昊工位 2F-A12→3F-C03；3 月 14 日充电桩 B1 东侧→西侧；3 月 21 日打印耗材 3F 储物间→2F 储物间。",
+      "gold_evidence": [
+        "rob-d11-01",
+        "rob-d13-01",
+        "rob-d20-01"
+      ],
+      "scoring": {
+        "rule": "keywords",
+        "must_include": [
+          "充电桩",
+          "耗材"
+        ],
+        "any_of": [
+          [
+            "工位",
+            "A12",
+            "C03"
+          ]
+        ]
+      },
+      "llm_judge_rubric": "标准答案：3 项：3 月 12 日郑昊工位 2F-A12→3F-C03；3 月 14 日充电桩 B1 东侧→西侧；3 月 21 日打印耗材 3F 储物间→2F 储物间。\n判对的条件：命中标准答案的关键事实即可，措辞不限；遗漏关键事实或给出冲突信息判错。"
+    },
+    {
+      "qid": "Q049",
+      "scenario": "eldercare",
+      "type": "refusal",
+      "question": "王秀兰的糖尿病用的是什么药？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "数据中没有王秀兰患糖尿病或使用糖尿病药物的任何记录，应明确表示不知道。",
+      "gold_evidence": [],
+      "scoring": {
+        "rule": "refusal",
+        "refusal_markers": [
+          "不知道",
+          "不清楚",
+          "没有提到",
+          "未提到",
+          "没有提及",
+          "未提及",
+          "没有记录",
+          "无记录",
+          "没有相关",
+          "无相关",
+          "没有找到",
+          "未找到",
+          "无法确定",
+          "不确定",
+          "数据中没有",
+          "记忆中没有",
+          "没有信息",
+          "无此信息",
+          "没有这方面",
+          "无从得知"
+        ],
+        "forbidden": [
+          "糖尿病",
+          "二甲双胍",
+          "胰岛素",
+          "血糖"
+        ]
+      },
+      "absence_probes": [
+        "糖尿病",
+        "二甲双胍",
+        "胰岛素",
+        "血糖"
+      ],
+      "absence_cooccur": [],
+      "llm_judge_rubric": "标准答案：数据中没有王秀兰患糖尿病或使用糖尿病药物的任何记录，应明确表示不知道。\n判对的条件：回答明确表示不知道／数据中没有相关记录。只要回答给出了任何具体的、数据中不存在的细节（哪怕加了'可能''大概'），一律判错。"
+    },
+    {
+      "qid": "Q050",
+      "scenario": "eldercare",
+      "type": "refusal",
+      "question": "王秀兰的女儿上次是什么时候来看她的？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "数据中只出现过儿子王建国和孙女王小雨，没有女儿，应明确指出没有相关记录。",
+      "gold_evidence": [],
+      "scoring": {
+        "rule": "refusal",
+        "refusal_markers": [
+          "不知道",
+          "不清楚",
+          "没有提到",
+          "未提到",
+          "没有提及",
+          "未提及",
+          "没有记录",
+          "无记录",
+          "没有相关",
+          "无相关",
+          "没有找到",
+          "未找到",
+          "无法确定",
+          "不确定",
+          "数据中没有",
+          "记忆中没有",
+          "没有信息",
+          "无此信息",
+          "没有这方面",
+          "无从得知"
+        ],
+        "forbidden": [
+          "女儿"
+        ]
+      },
+      "absence_probes": [
+        "女儿"
+      ],
+      "absence_cooccur": [],
+      "llm_judge_rubric": "标准答案：数据中只出现过儿子王建国和孙女王小雨，没有女儿，应明确指出没有相关记录。\n判对的条件：回答明确表示不知道／数据中没有相关记录。只要回答给出了任何具体的、数据中不存在的细节（哪怕加了'可能''大概'），一律判错。"
+    },
+    {
+      "qid": "Q051",
+      "scenario": "eldercare",
+      "type": "refusal",
+      "question": "王秀兰住在几号房间？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "数据中从未提到过房间号或床位号，应明确表示不知道。",
+      "gold_evidence": [],
+      "scoring": {
+        "rule": "refusal",
+        "refusal_markers": [
+          "不知道",
+          "不清楚",
+          "没有提到",
+          "未提到",
+          "没有提及",
+          "未提及",
+          "没有记录",
+          "无记录",
+          "没有相关",
+          "无相关",
+          "没有找到",
+          "未找到",
+          "无法确定",
+          "不确定",
+          "数据中没有",
+          "记忆中没有",
+          "没有信息",
+          "无此信息",
+          "没有这方面",
+          "无从得知"
+        ],
+        "forbidden": [
+          "房间",
+          "床位",
+          "号房"
+        ]
+      },
+      "absence_probes": [
+        "房间",
+        "床位",
+        "号房"
+      ],
+      "absence_cooccur": [],
+      "llm_judge_rubric": "标准答案：数据中从未提到过房间号或床位号，应明确表示不知道。\n判对的条件：回答明确表示不知道／数据中没有相关记录。只要回答给出了任何具体的、数据中不存在的细节（哪怕加了'可能''大概'），一律判错。"
+    },
+    {
+      "qid": "Q052",
+      "scenario": "eldercare",
+      "type": "refusal",
+      "question": "王秀兰对青霉素过敏吗？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "数据中没有王秀兰任何药物过敏的记录，应明确表示无相关信息，不得臆断为'不过敏'。",
+      "gold_evidence": [],
+      "scoring": {
+        "rule": "refusal",
+        "refusal_markers": [
+          "不知道",
+          "不清楚",
+          "没有提到",
+          "未提到",
+          "没有提及",
+          "未提及",
+          "没有记录",
+          "无记录",
+          "没有相关",
+          "无相关",
+          "没有找到",
+          "未找到",
+          "无法确定",
+          "不确定",
+          "数据中没有",
+          "记忆中没有",
+          "没有信息",
+          "无此信息",
+          "没有这方面",
+          "无从得知"
+        ],
+        "forbidden": [
+          "青霉素",
+          "过敏"
+        ]
+      },
+      "absence_probes": [
+        "青霉素",
+        "过敏"
+      ],
+      "absence_cooccur": [],
+      "llm_judge_rubric": "标准答案：数据中没有王秀兰任何药物过敏的记录，应明确表示无相关信息，不得臆断为'不过敏'。\n判对的条件：回答明确表示不知道／数据中没有相关记录。只要回答给出了任何具体的、数据中不存在的细节（哪怕加了'可能''大概'），一律判错。"
+    },
+    {
+      "qid": "Q053",
+      "scenario": "pet",
+      "type": "refusal",
+      "question": "豆包做过绝育手术吗？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "数据中从未提到绝育，应明确表示没有相关记录。",
+      "gold_evidence": [],
+      "scoring": {
+        "rule": "refusal",
+        "refusal_markers": [
+          "不知道",
+          "不清楚",
+          "没有提到",
+          "未提到",
+          "没有提及",
+          "未提及",
+          "没有记录",
+          "无记录",
+          "没有相关",
+          "无相关",
+          "没有找到",
+          "未找到",
+          "无法确定",
+          "不确定",
+          "数据中没有",
+          "记忆中没有",
+          "没有信息",
+          "无此信息",
+          "没有这方面",
+          "无从得知"
+        ],
+        "forbidden": [
+          "绝育",
+          "手术"
+        ]
+      },
+      "absence_probes": [
+        "绝育",
+        "手术"
+      ],
+      "absence_cooccur": [],
+      "llm_judge_rubric": "标准答案：数据中从未提到绝育，应明确表示没有相关记录。\n判对的条件：回答明确表示不知道／数据中没有相关记录。只要回答给出了任何具体的、数据中不存在的细节（哪怕加了'可能''大概'），一律判错。"
+    },
+    {
+      "qid": "Q054",
+      "scenario": "pet",
+      "type": "refusal",
+      "question": "豆包用的驱虫药是什么牌子？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "数据中从未提到驱虫，应明确表示不知道。",
+      "gold_evidence": [],
+      "scoring": {
+        "rule": "refusal",
+        "refusal_markers": [
+          "不知道",
+          "不清楚",
+          "没有提到",
+          "未提到",
+          "没有提及",
+          "未提及",
+          "没有记录",
+          "无记录",
+          "没有相关",
+          "无相关",
+          "没有找到",
+          "未找到",
+          "无法确定",
+          "不确定",
+          "数据中没有",
+          "记忆中没有",
+          "没有信息",
+          "无此信息",
+          "没有这方面",
+          "无从得知"
+        ],
+        "forbidden": [
+          "驱虫",
+          "跳蚤"
+        ]
+      },
+      "absence_probes": [
+        "驱虫",
+        "跳蚤"
+      ],
+      "absence_cooccur": [],
+      "llm_judge_rubric": "标准答案：数据中从未提到驱虫，应明确表示不知道。\n判对的条件：回答明确表示不知道／数据中没有相关记录。只要回答给出了任何具体的、数据中不存在的细节（哪怕加了'可能''大概'），一律判错。"
+    },
+    {
+      "qid": "Q055",
+      "scenario": "pet",
+      "type": "refusal",
+      "question": "陈屿家除了豆包还养了别的宠物吗？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "数据中只出现过豆包一只狗，没有提到其他宠物，应说明没有相关记录。",
+      "gold_evidence": [],
+      "scoring": {
+        "rule": "refusal",
+        "refusal_markers": [
+          "不知道",
+          "不清楚",
+          "没有提到",
+          "未提到",
+          "没有提及",
+          "未提及",
+          "没有记录",
+          "无记录",
+          "没有相关",
+          "无相关",
+          "没有找到",
+          "未找到",
+          "无法确定",
+          "不确定",
+          "数据中没有",
+          "记忆中没有",
+          "没有信息",
+          "无此信息",
+          "没有这方面",
+          "无从得知"
+        ],
+        "forbidden": [
+          "猫",
+          "仓鼠",
+          "另一只"
+        ]
+      },
+      "absence_probes": [
+        "猫",
+        "仓鼠",
+        "另一只"
+      ],
+      "absence_cooccur": [],
+      "llm_judge_rubric": "标准答案：数据中只出现过豆包一只狗，没有提到其他宠物，应说明没有相关记录。\n判对的条件：回答明确表示不知道／数据中没有相关记录。只要回答给出了任何具体的、数据中不存在的细节（哪怕加了'可能''大概'），一律判错。"
+    },
+    {
+      "qid": "Q056",
+      "scenario": "pet",
+      "type": "refusal",
+      "question": "豆包上次洗澡是什么时候？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "数据中提到过剪指甲、梳毛、刷牙，但从未提到洗澡，应明确表示没有记录。",
+      "gold_evidence": [],
+      "scoring": {
+        "rule": "refusal",
+        "refusal_markers": [
+          "不知道",
+          "不清楚",
+          "没有提到",
+          "未提到",
+          "没有提及",
+          "未提及",
+          "没有记录",
+          "无记录",
+          "没有相关",
+          "无相关",
+          "没有找到",
+          "未找到",
+          "无法确定",
+          "不确定",
+          "数据中没有",
+          "记忆中没有",
+          "没有信息",
+          "无此信息",
+          "没有这方面",
+          "无从得知"
+        ],
+        "forbidden": [
+          "洗澡",
+          "沐浴"
+        ]
+      },
+      "absence_probes": [
+        "洗澡",
+        "沐浴"
+      ],
+      "absence_cooccur": [],
+      "llm_judge_rubric": "标准答案：数据中提到过剪指甲、梳毛、刷牙，但从未提到洗澡，应明确表示没有记录。\n判对的条件：回答明确表示不知道／数据中没有相关记录。只要回答给出了任何具体的、数据中不存在的细节（哪怕加了'可能''大概'），一律判错。"
+    },
+    {
+      "qid": "Q057",
+      "scenario": "robot",
+      "type": "refusal",
+      "question": "RB-07 在 4 楼执行过哪些任务？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "这栋楼在数据中只出现过 B1、1F、2F、3F，没有 4 楼，应指出无相关记录。",
+      "gold_evidence": [],
+      "scoring": {
+        "rule": "refusal",
+        "refusal_markers": [
+          "不知道",
+          "不清楚",
+          "没有提到",
+          "未提到",
+          "没有提及",
+          "未提及",
+          "没有记录",
+          "无记录",
+          "没有相关",
+          "无相关",
+          "没有找到",
+          "未找到",
+          "无法确定",
+          "不确定",
+          "数据中没有",
+          "记忆中没有",
+          "没有信息",
+          "无此信息",
+          "没有这方面",
+          "无从得知"
+        ],
+        "forbidden": [
+          "4F",
+          "4 楼",
+          "4楼",
+          "四楼"
+        ]
+      },
+      "absence_probes": [
+        "4F",
+        "4 楼",
+        "4楼",
+        "四楼"
+      ],
+      "absence_cooccur": [],
+      "llm_judge_rubric": "标准答案：这栋楼在数据中只出现过 B1、1F、2F、3F，没有 4 楼，应指出无相关记录。\n判对的条件：回答明确表示不知道／数据中没有相关记录。只要回答给出了任何具体的、数据中不存在的细节（哪怕加了'可能''大概'），一律判错。"
+    },
+    {
+      "qid": "Q058",
+      "scenario": "robot",
+      "type": "refusal",
+      "question": "RB-07 的固件版本号是多少？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "数据中只提到导航地图版本 v3.2，从未提到固件版本，应明确表示不知道，不得拿地图版本冒充。",
+      "gold_evidence": [],
+      "scoring": {
+        "rule": "refusal",
+        "refusal_markers": [
+          "不知道",
+          "不清楚",
+          "没有提到",
+          "未提到",
+          "没有提及",
+          "未提及",
+          "没有记录",
+          "无记录",
+          "没有相关",
+          "无相关",
+          "没有找到",
+          "未找到",
+          "无法确定",
+          "不确定",
+          "数据中没有",
+          "记忆中没有",
+          "没有信息",
+          "无此信息",
+          "没有这方面",
+          "无从得知"
+        ],
+        "forbidden": [
+          "v3.2",
+          "3.2",
+          "固件"
+        ]
+      },
+      "absence_probes": [
+        "固件"
+      ],
+      "absence_cooccur": [],
+      "note": "干扰项：语料里有'导航地图版本 v3.2'，答成 v3.2 属于典型的张冠李戴式编造。",
+      "llm_judge_rubric": "标准答案：数据中只提到导航地图版本 v3.2，从未提到固件版本，应明确表示不知道，不得拿地图版本冒充。\n判对的条件：回答明确表示不知道／数据中没有相关记录。只要回答给出了任何具体的、数据中不存在的细节（哪怕加了'可能''大概'），一律判错。"
+    },
+    {
+      "qid": "Q059",
+      "scenario": "robot",
+      "type": "refusal",
+      "question": "前台苏婷的工位编号是多少？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "数据中只给出了郑昊的工位编号，没有苏婷的，应明确表示没有记录。",
+      "gold_evidence": [],
+      "scoring": {
+        "rule": "refusal",
+        "refusal_markers": [
+          "不知道",
+          "不清楚",
+          "没有提到",
+          "未提到",
+          "没有提及",
+          "未提及",
+          "没有记录",
+          "无记录",
+          "没有相关",
+          "无相关",
+          "没有找到",
+          "未找到",
+          "无法确定",
+          "不确定",
+          "数据中没有",
+          "记忆中没有",
+          "没有信息",
+          "无此信息",
+          "没有这方面",
+          "无从得知"
+        ],
+        "forbidden": [
+          "A12",
+          "C03"
+        ]
+      },
+      "absence_probes": [],
+      "absence_cooccur": [
+        [
+          "苏婷",
+          "工位"
+        ]
+      ],
+      "llm_judge_rubric": "标准答案：数据中只给出了郑昊的工位编号，没有苏婷的，应明确表示没有记录。\n判对的条件：回答明确表示不知道／数据中没有相关记录。只要回答给出了任何具体的、数据中不存在的细节（哪怕加了'可能''大概'），一律判错。"
+    },
+    {
+      "qid": "Q060",
+      "scenario": "robot",
+      "type": "refusal",
+      "question": "RB-07 这个月更换过电池吗？",
+      "as_of": "2026-03-31T20:00:00",
+      "as_of_day": 30,
+      "gold_answer": "数据中只有 3 月 25 日的电池健康度告警（E-508），没有任何更换电池的记录，应说明未见更换记录。",
+      "gold_evidence": [],
+      "scoring": {
+        "rule": "refusal",
+        "refusal_markers": [
+          "不知道",
+          "不清楚",
+          "没有提到",
+          "未提到",
+          "没有提及",
+          "未提及",
+          "没有记录",
+          "无记录",
+          "没有相关",
+          "无相关",
+          "没有找到",
+          "未找到",
+          "无法确定",
+          "不确定",
+          "数据中没有",
+          "记忆中没有",
+          "没有信息",
+          "无此信息",
+          "没有这方面",
+          "无从得知"
+        ],
+        "forbidden": []
+      },
+      "absence_probes": [],
+      "absence_cooccur": [
+        [
+          "更换",
+          "电池"
+        ],
+        [
+          "换",
+          "电池"
+        ]
+      ],
+      "llm_judge_rubric": "标准答案：数据中只有 3 月 25 日的电池健康度告警（E-508），没有任何更换电池的记录，应说明未见更换记录。\n判对的条件：回答明确表示不知道／数据中没有相关记录。只要回答给出了任何具体的、数据中不存在的细节（哪怕加了'可能''大概'），一律判错。"
+    }
+  ]
+}
