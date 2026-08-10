@@ -405,6 +405,22 @@ async fn main() {
     let projection = c2::run_projection(&engine, &run_1)
         .await
         .expect("run projected");
+    // Which provider actually served these observations, so the report
+    // states what ran rather than what was assumed.
+    if let Some(runtime) = projection.entities.iter().find(|e| e.key.kind == "runtime") {
+        let attr = |name: &str| {
+            runtime
+                .attribute(name)
+                .map(|v| v.render())
+                .unwrap_or_else(|| "?".into())
+        };
+        println!(
+            "       provider: {} · distro {} · domain {}",
+            attr("provider"),
+            attr("distro"),
+            attr("domain_id")
+        );
+    }
     let node_keys: Vec<String> = projection
         .entities
         .iter()
