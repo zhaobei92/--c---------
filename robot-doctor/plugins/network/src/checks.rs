@@ -332,6 +332,8 @@ fn check_dns(ctx: &mut CheckContext, request: &CheckRequest) -> CheckStatus {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum ConnectOutcome {
+    /// Name resolved (resolution-only probe for targets without a port).
+    Resolved,
     /// Connected successfully.
     Open,
     /// Host answered with RST — host reachable, port closed.
@@ -397,11 +399,23 @@ fn check_reachability(ctx: &mut CheckContext, request: &CheckRequest) -> CheckSt
                 (outcome, ms, resolved, reachable)
             }
             None => {
-                // Without a port we verify resolution, then probe a
-                // commonly-closed high port purely to elicit an answer.
-                let (outcome, ms, resolved) = tcp_probe(&target.host, 9, target.timeout());
-                let reachable = matches!(outcome, ConnectOutcome::Open | ConnectOutcome::Refused);
-                (outcome, ms, resolved, reachable)
+                // Without a port, reachability means name resolution only.
+                // Probing an arbitrary TCP port is firewall-dependent
+                // (Windows runners drop closed-port SYNs on loopback) and
+                // would misreport filtered hosts as down. Deeper checks
+                // need an explicit port (tcp_port/latency) — or ICMP,
+                // which requires privileges we do not assume.
+                let started = Instant::now();
+                let resolved = format!("{}:0", target.host)
+                    .to_socket_addrs()
+                    .ok()
+                    .and_then(|mut a| a.next())
+                    .map(|a| a.ip().to_string());
+                let ms = started.elapsed().as_secs_f64() * 1000.0;
+                match resolved {
+                    Some(ip) => (ConnectOutcome::Resolved, ms, Some(ip), true),
+                    None => (ConnectOutcome::DnsFailure, ms, None, false),
+                }
             }
         };
         let ev = ctx.evidence(
