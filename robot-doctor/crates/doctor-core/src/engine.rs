@@ -135,6 +135,58 @@ impl Engine {
         caps
     }
 
+    /// Execute one check immediately (outside a diagnostic run) — used for
+    /// explicitly user-triggered operations like SAMPLE TOPIC, TF queries
+    /// and runtime discovery. Bounded by the check's declared timeout.
+    pub async fn run_check_now(
+        &self,
+        device_id: DeviceId,
+        check_id: &str,
+        params: serde_json::Value,
+    ) -> Result<doctor_domain::CheckResult, String> {
+        for plugin in self.registry.plugins() {
+            let defs = match plugin.check_definitions().await {
+                Ok(defs) => defs,
+                Err(_) => continue,
+            };
+            if let Some(def) = defs.iter().find(|d| d.id.as_str() == check_id) {
+                let request = doctor_domain::CheckRequest {
+                    check_id: def.id.clone(),
+                    device_id,
+                    mode: Some(DiagnosticMode::Full),
+                    params: params
+                        .as_object()
+                        .map(|m| m.clone().into_iter().collect())
+                        .unwrap_or_default(),
+                    timeout_ms: def.timeout_ms,
+                };
+                let (handle, _) = plugin.connect().await.map_err(|e| e.to_string())?;
+                return match handle.run_check(request).await {
+                    Ok(result) => Ok(result),
+                    Err(err) => {
+                        let status = crate::scheduler::status_for_host_error(&err);
+                        Ok(doctor_domain::CheckResult {
+                            check_id: def.id.clone(),
+                            plugin_id: def.plugin_id.clone(),
+                            device_id: DeviceId::from("local"),
+                            status,
+                            started_at: Utc::now(),
+                            duration_ms: 0,
+                            observations: vec![],
+                            evidence: vec![],
+                            findings: vec![],
+                            error: Some(doctor_domain::CheckError {
+                                status,
+                                message: err.to_string(),
+                            }),
+                        })
+                    }
+                };
+            }
+        }
+        Err(format!("no plugin provides check '{check_id}'"))
+    }
+
     /// Cancel a running diagnosis (idempotent).
     pub async fn cancel_run(&self, run_id: &RunId) {
         if let Some(token) = self.active.lock().await.get(run_id) {

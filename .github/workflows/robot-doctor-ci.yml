@@ -42,6 +42,41 @@ jobs:
       - name: Real diagnostic smoke test (system + network + NVIDIA-absence + SQLite persistence)
         run: cargo run -p integration-tests --bin smoke -- plugins
 
+  # Real ROS 2 integration: launch actual nodes, verify RclpyProvider +
+  # CLI parity + persistence through the full engine path. Two active
+  # distros prove cross-distro compatibility (LTS + current).
+  ros:
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [jazzy, kilted]
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: robot-doctor
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: robot-doctor
+      - name: Install ROS 2 ${{ matrix.distro }}
+        run: |
+          sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key \
+            -o /usr/share/keyrings/ros-archive-keyring.gpg
+          echo "deb [arch=amd64 signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" \
+            | sudo tee /etc/apt/sources.list.d/ros2.list
+          sudo apt-get update
+          sudo apt-get install -y ros-${{ matrix.distro }}-ros-base \
+            ros-${{ matrix.distro }}-demo-nodes-cpp ros-${{ matrix.distro }}-demo-nodes-py \
+            ros-${{ matrix.distro }}-tf2-ros ros-${{ matrix.distro }}-rmw-cyclonedds-cpp
+      - name: Build binaries
+        run: cargo build --workspace
+      - name: Real ROS integration smoke (graph, sampling, TF, diagnostics, persistence, provider parity)
+        env:
+          RD_ROS_SETUP: /opt/ros/${{ matrix.distro }}/setup.bash
+        run: cargo run -p integration-tests --bin smoke-ros -- plugins
+
   # Desktop app: frontend typecheck/tests/build + Tauri shell compile.
   desktop:
     strategy:

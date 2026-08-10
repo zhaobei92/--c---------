@@ -206,6 +206,19 @@ select.btn {
   background: var(--bg-hover);
 }
 
+.tab-row {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+
+.tab {
+  width: auto;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: -1px;
+}
+
 .targets-input {
   width: 100%;
   background: #0b0f19;

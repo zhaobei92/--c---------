@@ -1,0 +1,123 @@
+{
+ "graph": {
+  "runtime_id": "fixture",
+  "provider": "fixture",
+  "captured_at": "2026-01-01T00:00:00Z",
+  "discovery_ms": 100,
+  "nodes": [
+   {
+    "name": "talker",
+    "namespace": "/",
+    "full_name": "/talker",
+    "publishers": [
+     "/chatter",
+     "/rosout"
+    ],
+    "subscriptions": [],
+    "services": [],
+    "actions": []
+   },
+   {
+    "name": "listener",
+    "namespace": "/",
+    "full_name": "/listener",
+    "publishers": [],
+    "subscriptions": [
+     "/chatter"
+    ],
+    "services": [],
+    "actions": []
+   }
+  ],
+  "topics": [
+   {
+    "name": "/chatter",
+    "types": [
+     "std_msgs/msg/String"
+    ],
+    "publisher_count": 1,
+    "subscriber_count": 1,
+    "publishers": [
+     {
+      "node": "/talker",
+      "endpoint_type": "PUBLISHER",
+      "topic_type": "std_msgs/msg/String",
+      "gid": null,
+      "qos": {
+       "reliability": "RELIABLE",
+       "durability": "VOLATILE",
+       "history": "KEEP_LAST",
+       "depth": 10,
+       "deadline": {
+        "unspecified": true
+       },
+       "lifespan": {
+        "unspecified": true
+       },
+       "liveliness": "AUTOMATIC",
+       "lease_duration": {
+        "unspecified": true
+       }
+      }
+     }
+    ],
+    "subscribers": [
+     {
+      "node": "/listener",
+      "endpoint_type": "SUBSCRIPTION",
+      "topic_type": "std_msgs/msg/String",
+      "gid": null,
+      "qos": {
+       "reliability": "RELIABLE",
+       "durability": "VOLATILE",
+       "history": "KEEP_LAST",
+       "depth": 10,
+       "deadline": {
+        "unspecified": true
+       },
+       "lifespan": {
+        "unspecified": true
+       },
+       "liveliness": "AUTOMATIC",
+       "lease_duration": {
+        "unspecified": true
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "services": [],
+  "actions": []
+ },
+ "tf": {
+  "frames": [],
+  "edges": [],
+  "connected_components": [],
+  "listen_ms": 500
+ },
+ "diagnostics": [],
+ "lifecycle": [],
+ "clock": {
+  "system_time": 1767225600.0,
+  "ros_time": 1767225600.0,
+  "clock_topic_present": false,
+  "use_sim_time": false,
+  "clock_advance": null
+ },
+ "samples": {
+  "/chatter": {
+   "topic": "/chatter",
+   "message_type": "std_msgs/msg/String",
+   "sample_count": 20,
+   "sampling_duration_s": 2.0,
+   "observed_hz": 1.2,
+   "period_min_ms": 750.0,
+   "period_max_ms": 916.6666666666667,
+   "period_mean_ms": 833.3333333333334,
+   "period_stddev_ms": 41.66666666666667,
+   "message_stamp_age_s": 0.02,
+   "receive_age_s": 0.05
+  }
+ }
+}

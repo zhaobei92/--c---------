@@ -1,0 +1,12 @@
+# Bootstrap metadata only. Capabilities and checks are discovered at
+# runtime from the plugin process (CAPABILITIES message).
+id: ros2
+name: ROS 2 Observation
+version: 0.1.0
+api_version: 1
+description: ROS 2 environment bootstrap, graph, TF, diagnostics, lifecycle and clock observation
+platforms: [linux, windows]
+architectures: [x86_64, aarch64]
+executable:
+  linux: robot-doctor-plugin-ros2
+  windows: robot-doctor-plugin-ros2.exe

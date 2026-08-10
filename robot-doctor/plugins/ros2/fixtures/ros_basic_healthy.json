@@ -1,0 +1,168 @@
+{
+ "graph": {
+  "runtime_id": "fixture",
+  "provider": "fixture",
+  "captured_at": "2026-01-01T00:00:00Z",
+  "discovery_ms": 100,
+  "nodes": [
+   {
+    "name": "talker",
+    "namespace": "/",
+    "full_name": "/talker",
+    "publishers": [
+     "/chatter",
+     "/rosout"
+    ],
+    "subscriptions": [],
+    "services": [],
+    "actions": []
+   },
+   {
+    "name": "listener",
+    "namespace": "/",
+    "full_name": "/listener",
+    "publishers": [],
+    "subscriptions": [
+     "/chatter"
+    ],
+    "services": [],
+    "actions": []
+   }
+  ],
+  "topics": [
+   {
+    "name": "/chatter",
+    "types": [
+     "std_msgs/msg/String"
+    ],
+    "publisher_count": 1,
+    "subscriber_count": 1,
+    "publishers": [
+     {
+      "node": "/talker",
+      "endpoint_type": "PUBLISHER",
+      "topic_type": "std_msgs/msg/String",
+      "gid": null,
+      "qos": {
+       "reliability": "RELIABLE",
+       "durability": "VOLATILE",
+       "history": "KEEP_LAST",
+       "depth": 10,
+       "deadline": {
+        "unspecified": true
+       },
+       "lifespan": {
+        "unspecified": true
+       },
+       "liveliness": "AUTOMATIC",
+       "lease_duration": {
+        "unspecified": true
+       }
+      }
+     }
+    ],
+    "subscribers": [
+     {
+      "node": "/listener",
+      "endpoint_type": "SUBSCRIPTION",
+      "topic_type": "std_msgs/msg/String",
+      "gid": null,
+      "qos": {
+       "reliability": "RELIABLE",
+       "durability": "VOLATILE",
+       "history": "KEEP_LAST",
+       "depth": 10,
+       "deadline": {
+        "unspecified": true
+       },
+       "lifespan": {
+        "unspecified": true
+       },
+       "liveliness": "AUTOMATIC",
+       "lease_duration": {
+        "unspecified": true
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "services": [
+   {
+    "name": "/talker/describe_parameters",
+    "types": [
+     "rcl_interfaces/srv/DescribeParameters"
+    ],
+    "providers": [
+     "/talker"
+    ]
+   }
+  ],
+  "actions": []
+ },
+ "tf": {
+  "frames": [
+   "map",
+   "odom",
+   "base_link"
+  ],
+  "edges": [
+   {
+    "parent": "map",
+    "child": "odom",
+    "is_static": false,
+    "last_stamp": 1000.0,
+    "broadcaster": null
+   },
+   {
+    "parent": "odom",
+    "child": "base_link",
+    "is_static": false,
+    "last_stamp": 1000.0,
+    "broadcaster": null
+   }
+  ],
+  "connected_components": [
+   [
+    "base_link",
+    "map",
+    "odom"
+   ]
+  ],
+  "listen_ms": 500
+ },
+ "diagnostics": [
+  {
+   "name": "lidar",
+   "hardware_id": "hokuyo",
+   "level": 0,
+   "message": "OK",
+   "values": {},
+   "stamp": 1000.0,
+   "source_topic": "/diagnostics"
+  }
+ ],
+ "lifecycle": [],
+ "clock": {
+  "system_time": 1767225600.0,
+  "ros_time": 1767225600.0,
+  "clock_topic_present": false,
+  "use_sim_time": false,
+  "clock_advance": null
+ },
+ "samples": {
+  "/chatter": {
+   "topic": "/chatter",
+   "message_type": "std_msgs/msg/String",
+   "sample_count": 20,
+   "sampling_duration_s": 2.0,
+   "observed_hz": 10.0,
+   "period_min_ms": 90.0,
+   "period_max_ms": 110.00000000000001,
+   "period_mean_ms": 100.0,
+   "period_stddev_ms": 5.0,
+   "message_stamp_age_s": 0.02,
+   "receive_age_s": 0.05
+  }
+ }
+}

@@ -183,6 +183,80 @@ export interface StoredRun {
   plugin_snapshots: PluginSnapshot[];
 }
 
+// ── ROS observation types (wire mirrors of doctor-domain::ros) ──
+
+export interface RosRuntimeConfig {
+  id: string;
+  name: string;
+  mode: "AUTO" | "CONFIGURED" | "INHERITED" | "FIXTURE";
+  setup_scripts: string[];
+  domain_id?: number | null;
+  rmw?: string | null;
+  extra_env?: Record<string, string>;
+  fixture?: string | null;
+  preferred_provider?: string | null;
+}
+
+export interface RosEndpointInfo {
+  node: string;
+  endpoint_type: "PUBLISHER" | "SUBSCRIPTION";
+  topic_type: string;
+  gid?: string | null;
+  qos: Record<string, unknown>;
+}
+
+export interface RosNodeInfo {
+  name: string;
+  namespace: string;
+  full_name: string;
+  publishers: string[];
+  subscriptions: string[];
+  services: string[];
+  actions: string[];
+}
+
+export interface RosTopicInfo {
+  name: string;
+  types: string[];
+  publisher_count: number;
+  subscriber_count: number;
+  publishers: RosEndpointInfo[];
+  subscribers: RosEndpointInfo[];
+}
+
+export interface RosGraphSnapshot {
+  runtime_id: string;
+  provider: string;
+  captured_at: string;
+  discovery_ms: number;
+  nodes: RosNodeInfo[];
+  topics: RosTopicInfo[];
+  services: { name: string; types: string[]; providers: string[] }[];
+  actions: { name: string; types: string[]; servers: string[] }[];
+}
+
+export interface RosTfSnapshot {
+  frames: string[];
+  edges: {
+    parent: string;
+    child: string;
+    is_static?: boolean | null;
+    last_stamp?: number | null;
+  }[];
+  connected_components: string[][];
+  listen_ms: number;
+}
+
+export interface RosDiagnosticStatus {
+  name: string;
+  hardware_id: string;
+  level: number;
+  message: string;
+  values: Record<string, string>;
+  stamp?: number | null;
+  source_topic: string;
+}
+
 export type DiagnosisEvent =
   | {
       type: "RUN_STARTED";

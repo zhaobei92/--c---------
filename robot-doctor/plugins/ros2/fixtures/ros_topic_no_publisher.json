@@ -1,0 +1,74 @@
+{
+ "graph": {
+  "runtime_id": "fixture",
+  "provider": "fixture",
+  "captured_at": "2026-01-01T00:00:00Z",
+  "discovery_ms": 100,
+  "nodes": [
+   {
+    "name": "listener",
+    "namespace": "/",
+    "full_name": "/listener",
+    "publishers": [],
+    "subscriptions": [
+     "/orphan"
+    ],
+    "services": [],
+    "actions": []
+   }
+  ],
+  "topics": [
+   {
+    "name": "/orphan",
+    "types": [
+     "std_msgs/msg/String"
+    ],
+    "publisher_count": 0,
+    "subscriber_count": 1,
+    "publishers": [],
+    "subscribers": [
+     {
+      "node": "/listener",
+      "endpoint_type": "SUBSCRIPTION",
+      "topic_type": "std_msgs/msg/String",
+      "gid": null,
+      "qos": {
+       "reliability": "RELIABLE",
+       "durability": "VOLATILE",
+       "history": "KEEP_LAST",
+       "depth": 10,
+       "deadline": {
+        "unspecified": true
+       },
+       "lifespan": {
+        "unspecified": true
+       },
+       "liveliness": "AUTOMATIC",
+       "lease_duration": {
+        "unspecified": true
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "services": [],
+  "actions": []
+ },
+ "tf": {
+  "frames": [],
+  "edges": [],
+  "connected_components": [],
+  "listen_ms": 500
+ },
+ "diagnostics": [],
+ "lifecycle": [],
+ "clock": {
+  "system_time": 1767225600.0,
+  "ros_time": 1767225600.0,
+  "clock_topic_present": false,
+  "use_sim_time": false,
+  "clock_advance": null
+ },
+ "samples": {}
+}

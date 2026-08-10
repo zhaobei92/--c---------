@@ -5,6 +5,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
   AppInfo,
+  CheckResult,
   CheckRun,
   Device,
   DiagnosisEvent,
@@ -58,6 +59,19 @@ export function setNetworkTargets(targets: NetworkTarget[]): Promise<void> {
 
 export function getAppInfo(): Promise<AppInfo> {
   return invoke("get_app_info");
+}
+
+export function getRosRuntime(): Promise<unknown | null> {
+  return invoke("get_ros_runtime");
+}
+
+export function setRosRuntime(runtime: unknown): Promise<void> {
+  return invoke("set_ros_runtime", { runtime });
+}
+
+/** Run one check on demand (SAMPLE TOPIC, TF query, discovery, refresh). */
+export function runSingleCheck(checkId: string, params: unknown): Promise<CheckResult> {
+  return invoke("run_single_check", { checkId, params });
 }
 
 /** Subscribe to progressive diagnosis events emitted by the backend. */

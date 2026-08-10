@@ -5,16 +5,18 @@ import { DevicesPage } from "./pages/DevicesPage";
 import { DiagnosticsPage } from "./pages/DiagnosticsPage";
 import { HistoryPage } from "./pages/HistoryPage";
 import { OverviewPage } from "./pages/OverviewPage";
+import { RosPage } from "./pages/RosPage";
 import { PluginsPage } from "./pages/PluginsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import type { AppInfo, Device, DiagnosticMode, PluginSummary } from "./types";
 
-type Page = "overview" | "devices" | "diagnostics" | "history" | "plugins" | "settings";
+type Page = "overview" | "devices" | "diagnostics" | "ros" | "history" | "plugins" | "settings";
 
 const NAV: { id: Page; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "devices", label: "Devices" },
   { id: "diagnostics", label: "Diagnostics" },
+  { id: "ros", label: "ROS" },
   { id: "history", label: "History" },
   { id: "plugins", label: "Plugins" },
   { id: "settings", label: "Settings" },
@@ -109,6 +111,7 @@ export default function App() {
             onCancel={cancelDiagnosis}
           />
         )}
+        {page === "ros" && <RosPage />}
         {page === "history" && (
           <HistoryPage refreshToken={historyToken} storageOk={info?.storage_ok ?? false} />
         )}

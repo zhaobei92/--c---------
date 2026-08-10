@@ -1,0 +1,57 @@
+{
+ "graph": {
+  "runtime_id": "fixture",
+  "provider": "fixture",
+  "captured_at": "2026-01-01T00:00:00Z",
+  "discovery_ms": 100,
+  "nodes": [],
+  "topics": [],
+  "services": [],
+  "actions": []
+ },
+ "diagnostics": [],
+ "lifecycle": [],
+ "clock": {
+  "system_time": 1767225600.0,
+  "ros_time": 1767225600.0,
+  "clock_topic_present": false,
+  "use_sim_time": false,
+  "clock_advance": null
+ },
+ "samples": {},
+ "tf": {
+  "frames": [
+   "map",
+   "odom",
+   "base_link",
+   "laser"
+  ],
+  "edges": [
+   {
+    "parent": "map",
+    "child": "odom",
+    "is_static": false,
+    "last_stamp": 1000.0,
+    "broadcaster": null
+   },
+   {
+    "parent": "base_link",
+    "child": "laser",
+    "is_static": true,
+    "last_stamp": 1000.0,
+    "broadcaster": null
+   }
+  ],
+  "connected_components": [
+   [
+    "map",
+    "odom"
+   ],
+   [
+    "base_link",
+    "laser"
+   ]
+  ],
+  "listen_ms": 500
+ }
+}

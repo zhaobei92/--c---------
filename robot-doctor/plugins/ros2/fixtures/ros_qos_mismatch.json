@@ -1,0 +1,122 @@
+{
+ "graph": {
+  "runtime_id": "fixture",
+  "provider": "fixture",
+  "captured_at": "2026-01-01T00:00:00Z",
+  "discovery_ms": 100,
+  "nodes": [
+   {
+    "name": "talker",
+    "namespace": "/",
+    "full_name": "/talker",
+    "publishers": [
+     "/chatter",
+     "/rosout"
+    ],
+    "subscriptions": [],
+    "services": [],
+    "actions": []
+   },
+   {
+    "name": "listener",
+    "namespace": "/",
+    "full_name": "/listener",
+    "publishers": [],
+    "subscriptions": [
+     "/chatter"
+    ],
+    "services": [],
+    "actions": []
+   }
+  ],
+  "topics": [
+   {
+    "name": "/scan",
+    "types": [
+     "sensor_msgs/msg/LaserScan"
+    ],
+    "publisher_count": 1,
+    "subscriber_count": 1,
+    "publishers": [
+     {
+      "node": "/lidar",
+      "endpoint_type": "PUBLISHER",
+      "topic_type": "sensor_msgs/msg/LaserScan",
+      "gid": null,
+      "qos": {
+       "reliability": "BEST_EFFORT",
+       "durability": "VOLATILE",
+       "history": "KEEP_LAST",
+       "depth": 10,
+       "deadline": {
+        "unspecified": true
+       },
+       "lifespan": {
+        "unspecified": true
+       },
+       "liveliness": "AUTOMATIC",
+       "lease_duration": {
+        "unspecified": true
+       }
+      }
+     }
+    ],
+    "subscribers": [
+     {
+      "node": "/nav",
+      "endpoint_type": "SUBSCRIPTION",
+      "topic_type": "sensor_msgs/msg/LaserScan",
+      "gid": null,
+      "qos": {
+       "reliability": "RELIABLE",
+       "durability": "VOLATILE",
+       "history": "KEEP_LAST",
+       "depth": 10,
+       "deadline": {
+        "unspecified": true
+       },
+       "lifespan": {
+        "unspecified": true
+       },
+       "liveliness": "AUTOMATIC",
+       "lease_duration": {
+        "unspecified": true
+       }
+      }
+     }
+    ]
+   }
+  ],
+  "services": [],
+  "actions": []
+ },
+ "tf": {
+  "frames": [],
+  "edges": [],
+  "connected_components": [],
+  "listen_ms": 500
+ },
+ "diagnostics": [],
+ "lifecycle": [],
+ "clock": {
+  "system_time": 1767225600.0,
+  "ros_time": 1767225600.0,
+  "clock_topic_present": false,
+  "use_sim_time": false,
+  "clock_advance": null
+ },
+ "samples": {},
+ "qos_compat": {
+  "/scan": {
+   "topic": "/scan",
+   "pairs": [
+    {
+     "publisher": "/lidar",
+     "subscriber": "/nav",
+     "verdict": "INCOMPATIBLE",
+     "reason": "best-effort publisher with reliable subscription"
+    }
+   ]
+  }
+ }
+}

@@ -1,0 +1,77 @@
+{
+ "graph": {
+  "runtime_id": "fixture",
+  "provider": "fixture",
+  "captured_at": "2026-01-01T00:00:00Z",
+  "discovery_ms": 100,
+  "nodes": [
+   {
+    "name": "custom_pub",
+    "namespace": "/",
+    "full_name": "/custom_pub",
+    "publishers": [
+     "/custom"
+    ],
+    "subscriptions": [],
+    "services": [],
+    "actions": []
+   }
+  ],
+  "topics": [
+   {
+    "name": "/custom",
+    "types": [
+     "my_msgs/msg/Custom"
+    ],
+    "publisher_count": 1,
+    "subscriber_count": 0,
+    "publishers": [
+     {
+      "node": "/custom_pub",
+      "endpoint_type": "PUBLISHER",
+      "topic_type": "my_msgs/msg/Custom",
+      "gid": null,
+      "qos": {
+       "reliability": "RELIABLE",
+       "durability": "VOLATILE",
+       "history": "KEEP_LAST",
+       "depth": 10,
+       "deadline": {
+        "unspecified": true
+       },
+       "lifespan": {
+        "unspecified": true
+       },
+       "liveliness": "AUTOMATIC",
+       "lease_duration": {
+        "unspecified": true
+       }
+      }
+     }
+    ],
+    "subscribers": []
+   }
+  ],
+  "services": [],
+  "actions": []
+ },
+ "tf": {
+  "frames": [],
+  "edges": [],
+  "connected_components": [],
+  "listen_ms": 500
+ },
+ "diagnostics": [],
+ "lifecycle": [],
+ "clock": {
+  "system_time": 1767225600.0,
+  "ros_time": 1767225600.0,
+  "clock_topic_present": false,
+  "use_sim_time": false,
+  "clock_advance": null
+ },
+ "samples": {},
+ "sample_errors": {
+  "/custom": "TYPE_SUPPORT_MISSING"
+ }
+}

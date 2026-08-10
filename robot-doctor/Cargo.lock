@@ -394,6 +394,7 @@ dependencies = [
  "doctor-domain",
  "doctor-plugin-host",
  "doctor-storage",
+ "robot-doctor-plugin-ros2",
  "serde_json",
  "tokio",
  "uuid",
@@ -710,6 +711,18 @@ dependencies = [
  "doctor-domain",
  "doctor-plugin-host",
  "nvml-wrapper",
+ "serde_json",
+ "serde_yaml",
+]
+
+[[package]]
+name = "robot-doctor-plugin-ros2"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "doctor-domain",
+ "doctor-plugin-host",
+ "serde",
  "serde_json",
  "serde_yaml",
 ]

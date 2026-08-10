@@ -8,6 +8,7 @@ members = [
     "plugins/system",
     "plugins/network",
     "plugins/nvidia",
+    "plugins/ros2",
     "tests/integration",
 ]
 # The Tauri shell links against platform GUI libraries (WebKitGTK on Linux,

@@ -7,7 +7,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use doctor_core::{Engine, PluginSummary};
-use doctor_domain::{CheckRun, Device, DeviceId, DiagnosticMode, Platform, RunId};
+use doctor_domain::{CheckResult, CheckRun, Device, DeviceId, DiagnosticMode, Platform, RunId};
 use doctor_storage::{RunFilter, RunSummaryRow, Storage, StoredRun};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
@@ -16,6 +16,7 @@ use std::sync::Arc;
 use tauri::{Emitter, Manager, State};
 
 const NETWORK_TARGETS_KEY: &str = "network.targets";
+const ROS_RUNTIME_KEY: &str = "ros.runtime";
 
 struct AppState {
     engine: Arc<Engine>,
@@ -146,8 +147,84 @@ async fn network_params(engine: &Engine) -> BTreeMap<String, serde_json::Value> 
                 }
             }
         }
+        // Selected ROS runtime flows into every ros.* check.
+        if let Ok(Some(raw)) = storage.get_setting(ROS_RUNTIME_KEY).await {
+            if let Ok(runtime) = serde_json::from_str::<serde_json::Value>(&raw) {
+                let value = serde_json::json!({ "runtime": runtime });
+                for check in [
+                    "ros.environment",
+                    "ros.graph",
+                    "ros.clock",
+                    "ros.diagnostics",
+                    "ros.doctor",
+                    "ros.qos",
+                    "ros.tf",
+                    "ros.lifecycle",
+                ] {
+                    params.insert(check.to_owned(), value.clone());
+                }
+            }
+        }
     }
     params
+}
+
+#[tauri::command]
+async fn get_ros_runtime(state: State<'_, AppState>) -> Result<Option<serde_json::Value>, String> {
+    let Some(storage) = state.engine.storage() else {
+        return Ok(None);
+    };
+    let raw = storage
+        .get_setting(ROS_RUNTIME_KEY)
+        .await
+        .map_err(|e| e.to_string())?;
+    Ok(raw.and_then(|s| serde_json::from_str(&s).ok()))
+}
+
+#[tauri::command]
+async fn set_ros_runtime(
+    state: State<'_, AppState>,
+    runtime: serde_json::Value,
+) -> Result<(), String> {
+    let Some(storage) = state.engine.storage() else {
+        return Err("storage is not available".into());
+    };
+    storage
+        .set_setting(
+            ROS_RUNTIME_KEY,
+            &serde_json::to_string(&runtime).map_err(|e| e.to_string())?,
+        )
+        .await
+        .map_err(|e| e.to_string())
+}
+
+/// Execute one check on demand (SAMPLE TOPIC, TF query, runtime discovery,
+/// graph refresh). If no explicit `runtime` param is given, the stored ROS
+/// runtime selection is injected for ros.* checks.
+#[tauri::command]
+async fn run_single_check(
+    state: State<'_, AppState>,
+    check_id: String,
+    params: serde_json::Value,
+) -> Result<CheckResult, String> {
+    let mut params = params;
+    if check_id.starts_with("ros.") && params.get("runtime").is_none() {
+        if let Some(storage) = state.engine.storage() {
+            if let Ok(Some(raw)) = storage.get_setting(ROS_RUNTIME_KEY).await {
+                if let Ok(runtime) = serde_json::from_str::<serde_json::Value>(&raw) {
+                    if let Some(map) = params.as_object_mut() {
+                        map.insert("runtime".into(), runtime);
+                    } else {
+                        params = serde_json::json!({ "runtime": runtime });
+                    }
+                }
+            }
+        }
+    }
+    state
+        .engine
+        .run_check_now(DeviceId::from("local"), &check_id, params)
+        .await
 }
 
 #[tauri::command]
@@ -271,6 +348,9 @@ fn main() {
             get_app_info,
             get_network_targets,
             set_network_targets,
+            get_ros_runtime,
+            set_ros_runtime,
+            run_single_check,
             run_diagnosis,
             cancel_diagnosis,
             get_run,

@@ -19,6 +19,7 @@ pub mod health;
 pub mod ids;
 pub mod plugin;
 pub mod profile;
+pub mod ros;
 
 pub use action::{ActionDefinition, ActionResult, ActionStatus};
 pub use baseline::{Baseline, BaselineDiff, BaselineDiffEntry, BaselineDiffStatus, BaselineEntry};
@@ -36,4 +37,11 @@ pub use ids::{
 };
 pub use plugin::{
     ActionDeclaration, Architecture, CheckDeclaration, PluginCapability, PluginManifest,
+};
+pub use ros::{
+    QosCompatibility, QosDurability, QosDuration, QosHistory, QosLiveliness, QosReliability,
+    RosActionInfo, RosClockObservation, RosDiagnosticStatus, RosEndpointInfo, RosEndpointType,
+    RosEnvironmentInfo, RosGraphSnapshot, RosLifecycleState, RosNodeInfo, RosQosProfile,
+    RosRuntimeConfig, RosRuntimeMode, RosServiceInfo, RosTfEdge, RosTfQueryResult, RosTfSnapshot,
+    RosTopicInfo, RosTopicSample,
 };

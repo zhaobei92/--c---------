@@ -10,6 +10,10 @@ publish = false
 name = "stub-plugin"
 path = "src/stub_plugin.rs"
 
+[[bin]]
+name = "smoke-ros"
+path = "src/bin/smoke_ros.rs"
+
 [lib]
 name = "integration_tests"
 path = "src/lib.rs"
@@ -19,6 +23,7 @@ doctor-domain.workspace = true
 doctor-plugin-host.workspace = true
 doctor-core.workspace = true
 doctor-storage.workspace = true
+plugin-ros2 = { path = "../../plugins/ros2", package = "robot-doctor-plugin-ros2" }
 serde_json.workspace = true
 chrono.workspace = true
 tokio = { workspace = true, features = ["full"] }
