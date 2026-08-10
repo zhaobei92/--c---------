@@ -293,14 +293,14 @@ fn validate_constraint(constraint: &Constraint, path: &str, errors: &mut Vec<Val
                 ));
             }
         }
-        Constraint::RelationshipExists { from, to, .. } => {
-            if from.trim().is_empty() || to.trim().is_empty() {
-                errors.push(ValidationError::new(
-                    "MISSING_FIELD",
-                    format!("{path}.constraint"),
-                    "relationship_exists requires both 'from' and 'to'",
-                ));
-            }
+        Constraint::RelationshipExists { from, to, .. }
+            if from.trim().is_empty() || to.trim().is_empty() =>
+        {
+            errors.push(ValidationError::new(
+                "MISSING_FIELD",
+                format!("{path}.constraint"),
+                "relationship_exists requires both 'from' and 'to'",
+            ));
         }
         _ => {}
     }
