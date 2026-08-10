@@ -8,13 +8,17 @@ import {
   filterBy,
   graphSnapshot,
   lifecycleStates,
+  resultFromRun,
+  sourceLabel,
   tfSnapshot,
+  type RosSource,
 } from "../rosData";
 import type {
   CheckResult,
   RosGraphSnapshot,
   RosRuntimeConfig,
   RosTopicInfo,
+  RunSummaryRow,
 } from "../types";
 import { StatusChip } from "../components/badges";
 import { EvidenceView } from "../components/EvidenceView";
@@ -31,9 +35,15 @@ export function RosPage() {
   const [lifecycleResult, setLifecycleResult] = useState<CheckResult | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Live observation, or the ROS results stored with a past run (§36).
+  const [source, setSource] = useState<RosSource>({ kind: "LIVE" });
+  const [runs, setRuns] = useState<RunSummaryRow[]>([]);
+
+  const live = source.kind === "LIVE";
 
   const refreshEnvironment = useCallback(() => {
     setBusy("environment");
+    setSource({ kind: "LIVE" });
     api
       .runSingleCheck("ros.environment", {})
       .then(setEnvResult)
@@ -61,6 +71,7 @@ export function RosPage() {
 
   const refreshGraph = () => {
     setBusy("graph");
+    setSource({ kind: "LIVE" });
     api
       .runSingleCheck("ros.graph", {})
       .then(setGraphResult)
@@ -70,6 +81,7 @@ export function RosPage() {
 
   const refreshTf = () => {
     setBusy("tf");
+    setSource({ kind: "LIVE" });
     api
       .runSingleCheck("ros.tf", {})
       .then(setTfResult)
@@ -79,6 +91,7 @@ export function RosPage() {
 
   const refreshDiagnostics = () => {
     setBusy("diagnostics");
+    setSource({ kind: "LIVE" });
     api
       .runSingleCheck("ros.diagnostics", { window_s: 2.0 })
       .then(setDiagResult)
@@ -88,11 +101,54 @@ export function RosPage() {
 
   const refreshLifecycle = () => {
     setBusy("lifecycle");
+    setSource({ kind: "LIVE" });
     api
       .runSingleCheck("ros.lifecycle", {})
       .then(setLifecycleResult)
       .catch((e) => setError(String(e)))
       .finally(() => setBusy(null));
+  };
+
+  // Recent runs to view instead of live data.
+  useEffect(() => {
+    api
+      .listHistory({ limit: 20 })
+      .then(setRuns)
+      .catch(() => setRuns([]));
+  }, []);
+
+  const selectSource = async (runId: string) => {
+    setError(null);
+    if (!runId) {
+      // Back to live: clear stored results rather than leaving stale ones
+      // on screen labelled LIVE.
+      setSource({ kind: "LIVE" });
+      setEnvResult(null);
+      setGraphResult(null);
+      setTfResult(null);
+      setDiagResult(null);
+      setLifecycleResult(null);
+      refreshEnvironment();
+      return;
+    }
+    setBusy("loading run");
+    try {
+      const stored = await api.getHistoryRun(runId);
+      if (!stored) {
+        setError("That run is no longer in the history database.");
+        return;
+      }
+      setSource({ kind: "RUN", runId, startedAt: stored.run.started_at });
+      setEnvResult(resultFromRun(stored.run, "ros.environment"));
+      setGraphResult(resultFromRun(stored.run, "ros.graph"));
+      setTfResult(resultFromRun(stored.run, "ros.tf"));
+      setDiagResult(resultFromRun(stored.run, "ros.diagnostics"));
+      setLifecycleResult(resultFromRun(stored.run, "ros.lifecycle"));
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(null);
+    }
   };
 
   const snapshot = graphSnapshot(graphResult);
@@ -104,10 +160,27 @@ export function RosPage() {
       <header className="page-header">
         <h1>ROS</h1>
         <div className="actions">
+          <span className={`chip ${live ? "chip-active" : ""}`}>{sourceLabel(source)}</span>
+          <select
+            value={live ? "" : source.runId}
+            onChange={(e) => selectSource(e.target.value)}
+          >
+            <option value="">Live</option>
+            {runs.map((row) => (
+              <option key={row.id} value={row.id}>
+                {new Date(row.started_at).toLocaleString()} ({row.mode})
+              </option>
+            ))}
+          </select>
           {envResult && <StatusChip status={envResult.status} />}
           {busy && <span className="badge badge-running">{busy}…</span>}
         </div>
       </header>
+      {!live && (
+        <p className="muted">
+          Showing what this run observed. Refreshing switches back to live observation.
+        </p>
+      )}
 
       <div className="tab-row">
         {(["runtime", "graph", "topics", "tf", "diagnostics", "lifecycle"] as Tab[]).map(

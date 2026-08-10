@@ -57,3 +57,27 @@ export function filterBy<T>(items: T[], query: string, project: (item: T) => str
   if (!needle) return items;
   return items.filter((item) => project(item).toLowerCase().includes(needle));
 }
+
+/**
+ * Where the ROS view's data came from (§36).
+ *
+ * The ROS page can show either a live observation or the ROS results
+ * stored with a past diagnostic run. Those look identical once rendered,
+ * so the source is always stated: comparing a run against a baseline
+ * while looking at live data would be quietly misleading.
+ */
+export type RosSource = { kind: "LIVE" } | { kind: "RUN"; runId: string; startedAt: string };
+
+export function sourceLabel(source: RosSource): string {
+  return source.kind === "LIVE"
+    ? "LIVE"
+    : `FROM RUN ${new Date(source.startedAt).toLocaleString()}`;
+}
+
+/** Pull one check's stored result out of a historical run. */
+export function resultFromRun(
+  run: { results: CheckResult[] } | null,
+  checkId: string,
+): CheckResult | null {
+  return run?.results.find((result) => result.check_id === checkId) ?? null;
+}

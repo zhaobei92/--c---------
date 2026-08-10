@@ -6,9 +6,16 @@
 
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use doctor_core::{Engine, PluginSummary};
-use doctor_domain::{CheckResult, CheckRun, Device, DeviceId, DiagnosticMode, Platform, RunId};
-use doctor_storage::{RunFilter, RunSummaryRow, Storage, StoredRun};
+use doctor_core::{c2, CaptureCandidate, ComparisonView, Engine, PluginSummary};
+use doctor_domain::baseline::{Baseline, BaselineDiff};
+use doctor_domain::evaluation::EvaluationRun;
+use doctor_domain::profile::{DeviceProfileAssignment, Profile, ProfileStatus};
+use doctor_domain::{
+    BaselineId, CheckResult, CheckRun, Device, DeviceId, DiagnosticMode, Platform, ProfileId, RunId,
+};
+use doctor_storage::{
+    BaselineSummaryRow, ProfileRevisionRow, ProfileRow, RunFilter, RunSummaryRow, Storage, StoredRun,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -302,6 +309,351 @@ async fn delete_history_run(state: State<'_, AppState>, run_id: String) -> Resul
     }
 }
 
+// ── Phase C2: baselines, profiles, evaluation ──────────────────────────
+//
+// These commands are thin: every decision lives in doctor-core, so the
+// desktop shell and any future remote agent behave identically.
+
+/// Machine-readable error payload, so the UI can show *which* expectation
+/// or field a profile problem belongs to instead of one opaque string.
+#[derive(Serialize)]
+struct C2ErrorPayload {
+    message: String,
+    /// Populated for profile validation failures.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    validation_errors: Vec<ValidationErrorPayload>,
+}
+
+#[derive(Serialize)]
+struct ValidationErrorPayload {
+    code: String,
+    path: String,
+    message: String,
+}
+
+impl From<c2::C2Error> for C2ErrorPayload {
+    fn from(err: c2::C2Error) -> Self {
+        let validation_errors = match &err {
+            c2::C2Error::Profile(doctor_profile::ProfileError::Invalid(errors)) => errors
+                .iter()
+                .map(|e| ValidationErrorPayload {
+                    code: e.code.clone(),
+                    path: e.path.clone(),
+                    message: e.message.clone(),
+                })
+                .collect(),
+            _ => Vec::new(),
+        };
+        Self {
+            message: err.to_string(),
+            validation_errors,
+        }
+    }
+}
+
+fn c2_err(err: c2::C2Error) -> String {
+    serde_json::to_string(&C2ErrorPayload::from(err))
+        .unwrap_or_else(|e| format!(r#"{{"message":"{e}","validation_errors":[]}}"#))
+}
+
+#[tauri::command]
+async fn list_baseline_candidates(
+    state: State<'_, AppState>,
+    limit: Option<u32>,
+) -> Result<Vec<CaptureCandidate>, String> {
+    c2::baseline_candidates(&state.engine, None, limit.unwrap_or(20))
+        .await
+        .map_err(c2_err)
+}
+
+#[tauri::command]
+async fn capture_baseline(
+    state: State<'_, AppState>,
+    name: String,
+    description: String,
+    run_ids: Vec<String>,
+    manually_accepted: bool,
+) -> Result<Baseline, String> {
+    let run_ids = run_ids.iter().map(|id| RunId::from(id.as_str())).collect();
+    c2::capture_baseline(
+        &state.engine,
+        name,
+        description,
+        run_ids,
+        manually_accepted,
+    )
+    .await
+    .map_err(c2_err)
+}
+
+#[tauri::command]
+async fn list_baselines(state: State<'_, AppState>) -> Result<Vec<BaselineSummaryRow>, String> {
+    c2::list_baselines(&state.engine, None).await.map_err(c2_err)
+}
+
+#[tauri::command]
+async fn get_baseline(state: State<'_, AppState>, baseline_id: String) -> Result<Baseline, String> {
+    c2::get_baseline(&state.engine, &BaselineId::from(baseline_id.as_str()))
+        .await
+        .map_err(c2_err)
+}
+
+#[tauri::command]
+async fn update_baseline(
+    state: State<'_, AppState>,
+    baseline_id: String,
+    name: String,
+    description: String,
+    tags: Vec<String>,
+) -> Result<bool, String> {
+    c2::update_baseline_metadata(
+        &state.engine,
+        BaselineId::from(baseline_id.as_str()),
+        name,
+        description,
+        tags,
+    )
+    .await
+    .map_err(c2_err)
+}
+
+#[tauri::command]
+async fn delete_baseline(state: State<'_, AppState>, baseline_id: String) -> Result<bool, String> {
+    c2::delete_baseline(&state.engine, BaselineId::from(baseline_id.as_str()))
+        .await
+        .map_err(c2_err)
+}
+
+#[tauri::command]
+async fn diff_run_against_baseline(
+    state: State<'_, AppState>,
+    baseline_id: String,
+    run_id: String,
+) -> Result<BaselineDiff, String> {
+    c2::diff_run(
+        &state.engine,
+        &BaselineId::from(baseline_id.as_str()),
+        &RunId::from(run_id.as_str()),
+    )
+    .await
+    .map_err(c2_err)
+}
+
+/// Suggestion payload for the draft review screen. Flattened for the UI so
+/// it never has to understand the Rust enum shapes.
+#[derive(Serialize)]
+struct DraftSuggestionPayload {
+    expectation: doctor_domain::profile::Expectation,
+    selected_by_default: bool,
+    rationale: String,
+    suggested_threshold: bool,
+}
+
+#[derive(Serialize)]
+struct DraftReportPayload {
+    suggestions: Vec<DraftSuggestionPayload>,
+    skipped: Vec<SkippedPayload>,
+}
+
+#[derive(Serialize)]
+struct SkippedPayload {
+    key: String,
+    reason: String,
+}
+
+#[tauri::command]
+async fn draft_profile(
+    state: State<'_, AppState>,
+    baseline_id: String,
+) -> Result<DraftReportPayload, String> {
+    let report = c2::draft_from_baseline(&state.engine, &BaselineId::from(baseline_id.as_str()))
+        .await
+        .map_err(c2_err)?;
+    Ok(DraftReportPayload {
+        suggestions: report
+            .suggestions
+            .into_iter()
+            .map(|s| DraftSuggestionPayload {
+                expectation: s.expectation,
+                selected_by_default: s.selected_by_default,
+                rationale: s.rationale,
+                suggested_threshold: s.suggested_threshold,
+            })
+            .collect(),
+        skipped: report
+            .skipped
+            .into_iter()
+            .map(|s| SkippedPayload {
+                key: s.key,
+                reason: s.reason,
+            })
+            .collect(),
+    })
+}
+
+#[tauri::command]
+async fn save_profile(state: State<'_, AppState>, profile: Profile) -> Result<Profile, String> {
+    c2::save_profile(&state.engine, profile)
+        .await
+        .map_err(c2_err)
+}
+
+#[tauri::command]
+async fn import_profile(
+    state: State<'_, AppState>,
+    yaml: String,
+    profile_id: Option<String>,
+) -> Result<Profile, String> {
+    c2::import_profile_yaml(
+        &state.engine,
+        &yaml,
+        profile_id.map(|id| ProfileId::from(id.as_str())),
+    )
+    .await
+    .map_err(c2_err)
+}
+
+#[tauri::command]
+async fn export_profile(
+    state: State<'_, AppState>,
+    profile_id: String,
+    revision: u32,
+) -> Result<String, String> {
+    c2::export_profile_yaml(
+        &state.engine,
+        &ProfileId::from(profile_id.as_str()),
+        revision,
+    )
+    .await
+    .map_err(c2_err)
+}
+
+#[tauri::command]
+async fn list_profiles(state: State<'_, AppState>) -> Result<Vec<ProfileRow>, String> {
+    c2::list_profiles(&state.engine).await.map_err(c2_err)
+}
+
+#[tauri::command]
+async fn list_profile_revisions(
+    state: State<'_, AppState>,
+    profile_id: String,
+) -> Result<Vec<ProfileRevisionRow>, String> {
+    c2::list_profile_revisions(&state.engine, ProfileId::from(profile_id.as_str()))
+        .await
+        .map_err(c2_err)
+}
+
+#[tauri::command]
+async fn get_profile(
+    state: State<'_, AppState>,
+    profile_id: String,
+    revision: u32,
+) -> Result<Profile, String> {
+    c2::get_profile(
+        &state.engine,
+        &ProfileId::from(profile_id.as_str()),
+        revision,
+    )
+    .await
+    .map_err(c2_err)
+}
+
+#[tauri::command]
+async fn set_profile_status(
+    state: State<'_, AppState>,
+    profile_id: String,
+    revision: u32,
+    status: ProfileStatus,
+) -> Result<bool, String> {
+    c2::set_profile_status(
+        &state.engine,
+        ProfileId::from(profile_id.as_str()),
+        revision,
+        status,
+    )
+    .await
+    .map_err(c2_err)
+}
+
+#[tauri::command]
+async fn delete_profile_revision(
+    state: State<'_, AppState>,
+    profile_id: String,
+    revision: u32,
+) -> Result<bool, String> {
+    c2::delete_profile_revision(
+        &state.engine,
+        ProfileId::from(profile_id.as_str()),
+        revision,
+    )
+    .await
+    .map_err(c2_err)
+}
+
+#[tauri::command]
+async fn activate_profile(
+    state: State<'_, AppState>,
+    profile_id: String,
+    revision: u32,
+    runtime_id: Option<String>,
+) -> Result<DeviceProfileAssignment, String> {
+    c2::assign_profile(
+        &state.engine,
+        DeviceId::from("local"),
+        ProfileId::from(profile_id.as_str()),
+        revision,
+        runtime_id,
+    )
+    .await
+    .map_err(c2_err)
+}
+
+#[tauri::command]
+async fn get_active_profile(
+    state: State<'_, AppState>,
+) -> Result<Option<DeviceProfileAssignment>, String> {
+    c2::assignment(&state.engine, DeviceId::from("local"))
+        .await
+        .map_err(c2_err)
+}
+
+#[tauri::command]
+async fn get_evaluation(
+    state: State<'_, AppState>,
+    run_id: String,
+) -> Result<Option<EvaluationRun>, String> {
+    c2::evaluation_for_run(&state.engine, RunId::from(run_id.as_str()))
+        .await
+        .map_err(c2_err)
+}
+
+/// Re-evaluate a stored run against the currently active profile. The
+/// original evaluation is kept — evaluations are history, not a cache.
+#[tauri::command]
+async fn evaluate_run(
+    state: State<'_, AppState>,
+    run_id: String,
+) -> Result<Option<EvaluationRun>, String> {
+    c2::evaluate_run(&state.engine, &RunId::from(run_id.as_str()))
+        .await
+        .map_err(c2_err)
+}
+
+#[tauri::command]
+async fn get_comparison(
+    state: State<'_, AppState>,
+    run_id: String,
+    baseline_id: Option<String>,
+) -> Result<ComparisonView, String> {
+    c2::comparison_view(
+        &state.engine,
+        &RunId::from(run_id.as_str()),
+        baseline_id.map(|id| BaselineId::from(id.as_str())),
+    )
+    .await
+    .map_err(c2_err)
+}
+
 fn main() {
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -356,7 +708,28 @@ fn main() {
             get_run,
             list_history,
             get_history_run,
-            delete_history_run
+            delete_history_run,
+            list_baseline_candidates,
+            capture_baseline,
+            list_baselines,
+            get_baseline,
+            update_baseline,
+            delete_baseline,
+            diff_run_against_baseline,
+            draft_profile,
+            save_profile,
+            import_profile,
+            export_profile,
+            list_profiles,
+            list_profile_revisions,
+            get_profile,
+            set_profile_status,
+            delete_profile_revision,
+            activate_profile,
+            get_active_profile,
+            get_evaluation,
+            evaluate_run,
+            get_comparison
         ])
         .run(tauri::generate_context!())
         .expect("error while running Robot Doctor");

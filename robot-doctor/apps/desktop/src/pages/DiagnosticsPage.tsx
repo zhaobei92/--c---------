@@ -1,16 +1,19 @@
 import type { RunView } from "../diagnosisStore";
 import { runProgress } from "../diagnosisStore";
-import type { DiagnosticMode } from "../types";
+import type { DiagnosticMode, EvaluationRun } from "../types";
 import { HealthBadge } from "../components/badges";
 import { CheckResultCard } from "../components/CheckResultCard";
+import { EvaluationPanel } from "../components/EvaluationPanel";
 
 interface Props {
   run: RunView | null;
+  /** Expectation outcomes for this run, once the engine has evaluated. */
+  evaluation: EvaluationRun | null;
   onRunDiagnosis: (mode: DiagnosticMode) => void;
   onCancel: () => void;
 }
 
-export function DiagnosticsPage({ run, onRunDiagnosis, onCancel }: Props) {
+export function DiagnosticsPage({ run, evaluation, onRunDiagnosis, onCancel }: Props) {
   const progress = runProgress(run);
   return (
     <div className="page">
@@ -72,6 +75,12 @@ export function DiagnosticsPage({ run, onRunDiagnosis, onCancel }: Props) {
               <CheckResultCard key={row.checkId} row={row} />
             ))}
           </div>
+          {!run.running && (
+            <EvaluationPanel
+              evaluation={evaluation}
+              emptyHint="No profile is active. Activate one on the Profiles page to have every run checked against explicit expectations."
+            />
+          )}
         </>
       )}
     </div>

@@ -667,6 +667,7 @@ dependencies = [
  "chrono",
  "doctor-domain",
  "doctor-plugin-host",
+ "doctor-profile",
  "doctor-storage",
  "serde",
  "serde_json",
@@ -674,6 +675,7 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
+ "uuid",
 ]
 
 [[package]]
@@ -699,6 +701,19 @@ dependencies = [
  "thiserror 2.0.20",
  "tokio",
  "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "doctor-profile"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "doctor-domain",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror 2.0.20",
  "uuid",
 ]
 
@@ -2647,6 +2662,7 @@ version = "0.1.0"
 dependencies = [
  "doctor-core",
  "doctor-domain",
+ "doctor-profile",
  "doctor-storage",
  "serde",
  "serde_json",

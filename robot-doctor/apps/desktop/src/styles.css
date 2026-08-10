@@ -553,3 +553,180 @@ select.btn {
   border: none;
   background: none;
 }
+
+/* ── Phase C2: baselines, profiles, expectations ───────────────────────
+   Diff and expectation states get distinct colours, but the palette is
+   deliberately neutral for differences: ADDED and REMOVED are facts, not
+   verdicts, so neither is painted as an error. Only UNSATISFIED — an
+   expectation the user explicitly wrote that did not hold — uses the
+   warning colour, and UNKNOWN stays grey because it says nothing about
+   the machine. */
+
+.notice-banner {
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  border-radius: 6px;
+  border: 1px solid var(--accent);
+  background: rgba(76, 141, 255, 0.12);
+  color: var(--text);
+}
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.form-row input,
+.form-row select {
+  padding: 7px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  min-width: 180px;
+}
+
+.inline-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.subsection {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.subsection h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.plain-list,
+.note-list {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+
+.plain-list li,
+.note-list li {
+  margin: 2px 0;
+}
+
+.small {
+  font-size: 12px;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 12px 0;
+}
+
+.chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Difference, not health. */
+.diff-added {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.diff-removed {
+  border-color: #a06cd5;
+  color: #c9a4ee;
+}
+.diff-changed {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.diff-unavailable,
+.diff-unknown {
+  border-color: var(--off);
+  color: var(--text-muted);
+}
+.diff-unchanged {
+  opacity: 0.65;
+}
+
+/* Expectation outcomes. */
+.expect-satisfied {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+.expect-unsatisfied {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.expect-unknown {
+  border-color: var(--off);
+  color: var(--text-muted);
+}
+.expect-na {
+  opacity: 0.65;
+}
+
+.compat-compatible {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+.compat-partially_compatible {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.compat-incompatible {
+  border-color: var(--crit);
+  color: var(--crit);
+}
+
+.status-active,
+.chip-active {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+.status-draft {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.status-archived {
+  opacity: 0.65;
+}
+.chip-suggested {
+  margin-left: 6px;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.yaml-editor {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.5;
+  resize: vertical;
+}

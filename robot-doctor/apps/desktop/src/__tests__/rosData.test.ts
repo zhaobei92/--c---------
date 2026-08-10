@@ -4,6 +4,8 @@ import {
   discoveredRuntimes,
   filterBy,
   graphSnapshot,
+  resultFromRun,
+  sourceLabel,
 } from "../rosData";
 import type { CheckResult } from "../types";
 
@@ -56,5 +58,30 @@ describe("rosData", () => {
     const items = [{ n: "/scan" }, { n: "/odom" }];
     expect(filterBy(items, "SCAN", (i) => i.n)).toHaveLength(1);
     expect(filterBy(items, "", (i) => i.n)).toHaveLength(2);
+  });
+});
+
+describe("data provenance (§36)", () => {
+  it("labels live and historical views distinguishably", () => {
+    expect(sourceLabel({ kind: "LIVE" })).toBe("LIVE");
+    const label = sourceLabel({
+      kind: "RUN",
+      runId: "r1",
+      startedAt: "2026-01-02T03:04:05Z",
+    });
+    expect(label.startsWith("FROM RUN ")).toBe(true);
+    expect(label).not.toBe("LIVE");
+  });
+
+  it("pulls a specific check out of a stored run", () => {
+    const run = {
+      results: [
+        { check_id: "ros.graph" } as unknown as CheckResult,
+        { check_id: "ros.tf" } as unknown as CheckResult,
+      ],
+    };
+    expect(resultFromRun(run, "ros.tf")?.check_id).toBe("ros.tf");
+    expect(resultFromRun(run, "ros.lifecycle")).toBeNull();
+    expect(resultFromRun(null, "ros.graph")).toBeNull();
   });
 });

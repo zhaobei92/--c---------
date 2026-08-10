@@ -52,6 +52,9 @@ export function applyEvent(view: RunView | null, event: DiagnosisEvent): RunView
     case "CHECK_QUEUED":
     case "PLUGIN_STARTED":
     case "PLUGIN_COMPLETED":
+    // Expectation outcomes are not part of the run view: a profile
+    // result never changes what the checks reported.
+    case "EVALUATION_COMPLETED":
       return view;
     case "CHECK_STARTED": {
       if (!view || view.runId !== event.run_id) return view;

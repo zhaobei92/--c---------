@@ -15,6 +15,7 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 doctor-core = { path = "../../../crates/doctor-core" }
+doctor-profile = { path = "../../../crates/doctor-profile" }
 doctor-domain = { path = "../../../crates/doctor-domain" }
 doctor-storage = { path = "../../../crates/doctor-storage" }
 tauri = { version = "2", features = [] }

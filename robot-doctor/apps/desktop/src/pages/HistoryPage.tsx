@@ -3,12 +3,14 @@ import * as api from "../api";
 import { formatDuration } from "../format";
 import type {
   DiagnosticMode,
+  EvaluationRun,
   HealthState,
   RunFilter,
   RunSummaryRow,
   StoredRun,
 } from "../types";
 import { HealthBadge, SeverityChip, StatusChip } from "../components/badges";
+import { EvaluationPanel } from "../components/EvaluationPanel";
 import { EvidenceView } from "../components/EvidenceView";
 
 const PAGE_SIZE = 20;
@@ -25,6 +27,7 @@ export function HistoryPage({ refreshToken, storageOk }: Props) {
   const [health, setHealth] = useState<HealthState | "">("");
   const [page, setPage] = useState(0);
   const [selected, setSelected] = useState<StoredRun | null>(null);
+  const [evaluation, setEvaluation] = useState<EvaluationRun | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -47,6 +50,13 @@ export function HistoryPage({ refreshToken, storageOk }: Props) {
       .getHistoryRun(runId)
       .then(setSelected)
       .catch((e) => setError(String(e)));
+    // The evaluation stored with the run, not a fresh one: history shows
+    // what was concluded then, against the revision active at the time.
+    setEvaluation(null);
+    api
+      .getEvaluation(runId)
+      .then(setEvaluation)
+      .catch((e) => setError(api.parseC2Error(e).message));
   };
 
   const deleteRun = (runId: string) => {
@@ -123,6 +133,11 @@ export function HistoryPage({ refreshToken, storageOk }: Props) {
             <HistoricalResult key={`${result.check_id}-${result.started_at}`} result={result} />
           ))}
         </div>
+
+        <EvaluationPanel
+          evaluation={evaluation}
+          emptyHint="No profile was active when this run finished, so nothing was evaluated."
+        />
       </div>
     );
   }
