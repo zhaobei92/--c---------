@@ -2,36 +2,87 @@ name: CI
 
 on:
   push:
+    branches: ["**"]
   pull_request:
 
 jobs:
-  backend:
+  server:
+    name: Server tests (FastAPI)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Install
+          cache: pip
+      - name: Install deps
         run: |
-          pip install -e packages/shared-schemas -e packages/model-gateway \
-            -e packages/decision-engine -e "apps/api[dev]"
-      - name: Test api
-        run: python -m pytest apps/api/tests -q
-      - name: Test model-gateway
-        run: python -m pytest packages/model-gateway/tests -q
+          python -m pip install --upgrade pip
+          pip install -e "server[dev]"
+      - name: Compile check (server + mock_device)
+        run: python -m compileall -q server/app mock_device
+      - name: Server unit + e2e tests
+        run: cd server && python -m pytest -q
 
-  frontend:
+  mock-device:
+    name: Mock device contract tests
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: "22"
-      - name: Install
-        working-directory: apps/web
-        run: npm install
-      - name: Typecheck & build
-        working-directory: apps/web
-        run: |
-          npm run build
+          python-version: "3.11"
+          cache: pip
+      - name: Install deps
+        run: pip install fastapi httpx pytest uvicorn email-validator
+      - name: Contract tests
+        run: python -m pytest mock_device/tests -q
+
+  flutter:
+    name: Flutter analyze + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.24.5"
+          cache: true
+      - name: Pub get
+        run: cd mobile && flutter pub get
+      - name: Gen l10n
+        run: cd mobile && flutter gen-l10n
+      - name: Analyze (failures block the build)
+        run: cd mobile && flutter analyze
+      - name: Test
+        run: cd mobile && flutter test
+
+  android-build:
+    name: Android debug build (compiles Kotlin + Gradle)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.24.5"
+          cache: true
+      - name: Build debug APK
+        run: cd mobile && flutter build apk --debug
+
+  ios-build:
+    name: iOS simulator build (compiles Swift + Xcode project)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.24.5"
+          cache: true
+      - name: Build for iOS simulator
+        run: cd mobile && flutter build ios --simulator

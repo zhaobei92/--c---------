@@ -1,59 +1,36 @@
+# 本地/CI 集成环境:PostgreSQL + Redis + MinIO(S3 兼容)
+# 用法:docker compose up -d && make verify-integration(集成测试在阶段"服务端P0修复"接入)
 services:
   postgres:
-    image: pgvector/pgvector:pg16
+    image: postgres:15-alpine
     environment:
-      POSTGRES_USER: dingle
-      POSTGRES_PASSWORD: dingle
-      POSTGRES_DB: dingle
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ys
+      POSTGRES_PASSWORD: ys
+      POSTGRES_DB: ysnote
+    ports: ["5432:5432"]
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./server/migrations/schema.sql:/docker-entrypoint-initdb.d/schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U dingle"]
+      test: ["CMD-SHELL", "pg_isready -U ys -d ysnote"]
       interval: 5s
-      timeout: 3s
       retries: 10
 
   redis:
     image: redis:7-alpine
-    ports:
-      - "6379:6379"
+    ports: ["6379:6379"]
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
-      timeout: 3s
       retries: 10
 
-  api:
-    build:
-      context: .
-      dockerfile: infra/docker/api.Dockerfile
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
     environment:
-      DATABASE_URL: postgresql+psycopg://dingle:dingle@postgres:5432/dingle
-      REDIS_URL: redis://redis:6379/0
-      CORS_ORIGINS: http://localhost:3000
-    ports:
-      - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command: >
-      sh -c "alembic upgrade head &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000"
-
-  web:
-    build:
-      context: .
-      dockerfile: infra/docker/web.Dockerfile
-    environment:
-      NEXT_PUBLIC_API_BASE_URL: http://localhost:8000
-    ports:
-      - "3000:3000"
-    depends_on:
-      - api
-
-volumes:
-  pgdata:
+      MINIO_ROOT_USER: ysnote
+      MINIO_ROOT_PASSWORD: ysnote-dev-secret
+    ports: ["9000:9000", "9001:9001"]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      retries: 10

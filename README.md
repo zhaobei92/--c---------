@@ -1,3 +1,16 @@
+# 本仓库包含两个独立项目
+
+| 项目 | 目录 | 状态 |
+|---|---|---|
+| [定了 · AI 决策闭环系统](#定了--ai-决策闭环系统) | `apps/` `packages/` `prompts/` `infra/` | 阶段0-8完成，148测试全绿 |
+| [YS Note / 宇深AI记忆助手](#ys-note--宇深ai记忆助手-项目代号) | `server/` `mobile/` `mock_device/` `docs/` | V0.1 架构与原型基线 |
+
+两个项目互不依赖。定了使用 `docker-compose.dingle.yml` 与
+`.github/workflows/dingle-ci.yml`；YS Note 使用根 `docker-compose.yml`、
+`.github/workflows/ci.yml` 与 `Makefile`。
+
+---
+
 # 定了 · AI 决策闭环系统
 
 帮助用户识别纠结原因、澄清真实偏好、完成结构化决策、接受选择代价，
@@ -28,7 +41,7 @@ pip install -e packages/shared-schemas -e packages/model-gateway \
     -e packages/decision-engine -e "apps/api[dev]"
 
 # 2. 数据库（PostgreSQL + Redis）
-docker compose up -d postgres redis
+docker compose -f docker-compose.dingle.yml up -d postgres redis
 cp .env.example apps/api/.env
 cd apps/api && alembic upgrade head
 
@@ -42,13 +55,14 @@ cd apps/web && npm install && npm run dev
 或者一键全部启动：
 
 ```bash
-docker compose up --build
+docker compose -f docker-compose.dingle.yml up --build
 ```
 
 ## 测试
 
 ```bash
-python -m pytest apps/api/tests packages/model-gateway/tests -q
+python -m pytest apps/api/tests packages/model-gateway/tests \
+    packages/decision-engine/tests -q
 ```
 
 测试使用内存 SQLite，不需要外部服务；生产与开发环境使用 PostgreSQL。
@@ -111,3 +125,52 @@ python -m pytest apps/api/tests packages/model-gateway/tests -q
   分别并入 decision_criteria/decision_runs/recommendations/audit_events
 - 熔断、单次成本上限、用户日额度、trace_id 透传：上线加固项待做
 - 评测集为种子规模，扩充到方案要求的200例是内容标注工作
+
+---
+
+# YS Note / 宇深AI记忆助手 (项目代号)
+
+类 DOWAY 的 AI 录音硬件配套 App:双平台(iOS + Android)设备管理、音频同步、AI 转写、摘要、编辑、导出与会员付费。
+
+**当前定位:`V0.1 Architecture & Prototype Baseline`** — 架构与原型基线,
+**不是**可运行 MVP,更不是可交付双平台 App。已实现/未实现边界见
+`docs/04-api-spec.md` 顶部的实现状态标注;真机通信、支付平台对接、数据库持久化
+接入均未完成。硬件协议验证(阶段0)完成前,所有设备相关代码针对 `mock_device/`
+模拟协议开发。
+
+统一验证入口:`make verify`(服务端测试 + 模拟设备测试 + flutter analyze/test,
+任何失败即终止,CI 同口径)。
+
+## 仓库结构
+
+| 目录 | 内容 |
+|---|---|
+| `docs/` | PRD、技术架构、硬件厂协议资料清单、API 规范、验收标准、测试计划、错误码体系、埋点方案、26周交付计划 |
+| `server/` | FastAPI 服务端:24 张核心表 schema、分片上传、任务队列、AI 任务状态机、权益服务(usage_ledger 流水)、订单验证框架、管理后台骨架 |
+| `mock_device/` | 模拟设备服务:软件模拟 BLE 状态机 + Wi-Fi 文件服务器(Range 断点续传 + SHA-256 校验),供 App/后端在无真机时开发联调 |
+| `mobile/` | Flutter 工程脚手架:Riverpod + Clean Architecture、zh/en/ar 多语言 + RTL、SQLite、上传队列、Platform Channel 接口、iOS(Swift)/Android(Kotlin) 原生模块骨架 |
+| `.github/workflows/` | CI:服务端与模拟设备的测试、语法检查、Flutter 静态分析(有 SDK 时) |
+
+## 快速开始
+
+```bash
+# 服务端测试
+cd server && pip install -e ".[dev]" && pytest
+
+# 模拟设备(BLE 控制面 :9100,Wi-Fi 文件面 :9101)
+python -m mock_device.server
+
+# Flutter(需本地安装 Flutter SDK ≥ 3.22)
+cd mobile && flutter pub get && flutter gen-l10n && flutter analyze
+```
+
+## 关键工程约定
+
+- 所有 AI 分钟扣减必须通过 `usage_ledger` 流水表,禁止直接改用户余额字段(见 `docs/02-architecture.md` §7)。
+- AI 任务状态迁移必须走 `server/app/services/job_state_machine.py`,禁止直接 UPDATE 状态列。
+- 错误码统一见 `docs/07-error-codes.md`,客户端与服务端共用一套编号。
+- 设备通信协议以 `mock_device/protocol.md` 为占位契约,待硬件厂协议(见 `docs/03-hardware-protocol-checklist.md`)到位后替换映射层,业务层接口不变。
+
+## 立项红线(阶段0)
+
+硬件厂未交付完整 BLE/Wi-Fi/OTA 协议、6 台以上工程样机与协议使用授权之前,**不进入阶段2(真机设备连接)开发**。详见 `docs/09-delivery-plan.md`。

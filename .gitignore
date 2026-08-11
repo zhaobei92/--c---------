@@ -11,6 +11,13 @@ node_modules/
 next-env.d.ts
 *.tsbuildinfo
 
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins*
+mobile/ios/Pods/
+mobile/android/.gradle/
+
 # Env
 .env
 .env.local
