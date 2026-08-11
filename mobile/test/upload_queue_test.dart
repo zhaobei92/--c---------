@@ -55,12 +55,34 @@ class FakeApi implements ApiClient {
   }
 
   @override
+  Future<String?> sendCode(String email) async => '000000';
+
+  @override
+  Future<String> verifyCode(String email, String code) async => 'token';
+
+  @override
   Future<void> completeUpload(String uploadId) async {
     calls.add('complete:$uploadId');
   }
 
   @override
-  Future<void> createJob(String recordingId) async {}
+  Future<Map<String, dynamic>> createJob(String recordingId) async =>
+      {'id': 'job-1', 'status': 'waiting'};
+
+  @override
+  Future<Map<String, dynamic>> createRecording(
+      {required String title, required int durationMs, required String sha256,
+       required int sizeBytes, String source = 'device',
+       String? deviceSn, String? deviceFileId}) async => {'id': 'rec-1'};
+
+  @override
+  Future<Map<String, dynamic>> getJob(String jobId) async => {'id': jobId};
+
+  @override
+  Future<List<Map<String, dynamic>>> getTranscript(String recordingId) async => [];
+
+  @override
+  Future<Map<String, dynamic>> getSummary(String recordingId) async => {};
 }
 
 Future<Database> _openDb() async {
