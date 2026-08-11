@@ -9,7 +9,8 @@ from __future__ import annotations
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-from .api import admin, auth, billing, devices, jobs, notifications, recordings, uploads
+from .api import (admin, auth, billing, devices, jobs, notifications,
+                  recordings, transcripts, uploads)
 from .api.deps import state
 from .bootstrap import readiness_report
 from .core.config import settings, validate_production_settings
@@ -48,5 +49,6 @@ def health_ready():
 
 
 for router in (auth.router, devices.router, recordings.router, uploads.router,
-               jobs.router, billing.router, notifications.router, admin.router):
+               jobs.router, billing.router, notifications.router,
+               transcripts.router, admin.router):
     app.include_router(router)

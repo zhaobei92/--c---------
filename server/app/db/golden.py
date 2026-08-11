@@ -143,6 +143,58 @@ class GoldenChainDb:
             ).scalars().all()
             return [{"type": r.type, **(r.payload or {})} for r in rows]
 
+    # ---------------- 转写结果(Phase 3)
+
+    def get_transcript(self, rec_id: str) -> list[dict]:
+        from ..models.tables import Speaker, TranscriptSegment
+        with self.session_factory() as s:
+            rows = s.execute(
+                select(TranscriptSegment, Speaker)
+                .join(Speaker, TranscriptSegment.speaker_id == Speaker.id,
+                      isouter=True)
+                .where(TranscriptSegment.recording_id == rec_id)
+                .order_by(TranscriptSegment.seq)
+            ).all()
+            return [
+                {"segment_id": str(seg.id), "seq": seg.seq,
+                 "start_ms": seg.start_ms, "end_ms": seg.end_ms,
+                 "speaker_id": str(seg.speaker_id) if seg.speaker_id else None,
+                 "speaker": (spk.display_name or spk.label) if spk else None,
+                 "language": seg.language,
+                 "text": seg.text_edited or seg.text,
+                 "confidence": seg.confidence}
+                for seg, spk in rows
+            ]
+
+    def get_speakers(self, rec_id: str) -> list[dict]:
+        from ..models.tables import Speaker
+        with self.session_factory() as s:
+            rows = s.execute(select(Speaker).where(
+                Speaker.recording_id == rec_id).order_by(Speaker.label)
+            ).scalars().all()
+            return [{"speaker_id": str(r.id), "label": r.label,
+                     "display_name": r.display_name} for r in rows]
+
+    def rename_speaker(self, rec_id: str, speaker_id: str, display_name: str) -> bool:
+        from ..models.tables import Speaker
+        with self.session_factory() as s, s.begin():
+            row = s.get(Speaker, speaker_id)
+            if row is None or str(row.recording_id) != rec_id:
+                return False
+            row.display_name = display_name
+            return True
+
+    def get_summary(self, rec_id: str) -> dict | None:
+        from ..models.tables import Summary
+        with self.session_factory() as s:
+            row = s.execute(select(Summary).where(
+                Summary.recording_id == rec_id)
+                .order_by(Summary.created_at.desc())).scalars().first()
+            if row is None:
+                return None
+            return {"summary_id": str(row.id), "job_id": str(row.job_id),
+                    **row.content}
+
     def mark_uploaded(self, rec_id: str, media_asset_id: str) -> None:
         with self.session_factory() as s, s.begin():
             row = s.get(Recording, rec_id)
