@@ -24,6 +24,10 @@ class JobIn(BaseModel):
 
 @router.post("/jobs")
 def create_job(body: JobIn, user_id: str = CurrentUser):
+    if state.db is not None:
+        return state.db.create_job(user_id, body.recording_id,
+                                   language_hint=body.language_hint,
+                                   diarize=body.diarize)
     rec = state.recordings.get(body.recording_id)
     if rec is None or rec["user_id"] != user_id or rec.get("deleted"):
         raise ApiError("DOC_6003")
@@ -68,6 +72,11 @@ def create_job(body: JobIn, user_id: str = CurrentUser):
 
 @router.get("/jobs/{job_id}")
 def get_job(job_id: str, user_id: str = CurrentUser):
+    if state.db is not None:
+        job = state.db.get_job(user_id, job_id)
+        if job is None:
+            raise ApiError("DOC_6003")
+        return job
     return _view(_owned(job_id, user_id))
 
 
@@ -82,6 +91,8 @@ def retry_job(job_id: str, user_id: str = CurrentUser):
     - 各代扣费/冲正记录 (job_id, generation):job_id 保持真实任务 UUID
       (可作数据库外键),代次落在 usage_ledger.charge_generation。
     """
+    if state.db is not None:
+        return state.db.retry_job(user_id, job_id)
     job = _owned(job_id, user_id)
     st: JobState = job["state"]
     if st.status is not JobStatus.FAILED:

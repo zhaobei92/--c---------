@@ -17,3 +17,15 @@ mobile/android/.gradle/
 .idea/
 .vscode/
 .DS_Store
+
+# 运行时数据(禁止入库)
+dump.rdb
+*.rdb
+appendonly.aof
+.redis/
+minio-data/
+pg-data/
+mailpit-data/
+*.apk
+*.ipa
+*.log

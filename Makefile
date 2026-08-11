@@ -14,11 +14,16 @@ verify-mock:
 verify-flutter:
 	cd mobile && flutter pub get && flutter gen-l10n && flutter analyze && flutter test
 
-# 集成测试(PostgreSQL/Redis/MinIO):第二批实现 pytest -m integration。
-# 实现前显式失败,禁止"假绿"——绿色只能来自真实执行的测试。
-verify-integration: up
-	@echo "ERROR: integration tests not implemented yet (第二批: SQLAlchemy Repository + Redis ACK + MinIO 上传)" >&2
-	@exit 1
+# 集成测试:真实 PostgreSQL + Redis + S3(MinIO/moto)+ SMTP(Mailpit)。
+# 迁移在测试夹具内执行(空库 → alembic upgrade head)。
+# 环境变量可覆盖端点(YS_DATABASE_URL / YS_REDIS_URL / YS_S3_ENDPOINT /
+# YS_SMTP_HOST / MAILPIT_API);SKIP_COMPOSE=1 时不启动 docker compose
+# (CI 的 service 容器或本地原生服务场景)。
+verify-integration:
+ifndef SKIP_COMPOSE
+	docker compose up -d --wait
+endif
+	cd server && python3 -m pytest -m integration -q
 
 # 仅启动依赖环境(不跑测试),供本地手工联调
 integration-env-up: up
