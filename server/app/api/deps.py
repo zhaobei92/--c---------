@@ -15,6 +15,7 @@ from fastapi import Depends, Header
 from ..core.config import settings
 from ..core.errors import ApiError
 from ..core.security import verify_token
+from ..services.code_store import MemoryCodeStore
 from ..services.entitlement_service import EntitlementService, InMemoryLedgerStore
 from ..services.order_verification import (
     DEFAULT_CATALOG, AppleProvider, GoogleProvider, OrderService,
@@ -54,7 +55,7 @@ class AppState:
     ledger_store: InMemoryLedgerStore = field(default_factory=InMemoryLedgerStore)
     users: dict[str, dict] = field(default_factory=dict)          # user_id -> profile
     users_by_email: dict[str, str] = field(default_factory=dict)  # email -> user_id
-    email_codes: dict[str, str] = field(default_factory=dict)
+    code_store: MemoryCodeStore = field(default_factory=MemoryCodeStore)
     devices: dict[str, dict] = field(default_factory=dict)        # sn -> device
     bindings: dict[str, str] = field(default_factory=dict)        # sn -> user_id(活跃绑定唯一)
     recordings: dict[str, dict] = field(default_factory=dict)
@@ -72,10 +73,30 @@ class AppState:
             self.entitlements, DEFAULT_CATALOG,
             providers={"apple": AppleProvider(), "google": GoogleProvider()},
         )
+        # DB 后端(Phase 2):configure_db 后黄金主链路由走 PostgreSQL + S3,
+        # 不再依赖内存字典;未配置时保持内存实现(单元测试)。
+        self.db = None          # GoldenChainDb | None
+        self.uploads_pg = None  # PgUploadService | None
+
+    @property
+    def email_codes(self) -> dict:
+        """兼容测试访问:MemoryCodeStore 的底层字典。"""
+        return self.code_store.codes
+
+    def configure_db(self, engine, s3_store) -> None:
+        from ..db.engine import make_session_factory
+        from ..db.golden import GoldenChainDb
+        from ..db.uploads import PgUploadService
+        sf = make_session_factory(engine)
+        self.db = GoldenChainDb(sf)
+        self.uploads_pg = PgUploadService(sf, s3_store)
 
     def reset(self) -> None:
         """测试隔离:清空所有内存态并重建服务(路由持有的引用不变)。"""
-        for attr in ("users", "users_by_email", "email_codes", "devices", "bindings",
+        self.code_store = MemoryCodeStore()
+        self.db = None
+        self.uploads_pg = None
+        for attr in ("users", "users_by_email", "devices", "bindings",
                      "recordings", "jobs", "notifications"):
             getattr(self, attr).clear()
         self.audit.clear()
@@ -107,6 +128,10 @@ def current_user_id(authorization: str = Header(default="")) -> str:
     if not authorization.startswith("Bearer "):
         raise ApiError("AUTH_0004")
     user_id = verify_token(authorization.removeprefix("Bearer "))
+    if state.db is not None:
+        if state.db.get_user(user_id) is None:
+            raise ApiError("AUTH_0004")
+        return user_id
     if user_id not in state.users:
         raise ApiError("AUTH_0004")
     return user_id

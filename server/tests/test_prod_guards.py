@@ -30,6 +30,10 @@ def _prod(**overrides):
         admin_token="a-real-admin-token-0123456789",
         smtp_host="smtp.example.com",
         smtp_from="noreply@example.com",
+        storage_backend="postgres",
+        queue_backend="redis",
+        object_backend="s3",
+        code_store_backend="redis",
     )
     base.update(overrides)
     return Settings(**base)
@@ -55,6 +59,18 @@ def test_prod_rejects_missing_email_provider():
         validate_production_settings(_prod(smtp_host=""))
     with pytest.raises(RuntimeError, match="smtp"):
         validate_production_settings(_prod(smtp_from=""))
+
+
+def test_prod_rejects_memory_backends():
+    # staging/prod 禁止任何 memory 后端(审查 Phase 2.1 规则)
+    with pytest.raises(RuntimeError, match="storage_backend=memory"):
+        validate_production_settings(_prod(storage_backend="memory"))
+    with pytest.raises(RuntimeError, match="queue_backend=memory"):
+        validate_production_settings(_prod(queue_backend="memory"))
+    with pytest.raises(RuntimeError, match="object_backend=memory"):
+        validate_production_settings(_prod(object_backend="memory"))
+    with pytest.raises(RuntimeError, match="code_store_backend=memory"):
+        validate_production_settings(_prod(code_store_backend="memory"))
 
 
 def test_dev_env_skips_guards():

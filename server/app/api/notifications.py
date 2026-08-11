@@ -22,4 +22,6 @@ def register_push_token(body: TokenIn, user_id: str = CurrentUser):
 
 @router.get("/notifications")
 def list_notifications(user_id: str = CurrentUser):
+    if state.db is not None:
+        return {"items": state.db.list_notifications(user_id)}
     return {"items": state.notifications.get(user_id, [])}

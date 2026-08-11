@@ -19,6 +19,12 @@ class InitIn(BaseModel):
 
 @router.post("/uploads/init")
 def init_upload(body: InitIn, user_id: str = CurrentUser):
+    if state.uploads_pg is not None:
+        kwargs = dict(user_id=user_id, recording_id=body.recording_id,
+                      size_bytes=body.size_bytes, sha256=body.sha256)
+        if body.part_size:
+            kwargs["part_size"] = body.part_size
+        return state.uploads_pg.init_upload(**kwargs)
     # P0-3 越权修复:recording 必须存在、属于当前用户、未删除;
     # 元数据(size/sha256)必须与登记值一致,防止会话指向他人/伪造内容。
     rec = state.recordings.get(body.recording_id)
@@ -53,6 +59,10 @@ class PartIn(BaseModel):
 
 @router.post("/uploads/{upload_id}/parts/{part_no}/complete")
 def complete_part(upload_id: str, part_no: int, body: PartIn, user_id: str = CurrentUser):
+    if state.uploads_pg is not None:
+        return state.uploads_pg.register_part(
+            user_id=user_id, upload_id=upload_id, part_no=part_no,
+            etag=body.etag, size_bytes=body.size_bytes)
     _owned_session(upload_id, user_id)
     try:
         part = state.uploads.register_part(upload_id, part_no, etag=body.etag,
@@ -64,6 +74,11 @@ def complete_part(upload_id: str, part_no: int, body: PartIn, user_id: str = Cur
 
 @router.get("/uploads/{upload_id}")
 def upload_progress(upload_id: str, user_id: str = CurrentUser):
+    if state.uploads_pg is not None:
+        view = state.uploads_pg.progress(user_id=user_id, upload_id=upload_id)
+        return {"upload_id": upload_id, "status": view["status"],
+                "pending_parts": view["pending_parts"], "parts": view["parts"],
+                "total_parts": view["total_parts"]}
     """断点续传契约:pending 分片附带重新签发的 put_url(旧预签名可能已过期)。"""
     s = _owned_session(upload_id, user_id)
     pending = state.uploads.pending_parts(upload_id)
@@ -75,6 +90,8 @@ def upload_progress(upload_id: str, user_id: str = CurrentUser):
 
 @router.post("/uploads/{upload_id}/complete")
 def complete_upload(upload_id: str, user_id: str = CurrentUser):
+    if state.uploads_pg is not None:
+        return state.uploads_pg.complete(user_id=user_id, upload_id=upload_id)
     _owned_session(upload_id, user_id)
     try:
         s = state.uploads.complete(upload_id)
@@ -91,6 +108,9 @@ def complete_upload(upload_id: str, user_id: str = CurrentUser):
 
 @router.delete("/uploads/{upload_id}")
 def abort_upload(upload_id: str, user_id: str = CurrentUser):
+    if state.uploads_pg is not None:
+        state.uploads_pg.abort(user_id=user_id, upload_id=upload_id)
+        return {"aborted": True}
     _owned_session(upload_id, user_id)
     state.uploads.abort(upload_id)
     return {"aborted": True}

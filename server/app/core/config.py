@@ -29,6 +29,14 @@ class Settings(BaseSettings):
     smtp_from: str = ""
     smtp_user: str = ""
     smtp_password: str = ""
+    smtp_starttls: bool = True   # Mailpit 等明文测试服务设 false
+    # 运行时后端选择(dev/test 允许 memory;staging/prod 禁止)
+    storage_backend: str = "memory"      # memory | postgres
+    queue_backend: str = "memory"        # memory | redis
+    object_backend: str = "memory"       # memory | s3
+    code_store_backend: str = "memory"   # memory | redis
+    s3_access_key: str = "ysnote"
+    s3_secret_key: str = "ysnote-dev-secret"
 
 
 _DEFAULT_JWT_SECRET = "dev-secret-change-me"
@@ -52,6 +60,12 @@ def validate_production_settings(s: "Settings") -> None:
         problems.append("smtp_host not configured (real email provider required)")
     if not s.smtp_from:
         problems.append("smtp_from not configured (real email provider required)")
+    for name, value in (("storage_backend", s.storage_backend),
+                        ("queue_backend", s.queue_backend),
+                        ("object_backend", s.object_backend),
+                        ("code_store_backend", s.code_store_backend)):
+        if value == "memory":
+            problems.append(f"{name}=memory is forbidden in prod")
     if problems:
         raise RuntimeError("refusing to start in prod: " + "; ".join(problems))
 

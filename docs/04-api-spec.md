@@ -1,8 +1,9 @@
 # API 接口规范 V1.0
 
 > **实现状态标注**:本规范是目标契约,不代表全部已实现。当前状态:
-> - **Implemented+Tested**:users/me、consents、devices(bind/list/heartbeat/unbind)、recordings CRUD、uploads(init/part/progress/complete,含越权校验与断点续传契约)、jobs(create/get/retry,含重试计费规则)、entitlements/usage、redeem、admin 骨架、notifications 骨架
-> - **开发环境已实现,生产链路 Skeleton**:auth 邮箱验证码(Hash 存储/有效期/频控/尝试上限已实现并测试;dev 用 Console Provider,prod 走 SMTP Provider 但未对真实邮件服务联调;多实例共享验证码状态需 Redis)
+> - **Implemented+Tested(内存 + PostgreSQL 双后端)**:auth 邮箱验证码/verify、users/me、recordings(create/get/list/delete)、uploads(init/part/progress/complete/abort,PG 会话 + 真实 S3 Multipart)、jobs(create/get/retry,PG 事务扣费 + 20 并发验证)、entitlements/usage、notifications;集成测试在真实 PostgreSQL/Redis Streams/S3/Mailpit 上执行(make verify-integration)
+> - **Implemented(单后端)**:consents、devices(bind/list/heartbeat/unbind,内存)、redeem(内存)、admin 骨架;DB 化排在黄金主链之后
+> - **验证码生产链路**:Hash 存储/TTL/频控/尝试上限 + RedisCodeStore(多实例共享)+ SMTP 真实发送(Mailpit 闭环测试);仅剩生产 SMTP 供应商的部署侧配置
 > - **Skeleton**:orders/{platform}/verify(Provider 未接真实平台 SDK)、firmware/check
 > - **Planned**:Apple/Google 登录、账户删除执行、数据导出、转写编辑、speakers、summary、translations、export、share、search、orders/restore、webhooks、WebSocket、`Idempotency-Key` 通用支持
 >
