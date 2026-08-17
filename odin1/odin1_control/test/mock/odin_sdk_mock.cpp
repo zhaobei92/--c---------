@@ -43,6 +43,7 @@ void MockSdk::reset()
   save_map_delay = std::chrono::milliseconds{0};
   set_mode_delay = std::chrono::milliseconds{0};
   on_save_map_entered = nullptr;
+  on_set_mode = nullptr;
   save_map_running = false;
   max_concurrent_save_map = 0;
   concurrent_save_map = 0;
@@ -187,6 +188,10 @@ int lidar_set_mode(device_handle device, int mode)
 {
   auto & m = MockSdk::instance();
   m.record(SdkCall{"lidar_set_mode", "", mode});
+  if (m.on_set_mode) {
+    auto hook = m.on_set_mode;
+    hook(mode);
+  }
   if (m.set_mode_delay.count() > 0) {
     std::this_thread::sleep_for(m.set_mode_delay);
   }

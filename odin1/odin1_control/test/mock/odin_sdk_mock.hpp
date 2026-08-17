@@ -74,6 +74,10 @@ public:
   /// Invoked (once) from inside lidar_save_map() after the delay starts, so a
   /// test can act while the device is held.
   std::function<void()> on_save_map_entered;
+  /// Invoked from inside lidar_set_mode(), with the mode argument. Lets a test
+  /// perturb state at an exact step of the switch_mode sequence instead of
+  /// racing it with a sleep.
+  std::function<void(int)> on_set_mode;
 
   /// Set by lidar_save_map() for the duration of the call.
   std::atomic<bool> save_map_running{false};

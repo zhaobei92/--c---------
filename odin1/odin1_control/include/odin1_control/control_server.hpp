@@ -82,6 +82,34 @@ constexpr int RC_DEVICE_LOST = -104;
 /// an indeterminate state; re-run switch_mode to resynchronise.
 constexpr int RC_INTERNAL_ERROR = -105;
 
+/// Process exit status used when the control layer refuses to let teardown
+/// proceed. Distinct so an operator or a supervisor can tell it apart from a
+/// clean stop and from a crash.
+constexpr int kUndrainableExitCode = 75;
+
+/// Terminate the process NOW, without touching the SDK and without running any
+/// destructor.
+///
+/// This is the safe fast path when an uninterruptible SDK call
+/// (lidar_save_map() blocks up to its gen_timeout, 120 s by default) is still
+/// running and something wants to tear the world down. Three things are racing
+/// at that moment:
+///
+///   1. the detached worker thread, inside the SDK;
+///   2. the driver's SIGINT handler, about to call lidar_system_deinit();
+///   3. static destructors, which exit() would then run under both of the above.
+///
+/// _exit() removes legs 2 and 3 by construction: no atexit handlers, no static
+/// destruction, no SDK calls. Leg 1 is simply frozen mid-call, which is safe
+/// precisely because nothing it points at is being freed. The kernel reclaims
+/// the USB file descriptors, and the device re-enumerates on the next connect.
+/// Leaving the module streaming for one power cycle is a far better outcome
+/// than deinitialising the SDK underneath a live transfer.
+///
+/// Async-signal-safe: writes with write(2) only, never the ROS logger (a worker
+/// may well be holding a logging mutex, which would deadlock the handler).
+[[noreturn]] void hardExit(const char * why) noexcept;
+
 struct ControlServerOptions
 {
   /// Service/action namespace. Topics become <ns>/save_map, <ns>/load_map, ...
@@ -136,19 +164,34 @@ public:
   // -------------------------------------------------------------------------
 
   /// Stops accepting new device work and waits (bounded) for in-flight
-  /// operations to finish. Call this before tearing the SDK down.
-  /// Safe to call repeatedly. Returns true if everything drained in time.
-  bool beginTeardown(std::chrono::milliseconds grace);
+  /// operations to finish. Safe to call repeatedly.
+  ///
+  /// Returns TRUE only if everything drained. A FALSE return is not advisory:
+  /// the caller MUST NOT go on to touch the SDK (no lidar_stop_stream, no
+  /// lidar_system_deinit) or destroy anything, because a worker is still inside
+  /// an SDK call. The only correct response is emergencyExit().
+  [[nodiscard]] bool beginTeardown(std::chrono::milliseconds grace);
 
   /// Waits (bounded) for in-flight device operations to finish WITHOUT
   /// refusing future work. For the reconnect path, where the driver is about to
   /// swap the device handle but the server keeps serving afterwards.
-  /// Returns true if everything drained in time.
-  bool waitForDeviceIdle(std::chrono::milliseconds grace);
+  ///
+  /// Returns TRUE only if everything drained. On FALSE the caller MUST NOT
+  /// recycle the device handle; skipping the reconnect is the correct response.
+  [[nodiscard]] bool waitForDeviceIdle(std::chrono::milliseconds grace);
 
-  /// beginTeardown() + stop the control executor thread. Idempotent; also
-  /// called by the destructor with the default grace.
-  void shutdown(std::chrono::milliseconds grace = std::chrono::milliseconds{130000});
+  /// Invalidates the current device generation so that any in-flight multi-step
+  /// operation fails at its next step boundary instead of continuing against a
+  /// handle the driver is about to abandon. Cheap, non-blocking; call it before
+  /// waitForDeviceIdle() on the reconnect path to shorten the drain.
+  void notifyDeviceInvalidated();
+
+  /// beginTeardown() + stop the control executor thread. Idempotent.
+  /// Returns TRUE only if the drain succeeded; see beginTeardown().
+  [[nodiscard]] bool shutdown(std::chrono::milliseconds grace = std::chrono::milliseconds{130000});
+
+  /// Logs why, then hardExit(). Call this when beginTeardown() returned false.
+  [[noreturn]] void emergencyExit(const char * why) noexcept;
 
 private:
   /// RAII ticket for any operation that will touch the SDK.
@@ -180,6 +223,7 @@ private:
     ControlServer & owner_;
     bool admitted_ = false;
     device_handle initial_ = nullptr;
+    uint64_t generation_ = 0;
     int rc_ = 0;
   };
   friend class DeviceSession;
@@ -255,6 +299,14 @@ private:
   std::atomic<int> in_flight_{0};
   std::mutex idle_mutex_;
   std::condition_variable idle_cv_;
+  /// Bumped by notifyDeviceInvalidated(). A DeviceSession captures it at
+  /// construction and fails once it changes, which makes an in-flight
+  /// switch_mode abandon at the next step rather than at the next handle swap.
+  std::atomic<uint64_t> device_generation_{0};
+  /// How long the destructor waits before giving up and hard-exiting. Long by
+  /// default: the destructor runs on the normal exit path, where blocking is
+  /// correct and nobody is watching a signal.
+  std::chrono::milliseconds destructor_grace_{180000};
 
   // --- cached, immutable-per-connection firmware versions -------------------
   std::mutex version_mutex_;

@@ -84,9 +84,11 @@ protected:
   void TearDown() override
   {
     if (server_) {
-      // Short grace: a test that leaves work running should fail fast, not hang
-      // for the production default.
-      server_->shutdown(3s);
+      // Long enough to outlast any save a test starts. If a test genuinely
+      // leaves work stuck, ~ControlServer would hardExit() and take the whole
+      // binary down - which is the correct production behaviour, and here it
+      // would show up as an obvious test-suite abort rather than a silent pass.
+      EXPECT_TRUE(server_->shutdown(30s)) << "a test left a device operation running";
       server_.reset();
     }
     if (executor_) {
@@ -409,18 +411,147 @@ TEST_F(ControlServerTest, ShutdownDrainsAnInFlightSaveInsteadOfRacingIt)
   ASSERT_TRUE(mock.save_map_running.load());
 
   const auto t0 = std::chrono::steady_clock::now();
-  server_->shutdown(5s);
+  const bool drained = server_->shutdown(5s);
   const auto elapsed = std::chrono::steady_clock::now() - t0;
 
+  EXPECT_TRUE(drained) << "shutdown must report success only when it really drained";
   EXPECT_FALSE(mock.save_map_running.load())
     << "shutdown returned while an SDK call was still in flight";
   EXPECT_GE(elapsed, 100ms) << "shutdown did not actually wait";
   server_.reset();   // must not hang or crash
 }
 
+// ===========================================================================
+// The two lifecycle holes: an undrainable operation must BLOCK teardown,
+// not merely be logged about.
+// ===========================================================================
+
+TEST_F(ControlServerTest, CtrlCDuringAnUninterruptibleSaveRefusesToLetTeardownProceed)
+{
+  // The real scenario: lidar_save_map() is 100 s into its 120 s budget and the
+  // operator hits Ctrl+C. The driver's SIGINT handler is about to call
+  // lidar_stop_stream / lidar_system_deinit / exit(). beginTeardown() returning
+  // false is the ONLY thing standing between that and tearing the SDK down
+  // underneath a live transfer, so it must report failure rather than time out
+  // quietly. (Scaled down in wall-clock; the code path is identical.)
+  auto & mock = MockSdk::instance();
+  mock.save_map_delay = 2500ms;
+
+  auto client = actionClient<SaveMap>("/save_map");
+  auto gh = sendGoal<SaveMap>(client, SaveMap::Goal());
+  ASSERT_NE(gh, nullptr);
+
+  const auto deadline = std::chrono::steady_clock::now() + 2s;
+  while (!mock.save_map_running.load() && std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::sleep_for(10ms);
+  }
+  ASSERT_TRUE(mock.save_map_running.load());
+
+  // This is what the patched signal handler calls.
+  EXPECT_FALSE(server_->beginTeardown(200ms))
+    << "a failed drain reported as success would let the driver deinit the SDK "
+       "underneath the running save";
+  EXPECT_TRUE(mock.save_map_running.load())
+    << "the SDK call really is still in flight when we refuse";
+
+  // A refused teardown must still have closed the door on new work, so nothing
+  // new can pile in during whatever the caller does next.
+  auto res = call<odin1_interfaces::srv::ResetAlgo>(
+    "/reset_algo", std::make_shared<odin1_interfaces::srv::ResetAlgo::Request>());
+  ASSERT_NE(res, nullptr);
+  EXPECT_EQ(res->rc, odin1_control::RC_SHUTTING_DOWN);
+
+  // ... and once the SDK call returns, the same call now succeeds. This is the
+  // difference between "give it more time" and "hard-exit".
+  EXPECT_TRUE(server_->beginTeardown(5s));
+  EXPECT_FALSE(mock.save_map_running.load());
+
+  awaitResult<SaveMap>(client, gh);
+}
+
+TEST_F(ControlServerTest, ReconnectDuringSaveMapIsRefusedWhileTheSdkCallIsInFlight)
+{
+  // Device is unplugged and replugged mid-save. The driver's attach path is
+  // about to do `odinDevice = nullptr; lidar_create_device(...)`, which resets
+  // SDK-global state. waitForDeviceIdle() must report failure so the patch skips
+  // the attach instead of recycling the handle under the running call.
+  auto & mock = MockSdk::instance();
+  mock.save_map_delay = 2500ms;
+
+  auto client = actionClient<SaveMap>("/save_map");
+  auto gh = sendGoal<SaveMap>(client, SaveMap::Goal());
+  ASSERT_NE(gh, nullptr);
+
+  const auto deadline = std::chrono::steady_clock::now() + 2s;
+  while (!mock.save_map_running.load() && std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::sleep_for(10ms);
+  }
+  ASSERT_TRUE(mock.save_map_running.load());
+
+  // Exactly the sequence the reconnect hunk runs.
+  server_->notifyDeviceInvalidated();
+  EXPECT_FALSE(server_->waitForDeviceIdle(200ms))
+    << "the driver would have recycled the handle under a live SDK call";
+  EXPECT_TRUE(mock.save_map_running.load());
+
+  // Unlike teardown, a refused reconnect must NOT stop the server serving:
+  // the attach is skipped and retried, the process keeps running.
+  auto res = call<odin1_interfaces::srv::GetDeviceState>(
+    "/get_device_state", std::make_shared<odin1_interfaces::srv::GetDeviceState::Request>());
+  ASSERT_NE(res, nullptr);
+  EXPECT_TRUE(res->map_transfer_in_progress);
+
+  EXPECT_TRUE(server_->waitForDeviceIdle(5s)) << "must drain once the SDK call returns";
+  awaitResult<SaveMap>(client, gh);
+}
+
+TEST_F(ControlServerTest, InvalidationMakesAnInFlightSwitchModeAbandonAtTheNextStep)
+{
+  // notifyDeviceInvalidated() exists to shorten the drain: a multi-step
+  // operation should give up at its next step boundary rather than run all the
+  // way to a handle comparison. Triggered from inside the SDK call itself so
+  // the test does not race a sleep.
+  auto & mock = MockSdk::instance();
+  mock.on_set_mode = [this](int mode) {
+      if (mode == LIDAR_MODE_SLAM) {          // step 3 of 7
+        server_->notifyDeviceInvalidated();
+      }
+    };
+
+  auto client = actionClient<SwitchMode>("/switch_mode");
+  SwitchMode::Goal goal;
+  goal.map_mode = 1;
+  goal.restart_stream = true;
+
+  auto gh = sendGoal<SwitchMode>(client, goal);
+  ASSERT_NE(gh, nullptr);
+  auto result = awaitResult<SwitchMode>(client, gh);
+
+  EXPECT_EQ(result.code, rclcpp_action::ResultCode::ABORTED);
+  EXPECT_EQ(result.result->rc, odin1_control::RC_DEVICE_LOST);
+  EXPECT_EQ(result.result->failed_stage, "set_map_mode")
+    << "should abandon at the very next step after invalidation";
+  EXPECT_FALSE(MockSdk::instance().sawCall("lidar_start_stream"))
+    << "the stream must not be restarted against an abandoned handle";
+}
+
+TEST_F(ControlServerTest, InvalidationIsPerGenerationSoLaterWorkStillSucceeds)
+{
+  // The barrier must not brick the server: after the reconnect completes, a new
+  // operation gets a fresh generation and works normally.
+  server_->notifyDeviceInvalidated();
+
+  auto client = actionClient<SwitchMode>("/switch_mode");
+  SwitchMode::Goal goal;
+  goal.map_mode = 0;
+  auto gh = sendGoal<SwitchMode>(client, goal);
+  ASSERT_NE(gh, nullptr);
+  EXPECT_EQ(awaitResult<SwitchMode>(client, gh).code, rclcpp_action::ResultCode::SUCCEEDED);
+}
+
 TEST_F(ControlServerTest, RequestsAfterTeardownAreRefusedNotRaced)
 {
-  server_->beginTeardown(1s);
+  EXPECT_TRUE(server_->beginTeardown(1s)) << "nothing is in flight, so this must drain";
 
   auto res = call<odin1_interfaces::srv::ResetAlgo>(
     "/reset_algo", std::make_shared<odin1_interfaces::srv::ResetAlgo::Request>());
@@ -730,9 +861,34 @@ TEST_F(ControlServerTest, GetDeviceStateReportsModeAndTransferFlags)
   EXPECT_FALSE(res->mode_switch_in_progress);
 }
 
+// ===========================================================================
+// hardExit
+// ===========================================================================
+
+TEST(HardExit, TerminatesWithADistinctCodeAndExplainsItself)
+{
+  // The action half of the refusal. Death-tested because the whole point is
+  // that it never returns and never runs a destructor.
+  EXPECT_EXIT(
+    odin1_control::hardExit("unit test reason"),
+    ::testing::ExitedWithCode(odin1_control::kUndrainableExitCode),
+    "unit test reason");
+}
+
+TEST(HardExit, SaysItSkippedTeardownSoTheLogIsSelfExplanatory)
+{
+  EXPECT_EXIT(
+    odin1_control::hardExit("x"),
+    ::testing::ExitedWithCode(odin1_control::kUndrainableExitCode),
+    "Skipping ALL teardown");
+}
+
 int main(int argc, char ** argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
+  // This binary runs worker threads; forking a threaded process for a death
+  // test is unsafe, so make gtest re-exec instead.
+  ::testing::GTEST_FLAG(death_test_style) = "threadsafe";
   rclcpp::init(argc, argv);
   const int rc = RUN_ALL_TESTS();
   rclcpp::shutdown();

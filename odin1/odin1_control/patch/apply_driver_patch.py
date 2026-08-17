@@ -175,12 +175,41 @@ HUNKS = [
             '                RCLCPP_INFO(rclcpp::get_logger("signal_handler"), "Closing device...");\n'
         ),
         text=(
-            f"            // >>> {MARKER}: drain in-flight control ops before any SDK teardown\n"
-            "            if (g_control_server) {\n"
-            "                g_control_server->beginTeardown(std::chrono::seconds(3));\n"
+            f"            // >>> {MARKER}: drain in-flight control ops before ANY SDK teardown.\n"
+            "            // Guarded: this is common code, but g_control_server only exists\n"
+            "            // under ROS2. A FALSE return is not advisory - continuing would run\n"
+            "            // lidar_stop_stream / lidar_system_deinit / exit() while a worker is\n"
+            "            // still inside an uninterruptible SDK call, so refuse instead.\n"
+            "            #ifdef ROS2\n"
+            "            if (g_control_server &&\n"
+            "                !g_control_server->beginTeardown(std::chrono::seconds(3)))\n"
+            "            {\n"
+            "                // Does not return: skips every SDK call, every destructor and\n"
+            "                // exit() itself, because all three race the running worker.\n"
+            "                g_control_server->emergencyExit(\n"
+            "                    \"SIGINT while an uninterruptible device operation was running\");\n"
             "            }\n"
+            "            #endif\n"
             f"            // <<< {MARKER}\n"
         ),
+    ),
+    # ---- 5c. tear the control server down before static destruction can ----
+    #
+    # By here beginTeardown() has already proved there is nothing in flight, the
+    # SDK is down, and rclcpp is still up. Destroying explicitly leaves static
+    # destruction with nothing to do, which is the third leg of the race the
+    # vendor comment right below this anchor already worries about.
+    dict(
+        file=CPP,
+        name="shutdown-signal-reset",
+        kind="before",
+        anchor=(
+            "            if (g_ros_object) {\n"
+            "                g_ros_object.reset();\n"
+            "            }\n"
+            "            rclcpp::shutdown();\n"
+        ),
+        text=f"            g_control_server.reset();  // {MARKER}\n",
     ),
     # ---- 5b. do not recycle the device handle under a running operation ----
     #
@@ -198,11 +227,24 @@ HUNKS = [
             "            odinDevice = nullptr;\n"
         ),
         text=(
-            f"        // >>> {MARKER}: let in-flight control ops finish before the\n"
-            "        // handle is recycled by this reconnect.\n"
+            f"        // >>> {MARKER}: never recycle the device handle under a live SDK call.\n"
+            "        // The driver drops the old pointer without lidar_destory_device(), so an\n"
+            "        // in-flight call is not a use-after-free - but lidar_create_device()\n"
+            "        // resets SDK-global state (lidar_get_device_state() takes no handle), so\n"
+            "        // overlapping the two corrupts the control channel. Guarded: common code,\n"
+            "        // ROS2-only symbol.\n"
+            "        #ifdef ROS2\n"
             "        if (g_control_server) {\n"
-            "            g_control_server->waitForDeviceIdle(std::chrono::seconds(2));\n"
+            "            g_control_server->notifyDeviceInvalidated();\n"
+            "            if (!g_control_server->waitForDeviceIdle(std::chrono::seconds(3))) {\n"
+            "                RCLCPP_FATAL(rclcpp::get_logger(\"device_cb\"),\n"
+            "                    \"Refusing to recycle the device handle: a control operation is \"\n"
+            "                    \"still inside the SDK. Skipping this attach - replug the device \"\n"
+            "                    \"once it finishes.\");\n"
+            "                return;\n"
+            "            }\n"
             "        }\n"
+            "        #endif\n"
             f"        // <<< {MARKER}\n"
         ),
     ),

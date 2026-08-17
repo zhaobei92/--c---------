@@ -8,9 +8,11 @@
 #include <cmath>
 #include <cstring>
 #include <ctime>
+#include <cstdlib>
 #include <exception>
 #include <filesystem>
 #include <iterator>
+#include <unistd.h>
 #include <utility>
 #include <vector>
 
@@ -103,6 +105,39 @@ void safeFeedback(const rclcpp::Logger & log, const GoalHandleT & gh, FeedbackT 
 }  // namespace
 
 // ---------------------------------------------------------------------------
+// hardExit
+// ---------------------------------------------------------------------------
+
+void hardExit(const char * why) noexcept
+{
+  // write(2) only. This can run from a signal handler while a worker thread is
+  // inside the SDK and may be holding the ROS logger's mutex; touching the
+  // logger here would deadlock the handler instead of exiting it.
+  auto emit = [](const char * s) {
+      if (!s) {return;}
+      size_t n = 0;
+      while (s[n] != '\0') {++n;}
+      ssize_t written = 0;
+      while (written < static_cast<ssize_t>(n)) {
+        const ssize_t w = ::write(STDERR_FILENO, s + written, n - written);
+        if (w <= 0) {break;}
+        written += w;
+      }
+    };
+
+  emit("\n[odin1_control] FATAL: ");
+  emit(why);
+  emit(
+    "\n[odin1_control] An uninterruptible SDK call is still running. Skipping ALL "
+    "teardown (no lidar_stop_stream, no lidar_system_deinit, no destructors) and "
+    "exiting immediately: continuing would tear the SDK down underneath a live "
+    "transfer.\n[odin1_control] The module may still be streaming; it re-enumerates "
+    "on the next connect. Power-cycle it if the next start reports a busy device.\n");
+
+  ::_exit(kUndrainableExitCode);
+}
+
+// ---------------------------------------------------------------------------
 // DeviceSession
 // ---------------------------------------------------------------------------
 
@@ -125,6 +160,8 @@ ControlServer::DeviceSession::DeviceSession(ControlServer & owner)
     return;
   }
 
+  generation_ = owner_.device_generation_.load();
+
   int rc = 0;
   initial_ = owner_.device(rc);
   rc_ = rc;
@@ -144,6 +181,13 @@ ControlServer::DeviceSession::~DeviceSession()
 device_handle ControlServer::DeviceSession::handle()
 {
   if (!admitted_) {
+    return nullptr;
+  }
+  if (owner_.device_generation_.load() != generation_) {
+    // notifyDeviceInvalidated() fired: the driver is about to recycle the
+    // handle. Fail here rather than at the next handle comparison, so a
+    // multi-step sequence abandons as early as possible.
+    rc_ = RC_DEVICE_LOST;
     return nullptr;
   }
   int rc = 0;
@@ -256,7 +300,27 @@ ControlServer::ControlServer(
 
 ControlServer::~ControlServer()
 {
-  shutdown();
+  // The destructor runs on the normal exit path, where blocking is the correct
+  // behaviour and nobody is waiting on a signal - so the grace is long enough to
+  // outlast a default-timeout lidar_save_map().
+  if (shutdown(destructor_grace_)) {
+    return;
+  }
+  // Cannot drain. Destroying members now would free device_op_mutex_, ctx_ and
+  // the node handle underneath a live worker. There is no safe way to finish
+  // this destructor, so do not try.
+  hardExit("ControlServer destroyed while a device operation was still running");
+}
+
+void ControlServer::notifyDeviceInvalidated()
+{
+  const uint64_t gen = device_generation_.fetch_add(1) + 1;
+  RCLCPP_WARN(
+    node_->get_logger(),
+    "[odin1_control] device generation invalidated (now %llu); in-flight operations "
+    "will abandon at their next step", static_cast<unsigned long long>(gen));
+  std::lock_guard<std::mutex> lock(idle_mutex_);
+  idle_cv_.notify_all();
 }
 
 bool ControlServer::waitForDeviceIdle(std::chrono::milliseconds grace)
@@ -267,9 +331,9 @@ bool ControlServer::waitForDeviceIdle(std::chrono::milliseconds grace)
   if (!drained) {
     RCLCPP_ERROR(
       node_->get_logger(),
-      "[odin1_control] %d device operation(s) still in flight after %ld ms. "
-      "lidar_save_map() is not interruptible, so this can happen on Ctrl+C during a "
-      "save; the SDK may be torn down underneath it.",
+      "[odin1_control] %d device operation(s) STILL IN FLIGHT after %ld ms. "
+      "lidar_save_map() has no interruption point. The caller must not touch the SDK "
+      "or recycle the device handle.",
       in_flight_.load(), static_cast<long>(grace.count()));
   }
   return drained;
@@ -278,30 +342,42 @@ bool ControlServer::waitForDeviceIdle(std::chrono::milliseconds grace)
 bool ControlServer::beginTeardown(std::chrono::milliseconds grace)
 {
   const bool was_accepting = accepting_.exchange(false);
-  if (was_accepting && in_flight_.load() > 0) {
-    RCLCPP_INFO(
-      node_->get_logger(),
-      "[odin1_control] teardown requested, waiting up to %ld ms for %d in-flight "
-      "operation(s)", static_cast<long>(grace.count()), in_flight_.load());
+  if (was_accepting) {
+    // Wake any operation that is between steps so it abandons instead of
+    // starting the next SDK call.
+    notifyDeviceInvalidated();
+    if (in_flight_.load() > 0) {
+      RCLCPP_INFO(
+        node_->get_logger(),
+        "[odin1_control] teardown requested, waiting up to %ld ms for %d in-flight "
+        "operation(s)", static_cast<long>(grace.count()), in_flight_.load());
+    }
   }
   return waitForDeviceIdle(grace);
 }
 
-void ControlServer::shutdown(std::chrono::milliseconds grace)
+void ControlServer::emergencyExit(const char * why) noexcept
+{
+  hardExit(why);
+}
+
+bool ControlServer::shutdown(std::chrono::milliseconds grace)
 {
   // beginTeardown() first and unconditionally: even if shutdown() has already
   // run once, a later caller wants the "no new work + drained" guarantee.
-  beginTeardown(grace);
+  const bool drained = beginTeardown(grace);
 
-  if (!running_.exchange(false)) {
-    return;
+  // Stop the executor either way - it owns no SDK state, and leaving it spinning
+  // would keep serving requests that are already being refused.
+  if (running_.exchange(false)) {
+    if (executor_) {
+      executor_->cancel();
+    }
+    if (executor_thread_.joinable()) {
+      executor_thread_.join();
+    }
   }
-  if (executor_) {
-    executor_->cancel();
-  }
-  if (executor_thread_.joinable()) {
-    executor_thread_.join();
-  }
+  return drained;
 }
 
 // ---------------------------------------------------------------------------

@@ -33,7 +33,7 @@ odin1/
 Odin1 的 USB 设备句柄是**进程私有**的：libusb 不允许两个进程同时持有
 （厂商 FAQ 5.12，`LIBUSB_ERROR_BUSY`）。因此任何控制接口都**必须**跑在
 `host_sdk_sample` 进程里。本包把控制逻辑做成静态库，用一个可校验、可回滚的
-脚本注入驱动，改动面控制在 10 处锚点。
+脚本注入驱动，改动面控制在 11 处锚点。
 
 ---
 
@@ -74,7 +74,7 @@ cp -r <this-repo>/odin1/odin1_interfaces  .
 cp -r <this-repo>/odin1/odin1_control     .
 cp -r <this-repo>/odin1/odin1_tf_adapter  .
 
-# 改造驱动：先干跑校验，确认 10 处锚点都在
+# 改造驱动：先干跑校验，确认 11 处锚点都在
 python3 odin1_control/patch/apply_driver_patch.py --driver ./odin_ros_driver --check
 python3 odin1_control/patch/apply_driver_patch.py --driver ./odin_ros_driver
 
@@ -207,7 +207,11 @@ colcon test-result --verbose
   RViz 里把 Fixed Frame 设成 `map` 会看不到东西——这是有意的，
   以前那个"能显示"的状态返回的是 odom 位姿冒充 map 位姿。
   `localization_status.state_text` 会说明原因。
-- **`save_map` 超过退出宽限期时进程仍会退出**。`lidar_save_map()` 无中断点，
-  信号处理器只能有界等待 3 秒，超时会打 ERROR 而不是静默。
+- **`save_map` 超过退出宽限期时，进程以退出码 75 立即终止**。`lidar_save_map()` 无中断点，
+  信号处理器只能有界等待 3 秒；超时后走 `_exit(75)` —— **不碰 SDK、不跑析构**，
+  因为继续 teardown 会在活跃传输之上拆掉 SDK。模组可能仍在出流，
+  下次连接会重新枚举；若报设备忙，上电重启一次即可。
+- **存图中拔插设备，本次重连会被跳过**。驱动即将回收句柄而控制层还在 SDK 里时，
+  屏障宁可跳过 attach 也不换句柄。日志会提示：等操作结束后重新插拔。
 - **未完整编译验证**。ROS-free 的部分（TF 安全策略、Mock 签名）已真实编译并运行通过；
   依赖 rclcpp 的两个 .cpp 与集成测试尚未编译。详见 `docs/odin1/03-phase2-audit.md` §4。
