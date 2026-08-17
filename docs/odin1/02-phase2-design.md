@@ -182,13 +182,20 @@ map ──(反转自驱动的 odom→map)── odom ──(odometry_highfreq)�
 
 ### 3.3 未定位时怎么办
 
-`map_odom_fallback` 三选一：
+> 审计后此处已重做，见 [`03-phase2-audit.md`](03-phase2-audit.md) A5/A6。
+> 决策逻辑抽成了纯函数 `decideMapOdom()`（`map_odom_policy.hpp`），并已单测穷举。
+
+`map_odom_fallback` 四选一：
 
 | 值 | 行为 | 适用 |
 |---|---|---|
-| `identity`（默认） | 发单位阵 `map→odom`，树保持连通，`LocalizationStatus.identity_fallback = true` | 调试、可视化 |
-| `hold` | 持续补发最后一次修正，时间戳刷新 | 短暂丢失容忍 |
-| `none` | 不发，`map` 断开 | **自主导航推荐**：规划器不可能把单位阵误当成真定位 |
+| `auto`（默认） | 只有设备自己定义 map≡odom 的模式（0/1）才发单位阵；模式 2 未定位成功或模式未知时**不发** | **默认，安全** |
+| `identity` | 未定位时始终发单位阵 | 仅调试/RViz，**不可用于自主导航** |
+| `hold` | 持续补发最后一次修正 | 短暂丢失容忍 |
+| `none` | 只发真实 fix | 最保守 |
+
+绝对不变式（不受配置影响）：**一旦收到过真实 fix，就再也不发单位阵** ——
+否则会把机器人从真实 map 位姿瞬移到 odom 原点。
 
 ### 3.4 为什么 map→odom 要按 50 Hz 补发
 
@@ -226,7 +233,7 @@ device_map_mode == 2 且从未收到              → STATE_SEARCHING（正在�
 
 ---
 
-## 4. 驱动改动点（9 处锚点）
+## 4. 驱动改动点（10 处锚点）
 
 由 `odin1/odin1_control/patch/apply_driver_patch.py` 施加。已验证：
 **apply → revert 与原文件逐字节一致**；重复 apply 幂等；任一锚点不唯一即拒绝写入。
@@ -237,7 +244,8 @@ device_map_mode == 2 且从未收到              → STATE_SEARCHING（正在�
 | 2 | 同上 | :101 全局区 | `g_control_server` + 设备状态缓存 4 个变量 |
 | 3 | 同上 | :1043 `LIDAR_DT_DEV_STATUS` 分支 | 缓存设备状态快照（可选，缺了只是 `status.valid=false`） |
 | 4 | 同上 | :2009 `main()` | 填 `DeviceContext` 并构造 `ControlServer`（约 40 行） |
-| 5 | 同上 | :410 信号处理 | `g_control_server->shutdown()` |
+| 5 | 同上 | :352 信号处理**开头** | `beginTeardown(3s)`——必须在 `lidar_stop_stream` / `lidar_system_deinit` **之前**，见审计 A1 |
+| 5b | 同上 | :1298 重连回收句柄前 | `waitForDeviceIdle(2s)`，见审计 A4 |
 | 6 | 同上 | :2470 无设备早退 | `g_control_server.reset()` |
 | 7 | 同上 | :2516 正常退出 | `g_control_server.reset()` |
 | 8 | `CMakeLists.txt` | :270 | `find_package(odin1_interfaces / odin1_control)` |
@@ -268,6 +276,11 @@ Jazzy 会有 deprecation 警告，故意没开 `-Werror`）；`tf2/LinearMath/*.
 在 Jazzy 上是 `.hpp` 的兼容 shim。
 
 ---
+
+> **发布前审计已完成**，修复了 11 个问题（含 3 个会导致进程崩溃/挂死、
+> 3 个会产生"看起来正常但实际错误"的位姿）。本文描述的是设计意图；
+> 加固后的实际行为、以及 `map_odom_fallback` 默认值的变更，
+> 见 [`03-phase2-audit.md`](03-phase2-audit.md)。
 
 ## 6. 下一步
 

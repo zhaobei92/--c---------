@@ -51,6 +51,7 @@ HUNKS = [
         anchor='    #include "odin_ros_driver/srv/set_awb.hpp"\n',
         text=(
             f"    // >>> {MARKER}\n"
+            "    #include <chrono>\n"
             "    #include <memory>\n"
             '    #include "odin1_control/control_server.hpp"\n'
             f"    // <<< {MARKER}\n"
@@ -151,19 +152,58 @@ HUNKS = [
             f"    // <<< {MARKER}\n"
         ),
     ),
-    # ---- 5. stop the control executor on SIGINT/SIGTERM -------------------
+    # ---- 5. drain control ops BEFORE the SDK is torn down -----------------
+    #
+    # ORDERING IS THE WHOLE POINT. The vendor SIGINT handler runs:
+    #     lidar_stop_stream(odinDevice) -> odinDevice = nullptr
+    #         -> lidar_system_deinit() -> g_ros_object.reset()
+    #         -> rclcpp::shutdown() -> exit(0)
+    # A SaveMap worker can be inside lidar_save_map() for up to 120 s. Draining
+    # anywhere after lidar_system_deinit() means waiting on a thread that is
+    # calling into an SDK that no longer exists. So the barrier goes at the very
+    # top of the handler, before the first SDK call.
+    #
+    # The grace is short (3 s) on purpose: this runs in a signal handler and the
+    # process is going away regardless. beginTeardown() also flips the server to
+    # "refuse new work", so nothing new can start during the rest of teardown.
     dict(
         file=CPP,
         name="shutdown-signal",
         kind="before",
         anchor=(
-            "            if (g_ros_object) {\n"
-            "                g_ros_object.reset();\n"
-            "            }\n"
-            "            rclcpp::shutdown();\n"
+            "            #ifdef ROS2\n"
+            '                RCLCPP_INFO(rclcpp::get_logger("signal_handler"), "Closing device...");\n'
         ),
         text=(
-            f"            if (g_control_server) {{ g_control_server->shutdown(); }}  // {MARKER}\n"
+            f"            // >>> {MARKER}: drain in-flight control ops before any SDK teardown\n"
+            "            if (g_control_server) {\n"
+            "                g_control_server->beginTeardown(std::chrono::seconds(3));\n"
+            "            }\n"
+            f"            // <<< {MARKER}\n"
+        ),
+    ),
+    # ---- 5b. do not recycle the device handle under a running operation ----
+    #
+    # The attach path does a bare `if (odinDevice) { odinDevice = nullptr; ... }`
+    # on every reconnect. If a control operation is mid-sequence it would then be
+    # holding a handle the driver has abandoned. DeviceSession detects the swap
+    # and fails the operation, but only at the next step boundary - waiting here
+    # closes the window where a call is already in flight.
+    dict(
+        file=CPP,
+        name="reconnect-barrier",
+        kind="before",
+        anchor=(
+            "        if (odinDevice) {\n"
+            "            odinDevice = nullptr;\n"
+        ),
+        text=(
+            f"        // >>> {MARKER}: let in-flight control ops finish before the\n"
+            "        // handle is recycled by this reconnect.\n"
+            "        if (g_control_server) {\n"
+            "            g_control_server->waitForDeviceIdle(std::chrono::seconds(2));\n"
+            "        }\n"
+            f"        // <<< {MARKER}\n"
         ),
     ),
     # ---- 6. stop it on the no-device early exit ---------------------------

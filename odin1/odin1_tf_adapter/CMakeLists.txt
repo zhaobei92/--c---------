@@ -36,4 +36,21 @@ install(TARGETS odin1_tf_adapter_node odin1_frame_retag_node
 install(DIRECTORY include/ DESTINATION include)
 install(DIRECTORY launch config DESTINATION share/${PROJECT_NAME})
 
+# ---------------------------------------------------------------------------
+# Tests
+#
+# map_odom_policy.hpp is header-only and ROS-free by design, so the safety rule
+# that decides whether a map frame may be published at all is tested as a pure
+# function - no node, no graph, no timing.
+# ---------------------------------------------------------------------------
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+
+  ament_add_gtest(test_map_odom_policy test/test_map_odom_policy.cpp)
+  if(TARGET test_map_odom_policy)
+    target_include_directories(test_map_odom_policy PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  endif()
+endif()
+
 ament_package()

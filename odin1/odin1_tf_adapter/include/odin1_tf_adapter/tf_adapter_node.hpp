@@ -65,21 +65,10 @@
 #include "odin1_interfaces/msg/localization_status.hpp"
 #include "odin1_interfaces/srv/get_device_state.hpp"
 
+#include "odin1_tf_adapter/map_odom_policy.hpp"
+
 namespace odin1_tf_adapter
 {
-
-/// What to publish for map -> odom while the device has not (re)localized.
-enum class MapOdomFallback
-{
-  /// Publish identity so the tree stays connected and RViz/Nav2 keep working.
-  /// LocalizationStatus.identity_fallback is set so consumers can tell that
-  /// "map" is not a real map frame yet.
-  Identity,
-  /// Keep republishing the last transform received, with fresh stamps.
-  Hold,
-  /// Publish nothing; map stays disconnected until relocalization succeeds.
-  None,
-};
 
 class TfAdapterNode : public rclcpp::Node
 {
@@ -125,7 +114,7 @@ private:
   double map_odom_rate_{50.0};
   double extrinsics_rate_{10.0};
   double odom_tf_rate_{0.0};          // 0 = every message
-  MapOdomFallback fallback_{MapOdomFallback::Identity};
+  MapOdomFallback fallback_{MapOdomFallback::Auto};
   bool query_device_state_{true};
 
   tf2::Transform base_to_imu_{tf2::Transform::getIdentity()};
@@ -140,9 +129,19 @@ private:
   Clock::time_point last_odom_tf_pub_{};
   bool static_extrinsics_sent_{false};
   bool identity_fallback_active_{false};
+  const char * map_odom_reason_ = "starting up";
   int device_map_mode_{-1};           // -1 = unknown; filled by GetDeviceState
+  /// A switch_mode restarts the stream and resets odom to the origin, which
+  /// invalidates any stored map -> odom. Tracked so the correction is dropped
+  /// exactly once per switch rather than being applied to a fresh odom epoch.
+  bool mode_switch_in_progress_{false};
+  bool saw_mode_switch_{false};
   std::atomic<bool> device_state_query_pending_{false};
   uint64_t status_tick_{0};
+
+  /// Drops any stored map -> odom. Called when the device changes mode or
+  /// finishes a switch_mode, because both reset the odom frame.
+  void invalidateMapOdom(const char * why);
 
   // --- ROS ----------------------------------------------------------------
   std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
@@ -153,6 +152,11 @@ private:
   rclcpp::Publisher<odin1_interfaces::msg::LocalizationStatus>::SharedPtr pub_status_;
   rclcpp::Client<odin1_interfaces::srv::GetDeviceState>::SharedPtr cli_device_state_;
   rclcpp::TimerBase::SharedPtr status_timer_;
+  /// The status timer and the GetDeviceState client live in their own group so
+  /// the 400 Hz odometry subscription (default group, mutually exclusive) cannot
+  /// starve them. That matters because the device-state response is what feeds
+  /// the map->odom safety policy.
+  rclcpp::CallbackGroup::SharedPtr cb_group_aux_;
 };
 
 }  // namespace odin1_tf_adapter

@@ -26,6 +26,8 @@
        checkout. Not declared as <depend> because odin_ros_driver does not export
        its includes through ament; CMake locates them via ODIN1_SDK_INCLUDE_DIR. -->
 
+  <test_depend>ament_cmake_gtest</test_depend>
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>

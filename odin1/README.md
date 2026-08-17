@@ -7,8 +7,9 @@
 | 运行时控制只能 `echo "set k v" > /tmp/odin_command.txt`，只支持 int、无返回值、无状态查询、无法编排 | `odin1_control`：6 个标准 Service / Action |
 | TF 树 `odom→map` 方向与 REP-105 相反、没有 `base_link`、frame 名无前缀 → 接不进 Nav2 | `odin1_tf_adapter`：重建合规 TF 树 |
 
-> **状态：已完成编码与静态校验，尚未编译、未接硬件。**
-> 每个设计决策都锚定在厂商源码的具体行号上（见 `docs/odin1/02-phase2-design.md`）。
+> **状态：已完成编码、发布前架构审计与静态校验；尚未完整编译、未接硬件。**
+> 设计决策见 `docs/odin1/02-phase2-design.md`，审计与加固见
+> `docs/odin1/03-phase2-audit.md`（11 项修复，含 3 个会导致进程崩溃/挂死的问题）。
 
 ---
 
@@ -32,7 +33,7 @@ odin1/
 Odin1 的 USB 设备句柄是**进程私有**的：libusb 不允许两个进程同时持有
 （厂商 FAQ 5.12，`LIBUSB_ERROR_BUSY`）。因此任何控制接口都**必须**跑在
 `host_sdk_sample` 进程里。本包把控制逻辑做成静态库，用一个可校验、可回滚的
-脚本注入驱动，改动面控制在 9 处锚点。
+脚本注入驱动，改动面控制在 10 处锚点。
 
 ---
 
@@ -73,7 +74,7 @@ cp -r <this-repo>/odin1/odin1_interfaces  .
 cp -r <this-repo>/odin1/odin1_control     .
 cp -r <this-repo>/odin1/odin1_tf_adapter  .
 
-# 改造驱动：先干跑校验，确认 9 处锚点都在
+# 改造驱动：先干跑校验，确认 10 处锚点都在
 python3 odin1_control/patch/apply_driver_patch.py --driver ./odin_ros_driver --check
 python3 odin1_control/patch/apply_driver_patch.py --driver ./odin_ros_driver
 
@@ -172,7 +173,25 @@ ros2 run topic_tools relay_field /initialpose /odin1/set_init_pose \
 
 ---
 
-## 6. 已知限制（诚实清单）
+## 6. 测试
+
+```bash
+colcon test --packages-select odin1_control odin1_tf_adapter
+colcon test-result --verbose
+```
+
+`odin1_control` 是静态库且不链接厂商 `.a`，`lidar_*` 符号一直未定义到最终链接为止：
+驱动用厂商 `.a` 解析，测试用 `test/mock/odin_sdk_mock.cpp` 解析。
+**生产代码里没有任何测试接缝，跑的就是发货的那批 .o。** Mock 先 include 真实
+`lidar_api.h`，所以签名由编译器校验。
+
+覆盖：设备断开 / busy / 超时 / 双 Goal / 存图中退出 / 重定位失败 / 重连换句柄 /
+7 步时序断言；外加 `test_map_odom_policy` 穷举 TF 安全策略。
+详见 `docs/odin1/03-phase2-audit.md`。
+
+---
+
+## 7. 已知限制（诚实清单）
 
 - **`switch_mode` 会重启数据流**。设备不支持在线切模式（厂商 wiki 6.6），
   所以必然有几百 ms 到数秒的数据中断，且 odom 从原点重开。
@@ -184,5 +203,11 @@ ros2 run topic_tools relay_field /initialpose /odin1/set_init_pose \
 - **`frame_prefix` 非空时必须同时跑 `odin1_frame_retag_node`**，
   否则驱动消息里写死的 `lidar` / `odom` frame 会指向不存在的坐标系。
   默认空前缀，开箱即用、零拷贝。
-- **未编译验证**。所有代码经过 IDL 语法校验、C++ 结构校验、SDK 函数签名/参数个数
-  逐个对照头文件核对、以及补丁脚本的 apply/revert 往返校验，但没有跑过编译器。
+- **重定位未成功时 `map` 坐标系是断开的**（`map_odom_fallback: auto`，默认）。
+  RViz 里把 Fixed Frame 设成 `map` 会看不到东西——这是有意的，
+  以前那个"能显示"的状态返回的是 odom 位姿冒充 map 位姿。
+  `localization_status.state_text` 会说明原因。
+- **`save_map` 超过退出宽限期时进程仍会退出**。`lidar_save_map()` 无中断点，
+  信号处理器只能有界等待 3 秒，超时会打 ERROR 而不是静默。
+- **未完整编译验证**。ROS-free 的部分（TF 安全策略、Mock 签名）已真实编译并运行通过；
+  依赖 rclcpp 的两个 .cpp 与集成测试尚未编译。详见 `docs/odin1/03-phase2-audit.md` §4。

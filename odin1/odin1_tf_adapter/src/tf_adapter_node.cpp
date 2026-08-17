@@ -43,16 +43,23 @@ TfAdapterNode::TfAdapterNode(const rclcpp::NodeOptions & options)
   odom_tf_rate_ = declare_parameter<double>("odom_tf_rate_hz", 0.0);
   query_device_state_ = declare_parameter<bool>("query_device_state", true);
 
-  const auto fb = declare_parameter<std::string>("map_odom_fallback", "identity");
-  if (fb == "identity") {
+  const auto fb = declare_parameter<std::string>("map_odom_fallback", "auto");
+  if (fb == "auto") {
+    fallback_ = MapOdomFallback::Auto;
+  } else if (fb == "identity") {
     fallback_ = MapOdomFallback::Identity;
+    RCLCPP_WARN(
+      get_logger(),
+      "map_odom_fallback='identity': an identity map->odom will be published before "
+      "relocalization succeeds. Consumers cannot tell that pose apart from a real fix "
+      "except via localization_status.identity_fallback. Do not use this for autonomy.");
   } else if (fb == "hold") {
     fallback_ = MapOdomFallback::Hold;
   } else if (fb == "none") {
     fallback_ = MapOdomFallback::None;
   } else {
     RCLCPP_WARN(
-      get_logger(), "unknown map_odom_fallback '%s', using 'identity'", fb.c_str());
+      get_logger(), "unknown map_odom_fallback '%s', using 'auto'", fb.c_str());
   }
 
   // base_link -> imu, i.e. where the module sits on the robot.
@@ -108,12 +115,15 @@ TfAdapterNode::TfAdapterNode(const rclcpp::NodeOptions & options)
   pub_status_ = create_publisher<odin1_interfaces::msg::LocalizationStatus>(
     "~/localization_status", rclcpp::QoS(1));
 
+  cb_group_aux_ = create_callback_group(rclcpp::CallbackGroupType::MutuallyExclusive);
+
   if (query_device_state_) {
-    cli_device_state_ =
-      create_client<odin1_interfaces::srv::GetDeviceState>("/odin1/get_device_state");
+    cli_device_state_ = create_client<odin1_interfaces::srv::GetDeviceState>(
+      "/odin1/get_device_state", rmw_qos_profile_services_default, cb_group_aux_);
   }
 
-  status_timer_ = create_wall_timer(200ms, std::bind(&TfAdapterNode::onStatusTimer, this));
+  status_timer_ = create_wall_timer(
+    200ms, std::bind(&TfAdapterNode::onStatusTimer, this), cb_group_aux_);
 
   if (publish_base_link_) {
     publishStaticBaseToImu();
@@ -195,6 +205,21 @@ bool TfAdapterNode::rateAllows(Clock::time_point now, Clock::time_point & last, 
   return true;
 }
 
+void TfAdapterNode::invalidateMapOdom(const char * why)
+{
+  // Caller holds mutex_.
+  if (!map_to_odom_seen_) {
+    return;
+  }
+  map_to_odom_seen_ = false;
+  map_to_odom_ = tf2::Transform::getIdentity();
+  map_to_odom_rx_ = Clock::time_point{};
+  RCLCPP_WARN(
+    get_logger(),
+    "dropping the stored map->odom correction: %s. The map frame will stay "
+    "disconnected until relocalization produces a new fix.", why);
+}
+
 void TfAdapterNode::publishStaticBaseToImu()
 {
   // Stamped with the node's own clock: this is a mounting transform, not a
@@ -246,24 +271,33 @@ void TfAdapterNode::onOdom(const nav_msgs::msg::Odometry::SharedPtr msg)
     // extrapolation (the same issue the vendor works around with
     // tf_extra_publish_rate), so a map->odom published only at relocalization
     // rate would make every map-frame lookup fail.
-    const bool fresh = map_to_odom_seen_ &&
-      std::chrono::duration<double>(host_now - map_to_odom_rx_).count() <= map_odom_timeout_;
-
+    //
+    // WHAT to publish is decided by decideMapOdom() - see map_odom_policy.hpp.
+    // The rule that matters: never publish an identity map->odom while the
+    // device is relocalizing, because that pose is silently wrong rather than
+    // merely missing.
     if (rateAllows(host_now, last_map_odom_pub_, map_odom_rate_)) {
-      if (fresh) {
-        out.push_back(toMsg(map_to_odom_, stamp, map_frame_, odom_frame_));
-        identity_fallback_active_ = false;
-      } else if (fallback_ == MapOdomFallback::Hold && map_to_odom_seen_) {
-        // Keep the last known correction alive with fresh stamps. The device is
-        // no longer confirming it, so LocalizationStatus reports STATE_STALE.
-        out.push_back(toMsg(map_to_odom_, stamp, map_frame_, odom_frame_));
-        identity_fallback_active_ = false;
-      } else if (fallback_ != MapOdomFallback::None) {
-        // Identity, or Hold with nothing to hold yet.
-        out.push_back(toMsg(tf2::Transform::getIdentity(), stamp, map_frame_, odom_frame_));
-        identity_fallback_active_ = true;
-      } else {
-        identity_fallback_active_ = false;
+      MapOdomInput in;
+      in.have_fix = map_to_odom_seen_;
+      in.fresh = map_to_odom_seen_ &&
+        std::chrono::duration<double>(host_now - map_to_odom_rx_).count() <= map_odom_timeout_;
+      in.device_map_mode = device_map_mode_;
+      in.mode_switch_in_progress = mode_switch_in_progress_;
+      in.fallback = fallback_;
+
+      const MapOdomDecision d = decideMapOdom(in);
+      identity_fallback_active_ = d.identity_fallback;
+      map_odom_reason_ = d.reason;
+
+      switch (d.action) {
+        case MapOdomAction::PublishStored:
+          out.push_back(toMsg(map_to_odom_, stamp, map_frame_, odom_frame_));
+          break;
+        case MapOdomAction::PublishIdentity:
+          out.push_back(toMsg(tf2::Transform::getIdentity(), stamp, map_frame_, odom_frame_));
+          break;
+        case MapOdomAction::Skip:
+          break;
       }
     }
   }
@@ -383,7 +417,23 @@ void TfAdapterNode::queryDeviceState()
       const auto res = future.get();
       {
         std::lock_guard<std::mutex> lock(mutex_);
-        device_map_mode_ = res->connected ? static_cast<int>(res->map_mode) : -1;
+        const int mode = res->connected ? static_cast<int>(res->map_mode) : -1;
+        if (mode != device_map_mode_ && device_map_mode_ != -1) {
+          invalidateMapOdom("device map_mode changed");
+        }
+        device_map_mode_ = mode;
+
+        // A switch_mode stops and restarts the stream, which resets odom to the
+        // origin. Drop the stored correction on the falling edge so it is never
+        // applied to the new odom epoch.
+        const bool switching = res->mode_switch_in_progress;
+        if (switching) {
+          saw_mode_switch_ = true;
+        } else if (saw_mode_switch_) {
+          saw_mode_switch_ = false;
+          invalidateMapOdom("switch_mode completed; odom has been reset");
+        }
+        mode_switch_in_progress_ = switching;
       }
       device_state_query_pending_ = false;
     });
@@ -422,18 +472,19 @@ void TfAdapterNode::onStatusTimer()
 
   const bool fresh = map_to_odom_seen_ && st.map_odom_age_sec <= map_odom_timeout_;
 
-  if (device_map_mode_ == 0 || device_map_mode_ == 1) {
-    // Odometry and mapping modes: map coincides with odom by design, there is
-    // nothing to relocalize against.
-    st.state = odin1_interfaces::msg::LocalizationStatus::STATE_NO_MAP;
-    st.state_text = (device_map_mode_ == 0) ? "odometry mode (map == odom)"
-      : "mapping mode (map == odom)";
-  } else if (fresh) {
+  if (fresh) {
+    // A fresh fix wins regardless of mode: the device is actively correcting.
     st.state = odin1_interfaces::msg::LocalizationStatus::STATE_LOCALIZED;
     st.state_text = "localized";
   } else if (map_to_odom_seen_) {
     st.state = odin1_interfaces::msg::LocalizationStatus::STATE_STALE;
     st.state_text = "map->odom is stale; localization may have been lost";
+  } else if (device_map_mode_ == 0 || device_map_mode_ == 1) {
+    // Odometry and mapping modes: map coincides with odom by design, there is
+    // nothing to relocalize against.
+    st.state = odin1_interfaces::msg::LocalizationStatus::STATE_NO_MAP;
+    st.state_text = (device_map_mode_ == 0) ? "odometry mode (map == odom)"
+      : "mapping mode (map == odom)";
   } else if (device_map_mode_ == 2) {
     st.state = odin1_interfaces::msg::LocalizationStatus::STATE_SEARCHING;
     st.state_text = "relocalizing: no map->odom yet. The driver silently falls back to "
@@ -443,6 +494,10 @@ void TfAdapterNode::onStatusTimer()
     st.state_text = "no map->odom observed and device map_mode unknown";
   }
 
+  // Always append what the TF layer actually did this cycle, so a silent
+  // "why is there no map frame" is answerable from this one topic.
+  st.state_text += std::string(" | map->odom: ") + map_odom_reason_;
+
   pub_status_->publish(st);
 }
 
@@ -451,7 +506,17 @@ void TfAdapterNode::onStatusTimer()
 int main(int argc, char ** argv)
 {
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<odin1_tf_adapter::TfAdapterNode>());
+  auto node = std::make_shared<odin1_tf_adapter::TfAdapterNode>();
+
+  // MultiThreaded rather than rclcpp::spin(): the odometry subscription runs at
+  // 400 Hz, and on a single-threaded executor it can starve the status timer and
+  // stall the GetDeviceState response - which is exactly what feeds the
+  // map->odom safety policy. The node's own callback groups keep the TF state
+  // consistent; mutex_ guards everything shared.
+  rclcpp::executors::MultiThreadedExecutor executor(rclcpp::ExecutorOptions(), 2);
+  executor.add_node(node);
+  executor.spin();
+
   rclcpp::shutdown();
   return 0;
 }

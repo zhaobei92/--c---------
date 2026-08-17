@@ -43,6 +43,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <string>
@@ -72,6 +73,14 @@ constexpr int RC_DEVICE_NOT_OPEN = -100;
 constexpr int RC_BUSY = -101;
 /// Added by this layer: request rejected before touching the device.
 constexpr int RC_INVALID_REQUEST = -102;
+/// Added by this layer: the process is tearing down, no new device work accepted.
+constexpr int RC_SHUTTING_DOWN = -103;
+/// Added by this layer: the device went away (or was recycled by a reconnect)
+/// part-way through a multi-step operation.
+constexpr int RC_DEVICE_LOST = -104;
+/// Added by this layer: an exception escaped an operation. The device may be in
+/// an indeterminate state; re-run switch_mode to resynchronise.
+constexpr int RC_INTERNAL_ERROR = -105;
 
 struct ControlServerOptions
 {
@@ -107,10 +116,74 @@ public:
   ControlServer(const ControlServer &) = delete;
   ControlServer & operator=(const ControlServer &) = delete;
 
-  /// Stops the control executor thread. Idempotent; also called by the dtor.
-  void shutdown();
+  // -------------------------------------------------------------------------
+  // Teardown / device-lifetime barriers.
+  //
+  // These exist because the vendor driver tears the SDK down out from under us.
+  // Its SIGINT handler runs, in this order (host_sdk_sample.cpp:352-418):
+  //     lidar_stop_stream(odinDevice) -> odinDevice = nullptr
+  //         -> lidar_system_deinit() -> g_ros_object.reset()
+  //         -> rclcpp::shutdown() -> exit(0)
+  // and its device-attach path recycles the handle with a bare
+  //     if (odinDevice) { odinDevice = nullptr; ... }   (:1298-1300)
+  // on every reconnect.
+  //
+  // A SaveMap worker can sit inside lidar_save_map() for up to 120 s, so
+  // without a barrier both of those paths can free SDK state while an SDK call
+  // is in flight. beginTeardown() must therefore be called BEFORE
+  // lidar_system_deinit(), and waitForDeviceIdle() before the handle is
+  // recycled. The driver patch wires both.
+  // -------------------------------------------------------------------------
+
+  /// Stops accepting new device work and waits (bounded) for in-flight
+  /// operations to finish. Call this before tearing the SDK down.
+  /// Safe to call repeatedly. Returns true if everything drained in time.
+  bool beginTeardown(std::chrono::milliseconds grace);
+
+  /// Waits (bounded) for in-flight device operations to finish WITHOUT
+  /// refusing future work. For the reconnect path, where the driver is about to
+  /// swap the device handle but the server keeps serving afterwards.
+  /// Returns true if everything drained in time.
+  bool waitForDeviceIdle(std::chrono::milliseconds grace);
+
+  /// beginTeardown() + stop the control executor thread. Idempotent; also
+  /// called by the destructor with the default grace.
+  void shutdown(std::chrono::milliseconds grace = std::chrono::milliseconds{130000});
 
 private:
+  /// RAII ticket for any operation that will touch the SDK.
+  ///
+  /// Construction fails (ok() == false) once beginTeardown() has run, so a
+  /// request arriving during shutdown is refused instead of racing the
+  /// teardown. While alive it keeps in_flight_ non-zero, which is what
+  /// beginTeardown()/waitForDeviceIdle() block on.
+  ///
+  /// handle() re-reads the device from the DeviceContext on every call and
+  /// compares it with the handle seen at construction, so a disconnect or a
+  /// reconnect part-way through a multi-step sequence is caught at the next
+  /// step boundary rather than being papered over with a stale pointer.
+  class DeviceSession
+  {
+public:
+    explicit DeviceSession(ControlServer & owner);
+    ~DeviceSession();
+    DeviceSession(const DeviceSession &) = delete;
+    DeviceSession & operator=(const DeviceSession &) = delete;
+
+    bool ok() const {return admitted_ && rc_ == 0;}
+    int rc() const {return rc_;}
+    /// Current handle, or nullptr with rc() updated if the device went away or
+    /// was swapped since this session started.
+    device_handle handle();
+
+private:
+    ControlServer & owner_;
+    bool admitted_ = false;
+    device_handle initial_ = nullptr;
+    int rc_ = 0;
+  };
+  friend class DeviceSession;
+
   // --- service handlers ----------------------------------------------------
   void handleLoadMap(
     const std::shared_ptr<odin1_interfaces::srv::LoadMap::Request> req,
@@ -154,9 +227,16 @@ private:
     device_handle dev, const double pos[3], const double quat_xyzw[4],
     float search_radius_m, float max_rot_deg, std::string & message);
 
+  /// Firmware versions are immutable for a given connection, so query them once
+  /// and reuse. Without this, every GetDeviceState call would put a USB control
+  /// transfer on the same channel a running SaveMap is using.
+  void fillVersions(
+    device_handle dev, std::shared_ptr<odin1_interfaces::srv::GetDeviceState::Response> res);
+
   void publishStatus();
   static const char * mapModeText(int mode);
   static const char * deviceStateText(int state);
+  static const char * rcText(int rc);
 
   rclcpp::Node::SharedPtr node_;
   DeviceContext ctx_;
@@ -169,10 +249,37 @@ private:
 
   /// Serialises multi-step device sequences against each other.
   std::timed_mutex device_op_mutex_;
-  std::atomic<bool> mode_switch_in_progress_{false};
-  /// Guards against two SaveMap goals running at once, independently of the
-  /// driver's own flag (which the legacy /tmp channel also sets).
-  std::atomic<bool> save_map_running_{false};
+
+  // --- teardown / in-flight accounting -------------------------------------
+  std::atomic<bool> accepting_{true};
+  std::atomic<int> in_flight_{0};
+  std::mutex idle_mutex_;
+  std::condition_variable idle_cv_;
+
+  // --- cached, immutable-per-connection firmware versions -------------------
+  std::mutex version_mutex_;
+  bool version_cached_ = false;
+  device_handle version_cached_for_ = nullptr;
+  std::string v_kernel_, v_mcu_, v_soc_, v_daemon_, v_slam_;
+
+  /// The single admission slot for exclusive device operations.
+  ///
+  /// Deliberately ONE compare-exchanged slot rather than two independent flags.
+  /// With a flag each, this interleaving accepts both goals:
+  ///     save_map goal   : reads mode_switch flag  -> false, proceeds
+  ///     switch_mode goal: reads save_map flag     -> false, proceeds
+  ///     save_map goal   : sets its own flag
+  ///     switch_mode goal: sets its own flag
+  /// device_op_mutex_ would still keep them from touching the SDK at the same
+  /// time, but only by making the loser fail with RC_BUSY after being told its
+  /// goal was accepted. A single slot rejects the loser up front instead.
+  enum ExclusiveOp : int
+  {
+    OP_NONE = 0,
+    OP_SAVE_MAP = 1,
+    OP_SWITCH_MODE = 2,
+  };
+  std::atomic<int> exclusive_op_{OP_NONE};
 
   rclcpp::Service<odin1_interfaces::srv::LoadMap>::SharedPtr srv_load_map_;
   rclcpp::Service<odin1_interfaces::srv::SetInitPose>::SharedPtr srv_set_init_pose_;

@@ -52,14 +52,28 @@
     # Seconds without a fresh odom -> map from the driver before the transform
     # counts as stale.
     map_odom_timeout_sec: 1.0
-    # identity : publish an identity map -> odom so the tree stays connected and
-    #            RViz/Nav2 keep working (LocalizationStatus.identity_fallback
-    #            tells consumers the map frame is not real yet)
-    # hold     : keep republishing the last correction received
-    # none     : publish nothing; map stays disconnected until relocalization
-    #            succeeds. Safest for autonomy - a planner cannot mistake an
-    #            identity fallback for a real fix.
-    map_odom_fallback: "identity"
+
+    # What to publish for map -> odom when there is no fresh fix.
+    #
+    # THE HAZARD THIS GUARDS AGAINST: publishing an identity map -> odom while the
+    # device is still relocalizing makes every lookupTransform("map", "base_link")
+    # return an odom-frame pose dressed as a map-frame pose. Nothing in the TF tree
+    # looks broken, and a planner will drive against a map it is not localized in.
+    #
+    # auto     : (default, safe) identity ONLY where the device itself defines
+    #            map == odom, i.e. map_mode 0 (odometry) or 1 (mapping). While
+    #            map_mode is 2 (relocalization) and no fix has arrived - or while
+    #            the mode is unknown - nothing is published and `map` stays
+    #            disconnected, which is a loud failure instead of a silent one.
+    # identity : always publish identity when no fix has been seen. UNSAFE FOR
+    #            AUTONOMY; for bench work and RViz only.
+    # hold     : republish the last correction with fresh stamps.
+    # none     : publish only a fresh fix, nothing else.
+    #
+    # Regardless of this setting: once a real fix has been seen, the adapter never
+    # falls back to identity again. Doing so would teleport the robot to the odom
+    # origin, which is strictly worse than letting the transform go stale.
+    map_odom_fallback: "auto"
 
     # Poll /odin1/get_device_state so LocalizationStatus can distinguish
     # "odometry mode, no map expected" from "relocalizing, still searching".

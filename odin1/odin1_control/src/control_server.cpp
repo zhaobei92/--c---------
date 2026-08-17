@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstring>
 #include <ctime>
+#include <exception>
 #include <filesystem>
 #include <iterator>
 #include <utility>
@@ -47,10 +48,124 @@ double elapsedSince(const std::chrono::steady_clock::time_point & t0)
   return std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
 }
 
+// ---------------------------------------------------------------------------
+// Goal-handle calls that must never take the process down.
+//
+// rclcpp_action throws (rclcpp::exceptions::RCLError) when a goal handle is
+// already in a terminal state - which happens on legitimate races, e.g. a
+// cancel landing while the worker is finishing. These workers run on DETACHED
+// threads, so an escaping exception is std::terminate for the whole driver
+// process, taking the point-cloud and odometry publishers with it.
+// ---------------------------------------------------------------------------
+
+template<typename GoalHandleT, typename ResultT>
+void safeSucceed(const rclcpp::Logger & log, const GoalHandleT & gh, ResultT result)
+{
+  try {
+    gh->succeed(std::move(result));
+  } catch (const std::exception & e) {
+    RCLCPP_WARN(log, "[odin1_control] could not mark goal succeeded: %s", e.what());
+  }
+}
+
+template<typename GoalHandleT, typename ResultT>
+void safeAbort(const rclcpp::Logger & log, const GoalHandleT & gh, ResultT result)
+{
+  try {
+    gh->abort(std::move(result));
+  } catch (const std::exception & e) {
+    RCLCPP_WARN(log, "[odin1_control] could not mark goal aborted: %s", e.what());
+  }
+}
+
+template<typename GoalHandleT, typename ResultT>
+void safeCanceled(const rclcpp::Logger & log, const GoalHandleT & gh, ResultT result)
+{
+  try {
+    gh->canceled(std::move(result));
+  } catch (const std::exception & e) {
+    RCLCPP_WARN(log, "[odin1_control] could not mark goal canceled: %s", e.what());
+  }
+}
+
+template<typename GoalHandleT, typename FeedbackT>
+void safeFeedback(const rclcpp::Logger & log, const GoalHandleT & gh, FeedbackT fb)
+{
+  try {
+    if (gh->is_active()) {
+      gh->publish_feedback(std::move(fb));
+    }
+  } catch (const std::exception & e) {
+    RCLCPP_DEBUG(log, "[odin1_control] feedback dropped: %s", e.what());
+  }
+}
+
 }  // namespace
 
 // ---------------------------------------------------------------------------
-// construction
+// DeviceSession
+// ---------------------------------------------------------------------------
+
+ControlServer::DeviceSession::DeviceSession(ControlServer & owner)
+: owner_(owner)
+{
+  if (!owner_.accepting_.load()) {
+    rc_ = RC_SHUTTING_DOWN;
+    return;
+  }
+  owner_.in_flight_.fetch_add(1);
+  admitted_ = true;
+
+  // Re-check after registering: beginTeardown() may have flipped the flag
+  // between our test and the increment. Registering first and then re-testing
+  // means we either see the flag (and back out) or beginTeardown sees our
+  // increment (and waits). There is no interleaving where both miss.
+  if (!owner_.accepting_.load()) {
+    rc_ = RC_SHUTTING_DOWN;
+    return;
+  }
+
+  int rc = 0;
+  initial_ = owner_.device(rc);
+  rc_ = rc;
+}
+
+ControlServer::DeviceSession::~DeviceSession()
+{
+  if (!admitted_) {
+    return;
+  }
+  if (owner_.in_flight_.fetch_sub(1) == 1) {
+    std::lock_guard<std::mutex> lock(owner_.idle_mutex_);
+    owner_.idle_cv_.notify_all();
+  }
+}
+
+device_handle ControlServer::DeviceSession::handle()
+{
+  if (!admitted_) {
+    return nullptr;
+  }
+  int rc = 0;
+  device_handle current = owner_.device(rc);
+  if (!current) {
+    rc_ = rc;
+    return nullptr;
+  }
+  if (initial_ && current != initial_) {
+    // The driver recycled the handle mid-operation, which it does on every
+    // reconnect (host_sdk_sample.cpp:1298-1300). Continuing with either handle
+    // would be undefined; fail the operation instead.
+    rc_ = RC_DEVICE_LOST;
+    return nullptr;
+  }
+  initial_ = current;
+  rc_ = 0;
+  return current;
+}
+
+// ---------------------------------------------------------------------------
+// construction / teardown
 // ---------------------------------------------------------------------------
 
 ControlServer::ControlServer(
@@ -123,7 +238,12 @@ ControlServer::ControlServer(
   running_ = true;
   executor_thread_ = std::thread(
     [this]() {
-      executor_->spin();
+      try {
+        executor_->spin();
+      } catch (const std::exception & e) {
+        RCLCPP_ERROR(
+          node_->get_logger(), "[odin1_control] control executor stopped: %s", e.what());
+      }
     });
 
   RCLCPP_INFO(
@@ -139,36 +259,43 @@ ControlServer::~ControlServer()
   shutdown();
 }
 
-void ControlServer::shutdown()
+bool ControlServer::waitForDeviceIdle(std::chrono::milliseconds grace)
 {
+  std::unique_lock<std::mutex> lock(idle_mutex_);
+  const bool drained = idle_cv_.wait_for(
+    lock, grace, [this] {return in_flight_.load() == 0;});
+  if (!drained) {
+    RCLCPP_ERROR(
+      node_->get_logger(),
+      "[odin1_control] %d device operation(s) still in flight after %ld ms. "
+      "lidar_save_map() is not interruptible, so this can happen on Ctrl+C during a "
+      "save; the SDK may be torn down underneath it.",
+      in_flight_.load(), static_cast<long>(grace.count()));
+  }
+  return drained;
+}
+
+bool ControlServer::beginTeardown(std::chrono::milliseconds grace)
+{
+  const bool was_accepting = accepting_.exchange(false);
+  if (was_accepting && in_flight_.load() > 0) {
+    RCLCPP_INFO(
+      node_->get_logger(),
+      "[odin1_control] teardown requested, waiting up to %ld ms for %d in-flight "
+      "operation(s)", static_cast<long>(grace.count()), in_flight_.load());
+  }
+  return waitForDeviceIdle(grace);
+}
+
+void ControlServer::shutdown(std::chrono::milliseconds grace)
+{
+  // beginTeardown() first and unconditionally: even if shutdown() has already
+  // run once, a later caller wants the "no new work + drained" guarantee.
+  beginTeardown(grace);
+
   if (!running_.exchange(false)) {
     return;
   }
-
-  // SaveMap and SwitchMode execute on detached worker threads that capture
-  // `this`. Ctrl+C during a save must not pull the object out from under them,
-  // so wait for the in-flight one to finish. lidar_save_map()'s own cap is 120 s
-  // and it cannot be interrupted; bound the wait a little above that and log
-  // loudly if we ever hit the bound rather than blocking teardown forever.
-  const auto deadline = std::chrono::steady_clock::now() + 130s;
-  bool warned = false;
-  while (save_map_running_.load() || mode_switch_in_progress_.load()) {
-    if (std::chrono::steady_clock::now() > deadline) {
-      RCLCPP_ERROR(
-        node_->get_logger(),
-        "[odin1_control] a control operation is still running after 130 s; "
-        "shutting down anyway");
-      break;
-    }
-    if (!warned) {
-      warned = true;
-      RCLCPP_INFO(
-        node_->get_logger(),
-        "[odin1_control] waiting for an in-flight control operation to finish...");
-    }
-    std::this_thread::sleep_for(50ms);
-  }
-
   if (executor_) {
     executor_->cancel();
   }
@@ -211,6 +338,10 @@ int ControlServer::applyInitPose(
   device_handle dev, const double pos[3], const double quat_xyzw[4],
   float search_radius_m, float max_rot_deg, std::string & message)
 {
+  if (!std::isfinite(pos[0]) || !std::isfinite(pos[1]) || !std::isfinite(pos[2])) {
+    message = "init pose position contains a non-finite value";
+    return RC_INVALID_REQUEST;
+  }
   const double n = std::sqrt(
     quat_xyzw[0] * quat_xyzw[0] + quat_xyzw[1] * quat_xyzw[1] +
     quat_xyzw[2] * quat_xyzw[2] + quat_xyzw[3] * quat_xyzw[3]);
@@ -271,6 +402,49 @@ const char * ControlServer::deviceStateText(int state)
   }
 }
 
+const char * ControlServer::rcText(int rc)
+{
+  switch (rc) {
+    case 0: return "ok";
+    case RC_DEVICE_NOT_OPEN: return "driver has not opened the device yet";
+    case RC_BUSY: return "another control operation is in progress";
+    case RC_INVALID_REQUEST: return "invalid request";
+    case RC_SHUTTING_DOWN: return "driver is shutting down";
+    case RC_DEVICE_LOST: return "the device disconnected or was reconnected mid-operation";
+    case RC_INTERNAL_ERROR: return "internal error";
+    case -2: return "device is busy with a file transfer";
+    default: return "device/SDK error";
+  }
+}
+
+void ControlServer::fillVersions(
+  device_handle dev, std::shared_ptr<odin1_interfaces::srv::GetDeviceState::Response> res)
+{
+  std::lock_guard<std::mutex> lock(version_mutex_);
+  if (!version_cached_ || version_cached_for_ != dev) {
+    lidar_fireware_version_t ver{};
+    if (lidar_get_version(dev, &ver) != 0) {
+      return;   // leave the version strings empty; not worth failing the call
+    }
+    auto fmt = [](const lidar_version_t & v) {
+        return std::to_string(v.major) + "." + std::to_string(v.minor) + "." +
+               std::to_string(v.patch);
+      };
+    v_kernel_ = fmt(ver.kernel_version);
+    v_mcu_ = fmt(ver.mcu_version);
+    v_soc_ = fmt(ver.soc_version);
+    v_daemon_ = fmt(ver.Daemon_proc_version);
+    v_slam_ = fmt(ver.slam_version);
+    version_cached_ = true;
+    version_cached_for_ = dev;
+  }
+  res->kernel_version = v_kernel_;
+  res->mcu_version = v_mcu_;
+  res->soc_version = v_soc_;
+  res->daemon_version = v_daemon_;
+  res->slam_version = v_slam_;
+}
+
 // ---------------------------------------------------------------------------
 // LoadMap
 // ---------------------------------------------------------------------------
@@ -280,57 +454,67 @@ void ControlServer::handleLoadMap(
   std::shared_ptr<odin1_interfaces::srv::LoadMap::Response> res)
 {
   res->activated = false;
+  res->success = false;
 
-  int rc = 0;
-  device_handle dev = device(rc);
-  if (!dev) {
-    res->success = false;
+  try {
+    DeviceSession session(*this);
+    if (!session.ok()) {
+      res->rc = session.rc();
+      res->message = rcText(session.rc());
+      return;
+    }
+
+    std::error_code ec;
+    if (req->map_path.empty() || !std::filesystem::exists(req->map_path, ec)) {
+      res->rc = RC_INVALID_REQUEST;
+      res->message = "map_path does not exist on the driver host: " + req->map_path;
+      return;
+    }
+
+    std::unique_lock<std::timed_mutex> lock(device_op_mutex_, std::defer_lock);
+    if (!lock.try_lock_for(opt_.lock_timeout)) {
+      res->rc = RC_BUSY;
+      res->message = rcText(RC_BUSY);
+      return;
+    }
+
+    // The vendor driver retries this three times on connect
+    // (host_sdk_sample.cpp:1737-1749) because the chunked transfer can fail on a
+    // busy bus; mirror that behaviour, caller-configurable.
+    const int attempts = 1 + static_cast<int>(req->retries);
+    int rc = RC_DEVICE_LOST;
+    for (int i = 0; i < attempts; ++i) {
+      device_handle dev = session.handle();
+      if (!dev) {
+        rc = session.rc();
+        break;
+      }
+      rc = lidar_set_relocalization_map(dev, req->map_path.c_str());
+      if (rc == 0) {
+        break;
+      }
+      RCLCPP_WARN(
+        node_->get_logger(), "[odin1_control] load_map attempt %d/%d failed rc=%d",
+        i + 1, attempts, rc);
+    }
+
     res->rc = rc;
-    res->message = "driver has not opened the device yet";
-    return;
-  }
-
-  std::error_code ec;
-  if (req->map_path.empty() || !std::filesystem::exists(req->map_path, ec)) {
-    res->success = false;
-    res->rc = RC_INVALID_REQUEST;
-    res->message = "map_path does not exist on the driver host: " + req->map_path;
-    return;
-  }
-
-  std::unique_lock<std::timed_mutex> lock(device_op_mutex_, std::defer_lock);
-  if (!lock.try_lock_for(opt_.lock_timeout)) {
-    res->success = false;
-    res->rc = RC_BUSY;
-    res->message = "another control operation is in progress";
-    return;
-  }
-
-  // The vendor driver retries this three times on connect
-  // (host_sdk_sample.cpp:1737-1749) because the chunked transfer can fail on a
-  // busy bus; mirror that behaviour, caller-configurable.
-  const int attempts = 1 + static_cast<int>(req->retries);
-  for (int i = 0; i < attempts; ++i) {
-    rc = lidar_set_relocalization_map(dev, req->map_path.c_str());
+    res->success = (rc == 0);
     if (rc == 0) {
-      break;
+      if (ctx_.set_reloc_map_path) {
+        ctx_.set_reloc_map_path(req->map_path);
+      }
+      res->message =
+        "map uploaded. It is NOT active yet: the on-device algorithm consumes a map "
+        "at stream start. Call the switch_mode action with map_mode=2 to activate it.";
+    } else {
+      res->message = std::string("lidar_set_relocalization_map failed: ") + rcText(rc);
     }
-    RCLCPP_WARN(
-      node_->get_logger(), "[odin1_control] load_map attempt %d/%d failed rc=%d",
-      i + 1, attempts, rc);
-  }
-
-  res->rc = rc;
-  res->success = (rc == 0);
-  if (rc == 0) {
-    if (ctx_.set_reloc_map_path) {
-      ctx_.set_reloc_map_path(req->map_path);
-    }
-    res->message =
-      "map uploaded. It is NOT active yet: the on-device algorithm consumes a map "
-      "at stream start. Call the switch_mode action with map_mode=2 to activate it.";
-  } else {
-    res->message = "lidar_set_relocalization_map failed";
+  } catch (const std::exception & e) {
+    res->success = false;
+    res->rc = RC_INTERNAL_ERROR;
+    res->message = std::string("internal error: ") + e.what();
+    RCLCPP_ERROR(node_->get_logger(), "[odin1_control] load_map threw: %s", e.what());
   }
 }
 
@@ -343,48 +527,61 @@ void ControlServer::handleSetInitPose(
   std::shared_ptr<odin1_interfaces::srv::SetInitPose::Response> res)
 {
   res->applied_immediately = false;
+  res->success = false;
 
-  int rc = 0;
-  device_handle dev = device(rc);
-  if (!dev) {
-    res->success = false;
+  try {
+    DeviceSession session(*this);
+    if (!session.ok()) {
+      res->rc = session.rc();
+      res->message = rcText(session.rc());
+      return;
+    }
+
+    std::unique_lock<std::timed_mutex> lock(device_op_mutex_, std::defer_lock);
+    if (!lock.try_lock_for(opt_.lock_timeout)) {
+      res->rc = RC_BUSY;
+      res->message = rcText(RC_BUSY);
+      return;
+    }
+
+    device_handle dev = session.handle();
+    if (!dev) {
+      res->rc = session.rc();
+      res->message = rcText(session.rc());
+      return;
+    }
+
+    const auto & p = req->pose.pose.pose.position;
+    const auto & q = req->pose.pose.pose.orientation;
+    const double pos[3] = {p.x, p.y, p.z};
+    const double quat[4] = {q.x, q.y, q.z, q.w};
+
+    std::string message;
+    const int rc = applyInitPose(
+      dev, pos, quat, req->search_radius_m, req->max_rot_deg, message);
     res->rc = rc;
-    res->message = "driver has not opened the device yet";
-    return;
-  }
+    res->success = (rc == 0);
+    if (rc != 0) {
+      res->message = message.empty() ? rcText(rc) : message;
+      return;
+    }
 
-  std::unique_lock<std::timed_mutex> lock(device_op_mutex_, std::defer_lock);
-  if (!lock.try_lock_for(opt_.lock_timeout)) {
+    // The device only consumes init_pos when the algorithm starts. Report which
+    // situation the caller is in rather than pretending the pose took effect.
+    lidar_device_initial_state_e state = LIDAR_DEVICE_NONE;
+    const bool streaming =
+      (lidar_get_device_state(&state) == 0 && state == LIDAR_DEVICE_STREAMING);
+    res->applied_immediately = !streaming;
+    res->message = streaming
+      ? "init pose staged on the device. The algorithm is already streaming, so it will "
+        "NOT be used until the stream restarts - call the switch_mode action to apply it."
+      : "init pose staged; it will be consumed on the next stream start.";
+  } catch (const std::exception & e) {
     res->success = false;
-    res->rc = RC_BUSY;
-    res->message = "another control operation is in progress";
-    return;
+    res->rc = RC_INTERNAL_ERROR;
+    res->message = std::string("internal error: ") + e.what();
+    RCLCPP_ERROR(node_->get_logger(), "[odin1_control] set_init_pose threw: %s", e.what());
   }
-
-  const auto & p = req->pose.pose.pose.position;
-  const auto & q = req->pose.pose.pose.orientation;
-  const double pos[3] = {p.x, p.y, p.z};
-  const double quat[4] = {q.x, q.y, q.z, q.w};
-
-  std::string message;
-  rc = applyInitPose(dev, pos, quat, req->search_radius_m, req->max_rot_deg, message);
-  res->rc = rc;
-  res->success = (rc == 0);
-  if (rc != 0) {
-    res->message = message.empty() ? "failed to set init pose" : message;
-    return;
-  }
-
-  // The device only consumes init_pos when the algorithm starts. Report which
-  // situation the caller is in rather than pretending the pose took effect.
-  lidar_device_initial_state_e state = LIDAR_DEVICE_NONE;
-  const bool streaming =
-    (lidar_get_device_state(&state) == 0 && state == LIDAR_DEVICE_STREAMING);
-  res->applied_immediately = !streaming;
-  res->message = streaming
-    ? "init pose staged on the device. The algorithm is already streaming, so it will "
-      "NOT be used until the stream restarts - call the switch_mode action to apply it."
-    : "init pose staged; it will be consumed on the next stream start.";
 }
 
 // ---------------------------------------------------------------------------
@@ -395,29 +592,42 @@ void ControlServer::handleResetAlgo(
   const std::shared_ptr<odin1_interfaces::srv::ResetAlgo::Request> /*req*/,
   std::shared_ptr<odin1_interfaces::srv::ResetAlgo::Response> res)
 {
-  int rc = 0;
-  device_handle dev = device(rc);
-  if (!dev) {
-    res->success = false;
+  res->success = false;
+
+  try {
+    DeviceSession session(*this);
+    if (!session.ok()) {
+      res->rc = session.rc();
+      res->message = rcText(session.rc());
+      return;
+    }
+
+    std::unique_lock<std::timed_mutex> lock(device_op_mutex_, std::defer_lock);
+    if (!lock.try_lock_for(opt_.lock_timeout)) {
+      res->rc = RC_BUSY;
+      res->message = rcText(RC_BUSY);
+      return;
+    }
+
+    device_handle dev = session.handle();
+    if (!dev) {
+      res->rc = session.rc();
+      res->message = rcText(session.rc());
+      return;
+    }
+
+    const int rc = setIntParam(dev, kParamAlgoReset, 1);
     res->rc = rc;
-    res->message = "driver has not opened the device yet";
-    return;
-  }
-
-  std::unique_lock<std::timed_mutex> lock(device_op_mutex_, std::defer_lock);
-  if (!lock.try_lock_for(opt_.lock_timeout)) {
+    res->success = (rc == 0);
+    res->message = (rc == 0)
+      ? "algo_reset sent; SLAM will re-initialise"
+      : std::string("algo_reset failed: ") + rcText(rc);
+  } catch (const std::exception & e) {
     res->success = false;
-    res->rc = RC_BUSY;
-    res->message = "another control operation is in progress";
-    return;
+    res->rc = RC_INTERNAL_ERROR;
+    res->message = std::string("internal error: ") + e.what();
+    RCLCPP_ERROR(node_->get_logger(), "[odin1_control] reset_algo threw: %s", e.what());
   }
-
-  rc = setIntParam(dev, kParamAlgoReset, 1);
-  res->rc = rc;
-  res->success = (rc == 0);
-  res->message = (rc == 0)
-    ? "algo_reset sent; SLAM will re-initialise"
-    : (rc == -2 ? "device is busy with a file transfer" : "algo_reset failed");
 }
 
 // ---------------------------------------------------------------------------
@@ -428,121 +638,131 @@ void ControlServer::handleGetDeviceState(
   const std::shared_ptr<odin1_interfaces::srv::GetDeviceState::Request> /*req*/,
   std::shared_ptr<odin1_interfaces::srv::GetDeviceState::Response> res)
 {
+  res->success = false;
   res->driver_version = ctx_.driver_version;
-  res->connected = ctx_.is_connected ? ctx_.is_connected() : false;
-  res->map_transfer_in_progress =
-    (ctx_.is_map_transfer_in_progress ? ctx_.is_map_transfer_in_progress() : false) ||
-    save_map_running_.load();
-  res->mode_switch_in_progress = mode_switch_in_progress_.load();
-  res->relocalization_map_path = ctx_.get_reloc_map_path ? ctx_.get_reloc_map_path() : "";
+  res->status.valid = false;
+  res->status.cpu_use_rate.assign(8, 0);
 
-  const int map_mode = ctx_.get_map_mode ? ctx_.get_map_mode() : -1;
-  res->map_mode = static_cast<uint8_t>(map_mode < 0 ? 0 : map_mode);
-  res->map_mode_text = mapModeText(map_mode);
+  try {
+    // Deliberately does NOT take device_op_mutex_: a status query must stay
+    // answerable while a 120 s SaveMap holds the device. The only SDK calls
+    // below are lidar_get_device_state() (handle-free, reads cached heartbeat
+    // state) and a version query that is cached after the first success.
+    DeviceSession session(*this);
 
-  // lidar_get_device_state() deliberately takes no handle: it reports the
-  // globally tracked heartbeat state and stays valid across reconnects.
-  lidar_device_initial_state_e state = LIDAR_DEVICE_NONE;
-  const int state_rc = lidar_get_device_state(&state);
-  res->initial_state = static_cast<uint8_t>(state);
-  res->state_text = deviceStateText(static_cast<int>(state));
+    res->connected = ctx_.is_connected ? ctx_.is_connected() : false;
+    const int op = exclusive_op_.load();
+    res->map_transfer_in_progress =
+      (ctx_.is_map_transfer_in_progress ? ctx_.is_map_transfer_in_progress() : false) ||
+      op == OP_SAVE_MAP;
+    res->mode_switch_in_progress = (op == OP_SWITCH_MODE);
+    res->relocalization_map_path = ctx_.get_reloc_map_path ? ctx_.get_reloc_map_path() : "";
 
-  int rc = 0;
-  device_handle dev = device(rc);
-  if (dev) {
-    lidar_fireware_version_t ver{};
-    if (lidar_get_version(dev, &ver) == 0) {
-      auto fmt = [](const lidar_version_t & v) {
-          return std::to_string(v.major) + "." + std::to_string(v.minor) + "." +
-                 std::to_string(v.patch);
-        };
-      res->kernel_version = fmt(ver.kernel_version);
-      res->mcu_version = fmt(ver.mcu_version);
-      res->soc_version = fmt(ver.soc_version);
-      res->daemon_version = fmt(ver.Daemon_proc_version);
-      res->slam_version = fmt(ver.slam_version);
+    const int map_mode = ctx_.get_map_mode ? ctx_.get_map_mode() : -1;
+    res->map_mode = static_cast<uint8_t>(map_mode < 0 ? 0 : map_mode);
+    res->map_mode_text = mapModeText(map_mode);
+
+    if (!session.ok()) {
+      res->rc = session.rc();
+      return;
     }
-  }
 
-  // Device status snapshot (optional driver hook).
-  auto & st = res->status;
-  st.valid = false;
-  st.cpu_use_rate.assign(8, 0);
-  if (ctx_.get_device_status) {
-    lidar_device_status_t s{};
-    uint64_t stamp_ns = 0;
-    if (ctx_.get_device_status(s, stamp_ns)) {
-      st.valid = true;
-      st.stamp.sec = static_cast<int32_t>(stamp_ns / 1000000000ULL);
-      st.stamp.nanosec = static_cast<uint32_t>(stamp_ns % 1000000000ULL);
-      st.uptime_seconds = s.uptime_seconds;
-      st.package_temp = s.soc_thermal.package_temp;
-      st.cpu_temp = s.soc_thermal.cpu_temp;
-      st.center_temp = s.soc_thermal.center_temp;
-      st.gpu_temp = s.soc_thermal.gpu_temp;
-      st.npu_temp = s.soc_thermal.npu_temp;
-      for (size_t i = 0; i < st.cpu_use_rate.size(); ++i) {
-        st.cpu_use_rate[i] = s.cpu_use_rate[i];
+    // lidar_get_device_state() deliberately takes no handle: it reports the
+    // globally tracked heartbeat state and stays valid across reconnects.
+    lidar_device_initial_state_e state = LIDAR_DEVICE_NONE;
+    const int state_rc = lidar_get_device_state(&state);
+    res->initial_state = static_cast<uint8_t>(state);
+    res->state_text = deviceStateText(static_cast<int>(state));
+
+    if (device_handle dev = session.handle()) {
+      fillVersions(dev, res);
+    }
+
+    if (ctx_.get_device_status) {
+      lidar_device_status_t s{};
+      uint64_t stamp_ns = 0;
+      if (ctx_.get_device_status(s, stamp_ns)) {
+        auto & st = res->status;
+        st.valid = true;
+        st.stamp.sec = static_cast<int32_t>(stamp_ns / 1000000000ULL);
+        st.stamp.nanosec = static_cast<uint32_t>(stamp_ns % 1000000000ULL);
+        st.uptime_seconds = s.uptime_seconds;
+        st.package_temp = s.soc_thermal.package_temp;
+        st.cpu_temp = s.soc_thermal.cpu_temp;
+        st.center_temp = s.soc_thermal.center_temp;
+        st.gpu_temp = s.soc_thermal.gpu_temp;
+        st.npu_temp = s.soc_thermal.npu_temp;
+        st.cpu_use_rate.assign(std::begin(s.cpu_use_rate), std::end(s.cpu_use_rate));
+        st.ram_use_rate = s.ram_use_rate;
+        st.rgb_configured_odr = s.rgb_sensor.configured_odr;
+        st.rgb_tx_odr = s.rgb_sensor.tx_odr;
+        st.dtof_configured_odr = s.dtof_sensor.configured_odr;
+        st.dtof_tx_odr = s.dtof_sensor.tx_odr;
+        st.dtof_subframe_odr = s.dtof_sensor.subframe_odr;
+        st.dtof_tx_temp = s.dtof_sensor.tx_temp;
+        st.dtof_rx_temp = s.dtof_sensor.rx_temp;
+        st.imu_configured_odr = s.imu_sensor.configured_odr;
+        st.imu_tx_odr = s.imu_sensor.tx_odr;
+        st.slam_cloud_tx_odr = s.slam_cloud_tx_odr;
+        st.slam_odom_tx_odr = s.slam_odom_tx_odr;
+        st.slam_odom_highfreq_tx_odr = s.slam_odom_highfreq_tx_odr;
       }
-      st.ram_use_rate = s.ram_use_rate;
-      st.rgb_configured_odr = s.rgb_sensor.configured_odr;
-      st.rgb_tx_odr = s.rgb_sensor.tx_odr;
-      st.dtof_configured_odr = s.dtof_sensor.configured_odr;
-      st.dtof_tx_odr = s.dtof_sensor.tx_odr;
-      st.dtof_subframe_odr = s.dtof_sensor.subframe_odr;
-      st.dtof_tx_temp = s.dtof_sensor.tx_temp;
-      st.dtof_rx_temp = s.dtof_sensor.rx_temp;
-      st.imu_configured_odr = s.imu_sensor.configured_odr;
-      st.imu_tx_odr = s.imu_sensor.tx_odr;
-      st.slam_cloud_tx_odr = s.slam_cloud_tx_odr;
-      st.slam_odom_tx_odr = s.slam_odom_tx_odr;
-      st.slam_odom_highfreq_tx_odr = s.slam_odom_highfreq_tx_odr;
     }
-  }
 
-  res->rc = res->connected ? state_rc : RC_DEVICE_NOT_OPEN;
-  res->success = (res->rc == 0);
+    res->rc = state_rc;
+    res->success = (state_rc == 0);
+  } catch (const std::exception & e) {
+    res->success = false;
+    res->rc = RC_INTERNAL_ERROR;
+    RCLCPP_ERROR(node_->get_logger(), "[odin1_control] get_device_state threw: %s", e.what());
+  }
 }
 
 void ControlServer::publishStatus()
 {
-  // Deliberately does NOT go through handleGetDeviceState: that call queries
-  // lidar_get_version() over USB, and doing so once per second would add
-  // pointless traffic on the same control channel the data path shares.
-  if (!pub_status_ || !ctx_.get_device_status) {
-    return;
-  }
-  lidar_device_status_t s{};
-  uint64_t stamp_ns = 0;
-  if (!ctx_.get_device_status(s, stamp_ns)) {
-    return;
-  }
+  // Deliberately does NOT go through handleGetDeviceState: that call can query
+  // firmware versions over USB, and doing so once per second would add pointless
+  // traffic on the same control channel the data path shares.
+  try {
+    if (!pub_status_ || !ctx_.get_device_status) {
+      return;
+    }
+    lidar_device_status_t s{};
+    uint64_t stamp_ns = 0;
+    if (!ctx_.get_device_status(s, stamp_ns)) {
+      return;
+    }
 
-  odin1_interfaces::msg::DeviceStatus st;
-  st.valid = true;
-  st.stamp.sec = static_cast<int32_t>(stamp_ns / 1000000000ULL);
-  st.stamp.nanosec = static_cast<uint32_t>(stamp_ns % 1000000000ULL);
-  st.uptime_seconds = s.uptime_seconds;
-  st.package_temp = s.soc_thermal.package_temp;
-  st.cpu_temp = s.soc_thermal.cpu_temp;
-  st.center_temp = s.soc_thermal.center_temp;
-  st.gpu_temp = s.soc_thermal.gpu_temp;
-  st.npu_temp = s.soc_thermal.npu_temp;
-  st.cpu_use_rate.assign(std::begin(s.cpu_use_rate), std::end(s.cpu_use_rate));
-  st.ram_use_rate = s.ram_use_rate;
-  st.rgb_configured_odr = s.rgb_sensor.configured_odr;
-  st.rgb_tx_odr = s.rgb_sensor.tx_odr;
-  st.dtof_configured_odr = s.dtof_sensor.configured_odr;
-  st.dtof_tx_odr = s.dtof_sensor.tx_odr;
-  st.dtof_subframe_odr = s.dtof_sensor.subframe_odr;
-  st.dtof_tx_temp = s.dtof_sensor.tx_temp;
-  st.dtof_rx_temp = s.dtof_sensor.rx_temp;
-  st.imu_configured_odr = s.imu_sensor.configured_odr;
-  st.imu_tx_odr = s.imu_sensor.tx_odr;
-  st.slam_cloud_tx_odr = s.slam_cloud_tx_odr;
-  st.slam_odom_tx_odr = s.slam_odom_tx_odr;
-  st.slam_odom_highfreq_tx_odr = s.slam_odom_highfreq_tx_odr;
-  pub_status_->publish(st);
+    odin1_interfaces::msg::DeviceStatus st;
+    st.valid = true;
+    st.stamp.sec = static_cast<int32_t>(stamp_ns / 1000000000ULL);
+    st.stamp.nanosec = static_cast<uint32_t>(stamp_ns % 1000000000ULL);
+    st.uptime_seconds = s.uptime_seconds;
+    st.package_temp = s.soc_thermal.package_temp;
+    st.cpu_temp = s.soc_thermal.cpu_temp;
+    st.center_temp = s.soc_thermal.center_temp;
+    st.gpu_temp = s.soc_thermal.gpu_temp;
+    st.npu_temp = s.soc_thermal.npu_temp;
+    st.cpu_use_rate.assign(std::begin(s.cpu_use_rate), std::end(s.cpu_use_rate));
+    st.ram_use_rate = s.ram_use_rate;
+    st.rgb_configured_odr = s.rgb_sensor.configured_odr;
+    st.rgb_tx_odr = s.rgb_sensor.tx_odr;
+    st.dtof_configured_odr = s.dtof_sensor.configured_odr;
+    st.dtof_tx_odr = s.dtof_sensor.tx_odr;
+    st.dtof_subframe_odr = s.dtof_sensor.subframe_odr;
+    st.dtof_tx_temp = s.dtof_sensor.tx_temp;
+    st.dtof_rx_temp = s.dtof_sensor.rx_temp;
+    st.imu_configured_odr = s.imu_sensor.configured_odr;
+    st.imu_tx_odr = s.imu_sensor.tx_odr;
+    st.slam_cloud_tx_odr = s.slam_cloud_tx_odr;
+    st.slam_odom_tx_odr = s.slam_odom_tx_odr;
+    st.slam_odom_highfreq_tx_odr = s.slam_odom_highfreq_tx_odr;
+    pub_status_->publish(st);
+  } catch (const std::exception & e) {
+    RCLCPP_WARN_THROTTLE(
+      node_->get_logger(), *node_->get_clock(), 10000,
+      "[odin1_control] device_status publish failed: %s", e.what());
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -552,8 +772,8 @@ void ControlServer::publishStatus()
 rclcpp_action::GoalResponse ControlServer::saveMapGoal(
   const rclcpp_action::GoalUUID & /*uuid*/, std::shared_ptr<const SaveMap::Goal> /*goal*/)
 {
-  if (save_map_running_.load()) {
-    RCLCPP_WARN(node_->get_logger(), "[odin1_control] save_map rejected: already running");
+  if (!accepting_.load()) {
+    RCLCPP_WARN(node_->get_logger(), "[odin1_control] save_map rejected: shutting down");
     return rclcpp_action::GoalResponse::REJECT;
   }
   if (ctx_.is_map_transfer_in_progress && ctx_.is_map_transfer_in_progress()) {
@@ -569,6 +789,17 @@ rclcpp_action::GoalResponse ControlServer::saveMapGoal(
       node_->get_logger(),
       "[odin1_control] save_map rejected: map_mode is %s, the device only saves in "
       "mapping mode (1)", mapModeText(map_mode));
+    return rclcpp_action::GoalResponse::REJECT;
+  }
+
+  // Claim the exclusive slot HERE, not in the execute callback: checking in the
+  // goal callback and setting in the worker leaves a window where two goals both
+  // pass and both get accepted. saveMapExecute()'s guard always releases it.
+  int expected = OP_NONE;
+  if (!exclusive_op_.compare_exchange_strong(expected, OP_SAVE_MAP)) {
+    RCLCPP_WARN(
+      node_->get_logger(), "[odin1_control] save_map rejected: %s already running",
+      expected == OP_SAVE_MAP ? "a save_map" : "a switch_mode");
     return rclcpp_action::GoalResponse::REJECT;
   }
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
@@ -594,17 +825,14 @@ void ControlServer::saveMapAccepted(std::shared_ptr<GoalHandleSaveMap> gh)
 
 void ControlServer::saveMapExecute(std::shared_ptr<GoalHandleSaveMap> gh)
 {
-  const auto goal = gh->get_goal();
   auto result = std::make_shared<SaveMap::Result>();
   const auto t0 = std::chrono::steady_clock::now();
 
-  save_map_running_ = true;
-  // `armed` is only set once we have actually taken the driver's transfer flag,
-  // so an early abort can never clear a transfer started through the legacy
-  // /tmp/odin_command.txt channel.
+  // The exclusive slot was claimed by saveMapGoal(); this guard is the single
+  // owner of releasing it, on every path including exceptions.
   struct Guard
   {
-    std::atomic<bool> & flag;
+    std::atomic<int> & slot;
     DeviceContext & ctx;
     bool armed = false;
     ~Guard()
@@ -612,135 +840,180 @@ void ControlServer::saveMapExecute(std::shared_ptr<GoalHandleSaveMap> gh)
       if (armed && ctx.set_map_transfer_in_progress) {
         ctx.set_map_transfer_in_progress(false);
       }
-      flag = false;
+      slot.store(OP_NONE);
     }
-  } guard{save_map_running_, ctx_, false};
+  } guard{exclusive_op_, ctx_, false};
 
-  int rc = 0;
-  device_handle dev = device(rc);
-  if (!dev) {
-    result->rc = rc;
-    result->success = false;
-    result->message = "driver has not opened the device yet";
-    gh->abort(result);
-    return;
-  }
+  try {
+    // This session is what keeps beginTeardown()/waitForDeviceIdle() blocked for
+    // the whole save, so the driver cannot call lidar_system_deinit() or recycle
+    // the handle while lidar_save_map() is running.
+    DeviceSession session(*this);
+    if (!session.ok()) {
+      result->rc = session.rc();
+      result->success = false;
+      result->message = rcText(session.rc());
+      safeAbort(node_->get_logger(), gh, result);
+      return;
+    }
 
-  std::unique_lock<std::timed_mutex> lock(device_op_mutex_, std::defer_lock);
-  if (!lock.try_lock_for(opt_.lock_timeout)) {
-    result->rc = RC_BUSY;
-    result->success = false;
-    result->message = "another control operation is in progress";
-    gh->abort(result);
-    return;
-  }
+    std::unique_lock<std::timed_mutex> lock(device_op_mutex_, std::defer_lock);
+    if (!lock.try_lock_for(opt_.lock_timeout)) {
+      result->rc = RC_BUSY;
+      result->success = false;
+      result->message = rcText(RC_BUSY);
+      safeAbort(node_->get_logger(), gh, result);
+      return;
+    }
 
-  // Destination resolution mirrors the driver's own defaults
-  // (host_sdk_sample.cpp:519-520) so both entry points agree on where maps land.
-  std::string dir = goal->dest_dir;
-  if (dir.empty() && ctx_.get_configured_map_dir) {
-    dir = ctx_.get_configured_map_dir();
-  }
-  if (dir.empty() && ctx_.get_default_map_dir) {
-    dir = ctx_.get_default_map_dir();
-  }
-  if (dir.empty()) {
-    result->rc = RC_INVALID_REQUEST;
-    result->success = false;
-    result->message = "no destination directory: pass dest_dir, or set "
-      "mapping_result_dest_dir in control_command.yaml";
-    gh->abort(result);
-    return;
-  }
+    const auto goal = gh->get_goal();
 
-  std::string name = goal->file_name;
-  if (name.empty() && ctx_.get_configured_map_name) {
-    name = ctx_.get_configured_map_name();
-  }
-  if (name.empty()) {
-    name = "map_" + timestampNow() + ".bin";
-  }
+    // Destination resolution mirrors the driver's own defaults
+    // (host_sdk_sample.cpp:519-520) so both entry points agree on where maps land.
+    std::string dir = goal->dest_dir;
+    if (dir.empty() && ctx_.get_configured_map_dir) {
+      dir = ctx_.get_configured_map_dir();
+    }
+    if (dir.empty() && ctx_.get_default_map_dir) {
+      dir = ctx_.get_default_map_dir();
+    }
+    if (dir.empty()) {
+      result->rc = RC_INVALID_REQUEST;
+      result->success = false;
+      result->message = "no destination directory: pass dest_dir, or set "
+        "mapping_result_dest_dir in control_command.yaml";
+      safeAbort(node_->get_logger(), gh, result);
+      return;
+    }
 
-  // lidar_save_map() does not create the directory.
-  std::error_code ec;
-  std::filesystem::create_directories(dir, ec);
-  if (ec) {
-    result->rc = RC_INVALID_REQUEST;
-    result->success = false;
-    result->message = "cannot create destination directory " + dir + ": " + ec.message();
-    gh->abort(result);
-    return;
-  }
+    std::string name = goal->file_name;
+    if (name.empty() && ctx_.get_configured_map_name) {
+      name = ctx_.get_configured_map_name();
+    }
+    if (name.empty()) {
+      name = "map_" + timestampNow() + ".bin";
+    }
 
-  if (ctx_.set_map_transfer_in_progress) {
-    ctx_.set_map_transfer_in_progress(true);
-    guard.armed = true;
-  }
+    // lidar_save_map() does not create the directory.
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    if (ec) {
+      result->rc = RC_INVALID_REQUEST;
+      result->success = false;
+      result->message = "cannot create destination directory " + dir + ": " + ec.message();
+      safeAbort(node_->get_logger(), gh, result);
+      return;
+    }
 
-  {
-    auto fb = std::make_shared<SaveMap::Feedback>();
-    fb->stage = SaveMap::Feedback::STAGE_TRIGGER;
-    fb->elapsed_sec = 0.0f;
-    gh->publish_feedback(fb);
-  }
+    device_handle dev = session.handle();
+    if (!dev) {
+      result->rc = session.rc();
+      result->success = false;
+      result->message = rcText(session.rc());
+      safeAbort(node_->get_logger(), gh, result);
+      return;
+    }
 
-  // lidar_save_map() blocks for the whole trigger -> poll -> transfer cycle
-  // (default cap 120 s). Run it here and tick feedback from a helper thread so
-  // the client sees liveness.
-  std::atomic<bool> done{false};
-  std::thread ticker(
-    [this, gh, t0, &done]() {
-      while (!done.load()) {
-        std::this_thread::sleep_for(opt_.feedback_period);
-        if (done.load() || !gh->is_active()) {
-          break;
+    if (ctx_.set_map_transfer_in_progress) {
+      ctx_.set_map_transfer_in_progress(true);
+      guard.armed = true;
+    }
+
+    {
+      auto fb = std::make_shared<SaveMap::Feedback>();
+      fb->stage = SaveMap::Feedback::STAGE_TRIGGER;
+      fb->elapsed_sec = 0.0f;
+      safeFeedback(node_->get_logger(), gh, fb);
+    }
+
+    // lidar_save_map() blocks for the whole trigger -> poll -> transfer cycle
+    // (default cap 120 s). Run it here and tick feedback from a helper thread so
+    // the client sees liveness.
+    std::atomic<bool> done{false};
+    std::thread ticker(
+      [this, gh, t0, &done]() {
+        try {
+          while (!done.load()) {
+            std::this_thread::sleep_for(opt_.feedback_period);
+            if (done.load()) {
+              break;
+            }
+            auto fb = std::make_shared<SaveMap::Feedback>();
+            fb->stage = SaveMap::Feedback::STAGE_SAVING;
+            fb->elapsed_sec = static_cast<float>(elapsedSince(t0));
+            safeFeedback(node_->get_logger(), gh, fb);
+          }
+        } catch (const std::exception & e) {
+          RCLCPP_WARN(
+            node_->get_logger(), "[odin1_control] save_map feedback ticker stopped: %s",
+            e.what());
         }
-        auto fb = std::make_shared<SaveMap::Feedback>();
-        fb->stage = SaveMap::Feedback::STAGE_SAVING;
-        fb->elapsed_sec = static_cast<float>(elapsedSince(t0));
-        gh->publish_feedback(fb);
+      });
+
+    int rc;
+    try {
+      rc = lidar_save_map(dev, dir.c_str(), name.c_str(), goal->gen_timeout_ms);
+    } catch (...) {
+      done = true;
+      if (ticker.joinable()) {
+        ticker.join();
       }
-    });
+      throw;
+    }
 
-  rc = lidar_save_map(dev, dir.c_str(), name.c_str(), goal->gen_timeout_ms);
+    done = true;
+    if (ticker.joinable()) {
+      ticker.join();
+    }
 
-  done = true;
-  if (ticker.joinable()) {
-    ticker.join();
-  }
+    result->rc = rc;
+    result->success = (rc == 0);
+    result->elapsed_sec = static_cast<float>(elapsedSince(t0));
+    result->map_path = (rc == 0) ? (std::filesystem::path(dir) / name).string() : "";
 
-  result->rc = rc;
-  result->success = (rc == 0);
-  result->elapsed_sec = static_cast<float>(elapsedSince(t0));
-  result->map_path = (rc == 0) ? (std::filesystem::path(dir) / name).string() : "";
+    switch (rc) {
+      case 0: result->message = "map saved"; break;
+      case -1: result->message = "invalid arguments or SDK not initialised"; break;
+      case -2: result->message = "device is busy with another file transfer"; break;
+      case -3: result->message = "timed out waiting for the device to finish generating the map";
+        break;
+      case -4: result->message = "file transfer stalled or failed"; break;
+      default: result->message = std::string("lidar_save_map failed: ") + rcText(rc); break;
+    }
 
-  switch (rc) {
-    case 0: result->message = "map saved"; break;
-    case -1: result->message = "invalid arguments or SDK not initialised"; break;
-    case -2: result->message = "device is busy with another file transfer"; break;
-    case -3: result->message = "timed out waiting for the device to finish generating the map";
-      break;
-    case -4: result->message = "file transfer stalled or failed"; break;
-    default: result->message = "lidar_save_map failed"; break;
-  }
+    {
+      auto fb = std::make_shared<SaveMap::Feedback>();
+      fb->stage = SaveMap::Feedback::STAGE_DONE;
+      fb->elapsed_sec = result->elapsed_sec;
+      safeFeedback(node_->get_logger(), gh, fb);
+    }
 
-  {
-    auto fb = std::make_shared<SaveMap::Feedback>();
-    fb->stage = SaveMap::Feedback::STAGE_DONE;
-    fb->elapsed_sec = result->elapsed_sec;
-    gh->publish_feedback(fb);
-  }
-
-  if (rc == 0) {
-    RCLCPP_INFO(
-      node_->get_logger(), "[odin1_control] map saved to %s (%.1f s)",
-      result->map_path.c_str(), result->elapsed_sec);
-    gh->succeed(result);
-  } else {
-    RCLCPP_ERROR(
-      node_->get_logger(), "[odin1_control] save_map failed rc=%d (%s)",
-      rc, result->message.c_str());
-    gh->abort(result);
+    if (rc == 0) {
+      RCLCPP_INFO(
+        node_->get_logger(), "[odin1_control] map saved to %s (%.1f s)",
+        result->map_path.c_str(), result->elapsed_sec);
+      safeSucceed(node_->get_logger(), gh, result);
+    } else {
+      RCLCPP_ERROR(
+        node_->get_logger(), "[odin1_control] save_map failed rc=%d (%s)",
+        rc, result->message.c_str());
+      safeAbort(node_->get_logger(), gh, result);
+    }
+  } catch (const std::exception & e) {
+    // Detached thread: an escaping exception would std::terminate the whole
+    // driver process, killing every sensor publisher with it.
+    RCLCPP_ERROR(node_->get_logger(), "[odin1_control] save_map threw: %s", e.what());
+    result->rc = RC_INTERNAL_ERROR;
+    result->success = false;
+    result->elapsed_sec = static_cast<float>(elapsedSince(t0));
+    result->message = std::string("internal error: ") + e.what();
+    safeAbort(node_->get_logger(), gh, result);
+  } catch (...) {
+    RCLCPP_ERROR(node_->get_logger(), "[odin1_control] save_map threw a non-std exception");
+    result->rc = RC_INTERNAL_ERROR;
+    result->success = false;
+    result->message = "internal error";
+    safeAbort(node_->get_logger(), gh, result);
   }
 }
 
@@ -751,19 +1024,17 @@ void ControlServer::saveMapExecute(std::shared_ptr<GoalHandleSaveMap> gh)
 rclcpp_action::GoalResponse ControlServer::switchModeGoal(
   const rclcpp_action::GoalUUID & /*uuid*/, std::shared_ptr<const SwitchMode::Goal> goal)
 {
+  if (!accepting_.load()) {
+    RCLCPP_WARN(node_->get_logger(), "[odin1_control] switch_mode rejected: shutting down");
+    return rclcpp_action::GoalResponse::REJECT;
+  }
   if (goal->map_mode > 2) {
     RCLCPP_WARN(
       node_->get_logger(), "[odin1_control] switch_mode rejected: map_mode=%u out of range",
       static_cast<unsigned>(goal->map_mode));
     return rclcpp_action::GoalResponse::REJECT;
   }
-  if (mode_switch_in_progress_.load()) {
-    RCLCPP_WARN(node_->get_logger(), "[odin1_control] switch_mode rejected: already running");
-    return rclcpp_action::GoalResponse::REJECT;
-  }
-  if (save_map_running_.load() ||
-    (ctx_.is_map_transfer_in_progress && ctx_.is_map_transfer_in_progress()))
-  {
+  if (ctx_.is_map_transfer_in_progress && ctx_.is_map_transfer_in_progress()) {
     RCLCPP_WARN(
       node_->get_logger(),
       "[odin1_control] switch_mode rejected: a map transfer is in progress");
@@ -778,6 +1049,15 @@ rclcpp_action::GoalResponse ControlServer::switchModeGoal(
         "(no map has been loaded yet)");
       return rclcpp_action::GoalResponse::REJECT;
     }
+  }
+
+  // Claim the exclusive slot as the last step before ACCEPT - see saveMapGoal().
+  int expected = OP_NONE;
+  if (!exclusive_op_.compare_exchange_strong(expected, OP_SWITCH_MODE)) {
+    RCLCPP_WARN(
+      node_->get_logger(), "[odin1_control] switch_mode rejected: %s already running",
+      expected == OP_SAVE_MAP ? "a save_map" : "a switch_mode");
+    return rclcpp_action::GoalResponse::REJECT;
   }
   return rclcpp_action::GoalResponse::ACCEPT_AND_EXECUTE;
 }
@@ -800,209 +1080,245 @@ void ControlServer::switchModeAccepted(std::shared_ptr<GoalHandleSwitchMode> gh)
 
 void ControlServer::switchModeExecute(std::shared_ptr<GoalHandleSwitchMode> gh)
 {
-  const auto goal = gh->get_goal();
   auto result = std::make_shared<SwitchMode::Result>();
 
-  mode_switch_in_progress_ = true;
+  // The exclusive slot was claimed by switchModeGoal().
   struct Guard
   {
-    std::atomic<bool> & flag;
-    ~Guard() {flag = false;}
-  } guard{mode_switch_in_progress_};
+    std::atomic<int> & slot;
+    ~Guard() {slot.store(OP_NONE);}
+  } guard{exclusive_op_};
 
-  const int previous_mode = ctx_.get_map_mode ? ctx_.get_map_mode() : -1;
-  result->active_map_mode = static_cast<uint8_t>(previous_mode < 0 ? 0 : previous_mode);
+  try {
+    const auto goal = gh->get_goal();
+    const int previous_mode = ctx_.get_map_mode ? ctx_.get_map_mode() : -1;
+    result->active_map_mode = static_cast<uint8_t>(previous_mode < 0 ? 0 : previous_mode);
 
-  int rc = 0;
-  device_handle dev = device(rc);
-  if (!dev) {
-    result->rc = rc;
-    result->success = false;
-    result->failed_stage = "precondition";
-    result->message = "driver has not opened the device yet";
-    gh->abort(result);
-    return;
-  }
-
-  std::unique_lock<std::timed_mutex> lock(device_op_mutex_, std::defer_lock);
-  if (!lock.try_lock_for(opt_.lock_timeout)) {
-    result->rc = RC_BUSY;
-    result->success = false;
-    result->failed_stage = "precondition";
-    result->message = "another control operation is in progress";
-    gh->abort(result);
-    return;
-  }
-
-  const int stream_mode = ctx_.get_stream_mode ? ctx_.get_stream_mode() : LIDAR_MODE_SLAM;
-  const bool restart = goal->restart_stream;
-  const uint8_t total_steps = restart ? 7 : 2;
-  uint8_t step = 0;
-
-  auto feedback = [&](const char * stage) {
-      auto fb = std::make_shared<SwitchMode::Feedback>();
-      fb->stage = stage;
-      fb->step = ++step;
-      fb->total_steps = total_steps;
-      gh->publish_feedback(fb);
-      RCLCPP_INFO(
-        node_->get_logger(), "[odin1_control] switch_mode %u/%u %s",
-        static_cast<unsigned>(fb->step), static_cast<unsigned>(total_steps), stage);
-    };
-
-  auto fail = [&](const char * stage, int code, const std::string & msg) {
-      result->rc = code;
+    DeviceSession session(*this);
+    if (!session.ok()) {
+      result->rc = session.rc();
       result->success = false;
-      result->failed_stage = stage;
-      result->message = msg;
-      result->active_map_mode =
-        static_cast<uint8_t>(ctx_.get_map_mode ? std::max(0, ctx_.get_map_mode()) : 0);
-      RCLCPP_ERROR(
-        node_->get_logger(), "[odin1_control] switch_mode failed at %s rc=%d: %s",
-        stage, code, msg.c_str());
-      gh->abort(result);
-    };
+      result->failed_stage = "precondition";
+      result->message = rcText(session.rc());
+      safeAbort(node_->get_logger(), gh, result);
+      return;
+    }
 
-  auto canceled = [&](const char * stage) {
-      if (!gh->is_canceling()) {
-        return false;
-      }
-      result->rc = 0;
+    std::unique_lock<std::timed_mutex> lock(device_op_mutex_, std::defer_lock);
+    if (!lock.try_lock_for(opt_.lock_timeout)) {
+      result->rc = RC_BUSY;
       result->success = false;
-      result->failed_stage = stage;
-      result->message = "canceled between steps; the device may be left with the stream "
-        "stopped - re-run switch_mode to recover";
-      result->active_map_mode =
-        static_cast<uint8_t>(ctx_.get_map_mode ? std::max(0, ctx_.get_map_mode()) : 0);
-      gh->canceled(result);
-      return true;
-    };
-
-  // The device does not support changing map_mode on a live stream (vendor wiki
-  // 6.6). The supported sequence is stop -> RAW -> SLAM -> configure -> start,
-  // matching the driver's own connect path (host_sdk_sample.cpp:1687-1915).
-  if (restart) {
-    feedback("stop_stream");
-    rc = lidar_stop_stream(dev, stream_mode);
-    if (rc != 0) {
-      // Non-fatal: the stream may already be stopped (first switch before any
-      // start, or after a previous canceled switch).
-      RCLCPP_WARN(
-        node_->get_logger(),
-        "[odin1_control] lidar_stop_stream rc=%d (continuing; stream was probably "
-        "already stopped)", rc);
-    }
-    if (canceled("stop_stream")) {return;}
-
-    feedback("algorithm_off");
-    rc = lidar_set_mode(dev, LIDAR_MODE_RAW);
-    if (rc != 0) {
-      fail("algorithm_off", rc, "lidar_set_mode(LIDAR_MODE_RAW) failed");
-      return;
-    }
-    if (canceled("algorithm_off")) {return;}
-
-    feedback("algorithm_on");
-    rc = lidar_set_mode(dev, stream_mode);
-    if (rc != 0) {
-      fail("algorithm_on", rc, "lidar_set_mode(LIDAR_MODE_SLAM) failed");
-      return;
-    }
-    if (canceled("algorithm_on")) {return;}
-  }
-
-  feedback("set_map_mode");
-  rc = setIntParam(dev, kParamMapMode, static_cast<int>(goal->map_mode));
-  if (rc != 0) {
-    fail("set_map_mode", rc, "failed to set custom parameter map_mode");
-    return;
-  }
-  if (ctx_.set_map_mode) {
-    ctx_.set_map_mode(static_cast<int>(goal->map_mode));
-  }
-  result->active_map_mode = goal->map_mode;
-  if (canceled("set_map_mode")) {return;}
-
-  feedback("configure");
-  if (goal->map_mode == 1) {
-    // Mapping: arm the save flag exactly as the driver does on connect
-    // (host_sdk_sample.cpp:1714-1732), otherwise the first save_map=1 is a no-op.
-    rc = setIntParam(dev, kParamSaveMap, 0);
-    if (rc != 0) {
-      fail("configure", rc, "failed to initialise save_map = 0");
-      return;
-    }
-  } else if (goal->map_mode == 2) {
-    std::string map_path = goal->map_path;
-    if (map_path.empty() && ctx_.get_reloc_map_path) {
-      map_path = ctx_.get_reloc_map_path();
-    }
-    std::error_code ec;
-    if (map_path.empty() || !std::filesystem::exists(map_path, ec)) {
-      fail("configure", RC_INVALID_REQUEST, "relocalization map not found: " + map_path);
-      return;
-    }
-    if (!goal->map_path.empty()) {
-      rc = lidar_set_relocalization_map(dev, map_path.c_str());
-      if (rc != 0) {
-        fail("configure", rc, "lidar_set_relocalization_map failed for " + map_path);
-        return;
-      }
-      if (ctx_.set_reloc_map_path) {
-        ctx_.set_reloc_map_path(map_path);
-      }
-    }
-    if (goal->use_init_pose) {
-      const auto & p = goal->init_pose.position;
-      const auto & q = goal->init_pose.orientation;
-      const double pos[3] = {p.x, p.y, p.z};
-      const double quat[4] = {q.x, q.y, q.z, q.w};
-      std::string msg;
-      rc = applyInitPose(dev, pos, quat, goal->search_radius_m, goal->max_rot_deg, msg);
-      if (rc != 0) {
-        fail("configure", rc, msg.empty() ? "failed to apply init pose" : msg);
-        return;
-      }
-    }
-  }
-  if (canceled("configure")) {return;}
-
-  if (restart) {
-    feedback("start_stream");
-    uint32_t dtof_subframe_odr = 0;
-    rc = lidar_start_stream(dev, stream_mode, dtof_subframe_odr);
-    if (rc != 0) {
-      fail("start_stream", rc, "lidar_start_stream failed - the device is left with the "
-        "stream stopped; re-run switch_mode");
+      result->failed_stage = "precondition";
+      result->message = rcText(RC_BUSY);
+      safeAbort(node_->get_logger(), gh, result);
       return;
     }
 
-    feedback("activate_streams");
-    const StreamFlags flags = ctx_.get_stream_flags ? ctx_.get_stream_flags() : StreamFlags{};
-    auto apply = [&](bool on, int type) {
-        if (on) {
-          lidar_activate_stream_type(dev, type);
-        } else {
-          lidar_deactivate_stream_type(dev, type);
-        }
+    const int stream_mode = ctx_.get_stream_mode ? ctx_.get_stream_mode() : LIDAR_MODE_SLAM;
+    const bool restart = goal->restart_stream;
+    const uint8_t total_steps = restart ? 7 : 2;
+    uint8_t step = 0;
+
+    auto feedback = [&](const char * stage) {
+        auto fb = std::make_shared<SwitchMode::Feedback>();
+        fb->stage = stage;
+        fb->step = ++step;
+        fb->total_steps = total_steps;
+        safeFeedback(node_->get_logger(), gh, fb);
+        RCLCPP_INFO(
+          node_->get_logger(), "[odin1_control] switch_mode %u/%u %s",
+          static_cast<unsigned>(fb->step), static_cast<unsigned>(total_steps), stage);
       };
-    apply(flags.rgb, LIDAR_DT_RAW_RGB);
-    apply(flags.imu, LIDAR_DT_RAW_IMU);
-    apply(flags.odom, LIDAR_DT_SLAM_ODOMETRY);
-    apply(flags.dtof, LIDAR_DT_RAW_DTOF);
-    apply(flags.cloud_slam, LIDAR_DT_SLAM_CLOUD);
-  }
 
-  result->rc = 0;
-  result->success = true;
-  result->failed_stage = "";
-  result->message = std::string("switched to ") + mapModeText(goal->map_mode) +
-    (restart
-    ? " and restarted the stream; odom has been reset, treat this as a hard pose "
-      "discontinuity downstream"
-    : " (stream not restarted; the device applies the new mode at the next start)");
-  RCLCPP_INFO(node_->get_logger(), "[odin1_control] %s", result->message.c_str());
-  gh->succeed(result);
+    auto fail = [&](const char * stage, int code, const std::string & msg) {
+        result->rc = code;
+        result->success = false;
+        result->failed_stage = stage;
+        result->message = msg;
+        result->active_map_mode =
+          static_cast<uint8_t>(ctx_.get_map_mode ? std::max(0, ctx_.get_map_mode()) : 0);
+        RCLCPP_ERROR(
+          node_->get_logger(), "[odin1_control] switch_mode failed at %s rc=%d: %s",
+          stage, code, msg.c_str());
+        safeAbort(node_->get_logger(), gh, result);
+      };
+
+    auto canceled = [&](const char * stage) {
+        if (!gh->is_canceling()) {
+          return false;
+        }
+        result->rc = 0;
+        result->success = false;
+        result->failed_stage = stage;
+        result->message = "canceled between steps; the device may be left with the stream "
+          "stopped - re-run switch_mode to recover";
+        result->active_map_mode =
+          static_cast<uint8_t>(ctx_.get_map_mode ? std::max(0, ctx_.get_map_mode()) : 0);
+        safeCanceled(node_->get_logger(), gh, result);
+        return true;
+      };
+
+    // Re-fetch the handle before every SDK call. The driver nulls and recreates
+    // odinDevice on each reconnect, so a handle captured at the top of a
+    // multi-second sequence can be stale by the time a later step runs.
+    device_handle dev = nullptr;
+    auto refresh = [&](const char * stage) {
+        dev = session.handle();
+        if (!dev) {
+          fail(stage, session.rc(), rcText(session.rc()));
+          return false;
+        }
+        return true;
+      };
+
+    // The device does not support changing map_mode on a live stream (vendor wiki
+    // 6.6). The supported sequence is stop -> RAW -> SLAM -> configure -> start,
+    // matching the driver's own connect path (host_sdk_sample.cpp:1687-1915).
+    if (restart) {
+      feedback("stop_stream");
+      if (!refresh("stop_stream")) {return;}
+      int rc = lidar_stop_stream(dev, stream_mode);
+      if (rc != 0) {
+        // Non-fatal: the stream may already be stopped (first switch before any
+        // start, or after a previous canceled switch).
+        RCLCPP_WARN(
+          node_->get_logger(),
+          "[odin1_control] lidar_stop_stream rc=%d (continuing; stream was probably "
+          "already stopped)", rc);
+      }
+      if (canceled("stop_stream")) {return;}
+
+      feedback("algorithm_off");
+      if (!refresh("algorithm_off")) {return;}
+      rc = lidar_set_mode(dev, LIDAR_MODE_RAW);
+      if (rc != 0) {
+        fail("algorithm_off", rc, "lidar_set_mode(LIDAR_MODE_RAW) failed");
+        return;
+      }
+      if (canceled("algorithm_off")) {return;}
+
+      feedback("algorithm_on");
+      if (!refresh("algorithm_on")) {return;}
+      rc = lidar_set_mode(dev, stream_mode);
+      if (rc != 0) {
+        fail("algorithm_on", rc, "lidar_set_mode(LIDAR_MODE_SLAM) failed");
+        return;
+      }
+      if (canceled("algorithm_on")) {return;}
+    }
+
+    feedback("set_map_mode");
+    if (!refresh("set_map_mode")) {return;}
+    int rc = setIntParam(dev, kParamMapMode, static_cast<int>(goal->map_mode));
+    if (rc != 0) {
+      fail("set_map_mode", rc, "failed to set custom parameter map_mode");
+      return;
+    }
+    if (ctx_.set_map_mode) {
+      ctx_.set_map_mode(static_cast<int>(goal->map_mode));
+    }
+    result->active_map_mode = goal->map_mode;
+    if (canceled("set_map_mode")) {return;}
+
+    feedback("configure");
+    if (!refresh("configure")) {return;}
+    if (goal->map_mode == 1) {
+      // Mapping: arm the save flag exactly as the driver does on connect
+      // (host_sdk_sample.cpp:1714-1732), otherwise the first save_map=1 is a no-op.
+      rc = setIntParam(dev, kParamSaveMap, 0);
+      if (rc != 0) {
+        fail("configure", rc, "failed to initialise save_map = 0");
+        return;
+      }
+    } else if (goal->map_mode == 2) {
+      std::string map_path = goal->map_path;
+      if (map_path.empty() && ctx_.get_reloc_map_path) {
+        map_path = ctx_.get_reloc_map_path();
+      }
+      std::error_code ec;
+      if (map_path.empty() || !std::filesystem::exists(map_path, ec)) {
+        fail("configure", RC_INVALID_REQUEST, "relocalization map not found: " + map_path);
+        return;
+      }
+      if (!goal->map_path.empty()) {
+        rc = lidar_set_relocalization_map(dev, map_path.c_str());
+        if (rc != 0) {
+          fail("configure", rc, "lidar_set_relocalization_map failed for " + map_path);
+          return;
+        }
+        if (ctx_.set_reloc_map_path) {
+          ctx_.set_reloc_map_path(map_path);
+        }
+      }
+      if (goal->use_init_pose) {
+        const auto & p = goal->init_pose.position;
+        const auto & q = goal->init_pose.orientation;
+        const double pos[3] = {p.x, p.y, p.z};
+        const double quat[4] = {q.x, q.y, q.z, q.w};
+        std::string msg;
+        rc = applyInitPose(dev, pos, quat, goal->search_radius_m, goal->max_rot_deg, msg);
+        if (rc != 0) {
+          fail("configure", rc, msg.empty() ? "failed to apply init pose" : msg);
+          return;
+        }
+      }
+    }
+    if (canceled("configure")) {return;}
+
+    if (restart) {
+      feedback("start_stream");
+      if (!refresh("start_stream")) {return;}
+      uint32_t dtof_subframe_odr = 0;
+      rc = lidar_start_stream(dev, stream_mode, dtof_subframe_odr);
+      if (rc != 0) {
+        fail("start_stream", rc, "lidar_start_stream failed - the device is left with the "
+          "stream stopped; re-run switch_mode");
+        return;
+      }
+
+      feedback("activate_streams");
+      if (!refresh("activate_streams")) {return;}
+      const StreamFlags flags = ctx_.get_stream_flags ? ctx_.get_stream_flags() : StreamFlags{};
+      auto apply = [&](bool on, int type) {
+          if (on) {
+            lidar_activate_stream_type(dev, type);
+          } else {
+            lidar_deactivate_stream_type(dev, type);
+          }
+        };
+      apply(flags.rgb, LIDAR_DT_RAW_RGB);
+      apply(flags.imu, LIDAR_DT_RAW_IMU);
+      apply(flags.odom, LIDAR_DT_SLAM_ODOMETRY);
+      apply(flags.dtof, LIDAR_DT_RAW_DTOF);
+      apply(flags.cloud_slam, LIDAR_DT_SLAM_CLOUD);
+    }
+
+    result->rc = 0;
+    result->success = true;
+    result->failed_stage = "";
+    result->message = std::string("switched to ") + mapModeText(goal->map_mode) +
+      (restart
+      ? " and restarted the stream; odom has been reset, treat this as a hard pose "
+        "discontinuity downstream"
+      : " (stream not restarted; the device applies the new mode at the next start)");
+    RCLCPP_INFO(node_->get_logger(), "[odin1_control] %s", result->message.c_str());
+    safeSucceed(node_->get_logger(), gh, result);
+  } catch (const std::exception & e) {
+    RCLCPP_ERROR(node_->get_logger(), "[odin1_control] switch_mode threw: %s", e.what());
+    result->rc = RC_INTERNAL_ERROR;
+    result->success = false;
+    result->failed_stage = "internal";
+    result->message = std::string("internal error: ") + e.what() +
+      " - the device may be mid-sequence; re-run switch_mode to resynchronise";
+    safeAbort(node_->get_logger(), gh, result);
+  } catch (...) {
+    RCLCPP_ERROR(node_->get_logger(), "[odin1_control] switch_mode threw a non-std exception");
+    result->rc = RC_INTERNAL_ERROR;
+    result->success = false;
+    result->failed_stage = "internal";
+    result->message = "internal error";
+    safeAbort(node_->get_logger(), gh, result);
+  }
 }
 
 }  // namespace odin1_control

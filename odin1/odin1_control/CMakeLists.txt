@@ -86,4 +86,31 @@ ament_export_dependencies(rclcpp rclcpp_action geometry_msgs builtin_interfaces 
 
 install(PROGRAMS patch/apply_driver_patch.py DESTINATION lib/${PROJECT_NAME})
 
+# ---------------------------------------------------------------------------
+# Tests
+#
+# The test binary links odin1_control (which has UNDEFINED lidar_* symbols) plus
+# test/mock/odin_sdk_mock.cpp, which defines them. That is the whole trick: the
+# production object files are exercised unmodified, with no test seam compiled
+# into them and no vendor .a in sight.
+# ---------------------------------------------------------------------------
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+
+  ament_add_gtest(test_control_server
+    test/test_control_server.cpp
+    test/mock/odin_sdk_mock.cpp
+    TIMEOUT 180)
+  if(TARGET test_control_server)
+    target_compile_definitions(test_control_server PRIVATE ROS2)
+    target_include_directories(test_control_server PRIVATE
+      ${CMAKE_CURRENT_SOURCE_DIR}/include
+      ${CMAKE_CURRENT_SOURCE_DIR}/test
+      ${ODIN1_SDK_INCLUDE_DIR})
+    target_link_libraries(test_control_server odin1_control)
+    ament_target_dependencies(test_control_server
+      rclcpp rclcpp_action geometry_msgs builtin_interfaces odin1_interfaces)
+  endif()
+endif()
+
 ament_package()
