@@ -78,6 +78,18 @@ class ApiClient {
   }
 
   /// init 契约:必填 recording_id / size_bytes / sha256(服务端校验与录音登记一致)。
+  /// dev/staging 返回 dev_code 便于 Demo 一键登录;prod 不回显。
+  Future<String?> sendCode(String email) => _call(
+        () => _dio.post('/v1/auth/email/code', data: {'email': email}),
+        (d) => (d as Map)['dev_code'] as String?,
+      );
+
+  Future<String> verifyCode(String email, String code) => _call(
+        () => _dio.post('/v1/auth/email/verify',
+            data: {'email': email, 'code': code}),
+        (d) => (d as Map)['access_token'] as String,
+      );
+
   Future<UploadInit> initUpload(
     String recordingId, {
     required int sizeBytes,
@@ -153,6 +165,47 @@ class ApiClient {
   Future<void> completeUpload(String uploadId) =>
       _call(() => _dio.post('/v1/uploads/$uploadId/complete'), (_) {});
 
-  Future<void> createJob(String recordingId) =>
-      _call(() => _dio.post('/v1/jobs', data: {'recording_id': recordingId}), (_) {});
+  Future<Map<String, dynamic>> createRecording({
+    required String title,
+    required int durationMs,
+    required String sha256,
+    required int sizeBytes,
+    String source = 'device',
+    String? deviceSn,
+    String? deviceFileId,
+  }) =>
+      _call(
+        () => _dio.post('/v1/recordings', data: {
+          'title': title,
+          'duration_ms': durationMs,
+          'sha256': sha256,
+          'size_bytes': sizeBytes,
+          'source': source,
+          if (deviceSn != null) 'device_sn': deviceSn,
+          if (deviceFileId != null) 'device_file_id': deviceFileId,
+        }),
+        (d) => (d as Map).cast<String, dynamic>(),
+      );
+
+  Future<Map<String, dynamic>> createJob(String recordingId) => _call(
+        () => _dio.post('/v1/jobs', data: {'recording_id': recordingId}),
+        (d) => (d as Map).cast<String, dynamic>(),
+      );
+
+  Future<Map<String, dynamic>> getJob(String jobId) => _call(
+        () => _dio.get('/v1/jobs/$jobId'),
+        (d) => (d as Map).cast<String, dynamic>(),
+      );
+
+  Future<List<Map<String, dynamic>>> getTranscript(String recordingId) => _call(
+        () => _dio.get('/v1/recordings/$recordingId/transcript'),
+        (d) => ((d as Map)['segments'] as List)
+            .map((e) => (e as Map).cast<String, dynamic>())
+            .toList(),
+      );
+
+  Future<Map<String, dynamic>> getSummary(String recordingId) => _call(
+        () => _dio.get('/v1/recordings/$recordingId/summary'),
+        (d) => (d as Map).cast<String, dynamic>(),
+      );
 }

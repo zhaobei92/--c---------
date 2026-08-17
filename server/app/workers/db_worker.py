@@ -28,7 +28,7 @@ DbStage = Callable[[Session, TranscriptionJob], None]
 
 
 def _noop_stage(s: Session, job: TranscriptionJob) -> None:
-    """默认桩:阶段3 接真实供应商;黄金流程注入 Mock AI Provider。"""
+    """空桩:纯基础设施测试用,不产出转写内容。"""
 
 
 DEFAULT_STAGES: list[tuple[JobStatus, DbStage]] = [
@@ -37,6 +37,26 @@ DEFAULT_STAGES: list[tuple[JobStatus, DbStage]] = [
     (JobStatus.DIARIZING, _noop_stage),
     (JobStatus.SUMMARIZING, _noop_stage),
 ]
+
+
+def mock_ai_stages() -> list[tuple[JobStatus, DbStage]]:
+    """Mock AI Provider 阶段:写入真实 speakers/segments/summaries(Demo Mode)。"""
+    from ..services.mock_ai import write_mock_summary, write_mock_transcript
+
+    return [
+        (JobStatus.PREPROCESSING, _noop_stage),
+        (JobStatus.TRANSCRIBING, lambda s, j: write_mock_transcript(s, j)),
+        (JobStatus.DIARIZING, _noop_stage),  # mock 转写阶段已含说话人
+        (JobStatus.SUMMARIZING, lambda s, j: write_mock_summary(s, j)),
+    ]
+
+
+def stages_for(provider: str) -> list[tuple[JobStatus, DbStage]]:
+    """按配置选择阶段实现:mock(Demo/审核)| noop(基础设施测试)。
+    真实 ASR/LLM 供应商接入时在此登记。"""
+    if provider == "mock":
+        return mock_ai_stages()
+    return DEFAULT_STAGES
 
 MAX_DELIVERIES = 3
 

@@ -20,7 +20,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/device', builder: (_, __) => const DevicePage()),
       GoRoute(
         path: '/recording/:id',
-        builder: (_, s) => TranscriptPage(recordingId: s.pathParameters['id']!),
+        builder: (_, s) => TranscriptPage(
+          recordingId: s.pathParameters['id']!,
+          jobId: s.uri.queryParameters['job'],
+        ),
       ),
       GoRoute(path: '/membership', builder: (_, __) => const MembershipPage()),
       GoRoute(path: '/settings', builder: (_, __) => const SettingsPage()),

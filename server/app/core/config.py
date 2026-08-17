@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     queue_backend: str = "memory"        # memory | redis
     object_backend: str = "memory"       # memory | s3
     code_store_backend: str = "memory"   # memory | redis
+    ai_provider: str = "mock"            # mock(Demo/审核)| noop | 真实供应商后续登记
     s3_access_key: str = "ysnote"
     s3_secret_key: str = "ysnote-dev-secret"
 
