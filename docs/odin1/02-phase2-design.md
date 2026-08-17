@@ -244,7 +244,7 @@ device_map_mode == 2 且从未收到              → STATE_SEARCHING（正在�
 | 2 | 同上 | :101 全局区 | `g_control_server` + 设备状态缓存 4 个变量 |
 | 3 | 同上 | :1043 `LIDAR_DT_DEV_STATUS` 分支 | 缓存设备状态快照（可选，缺了只是 `status.valid=false`） |
 | 4 | 同上 | :2009 `main()` | 填 `DeviceContext` 并构造 `ControlServer`（约 40 行） |
-| 5 | 同上 | :352 信号处理**开头** | `beginTeardown(3s)`，失败即 `emergencyExit()`——必须在 `lidar_stop_stream` / `lidar_system_deinit` **之前**，见审计 A1/A12 |
+| 5 | 同上 | :2239 `signal()` 注册之后 | 装 `SignalShutdownGuard`：处理器只存 `sig_atomic_t` + 写 self-pipe，drain 与厂商 teardown 移到普通线程，见审计 A15-A17 |
 | 5b | 同上 | :1298 重连回收句柄前 | `notifyDeviceInvalidated()` + `waitForDeviceIdle(3s)`，失败即跳过本次 attach，见审计 A4/A13 |
 | 5c | 同上 | 信号处理器 `g_ros_object.reset()` 前 | `g_control_server.reset()`，让静态析构无事可做 |
 | 6 | 同上 | :2470 无设备早退 | `g_control_server.reset()` |

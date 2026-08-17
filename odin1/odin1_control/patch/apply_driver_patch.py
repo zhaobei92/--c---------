@@ -54,6 +54,7 @@ HUNKS = [
             "    #include <chrono>\n"
             "    #include <memory>\n"
             '    #include "odin1_control/control_server.hpp"\n'
+            '    #include "odin1_control/signal_shutdown.hpp"\n'
             f"    // <<< {MARKER}\n"
         ),
     ),
@@ -152,45 +153,41 @@ HUNKS = [
             f"    // <<< {MARKER}\n"
         ),
     ),
-    # ---- 5. drain control ops BEFORE the SDK is torn down -----------------
+    # ---- 5d. replace the vendor's signal handler with a safe trampoline ----
     #
-    # ORDERING IS THE WHOLE POINT. The vendor SIGINT handler runs:
-    #     lidar_stop_stream(odinDevice) -> odinDevice = nullptr
-    #         -> lidar_system_deinit() -> g_ros_object.reset()
-    #         -> rclcpp::shutdown() -> exit(0)
-    # A SaveMap worker can be inside lidar_save_map() for up to 120 s. Draining
-    # anywhere after lidar_system_deinit() means waiting on a thread that is
-    # calling into an SDK that no longer exists. So the barrier goes at the very
-    # top of the handler, before the first SDK call.
+    # signal(SIGINT, signal_handler) above installs a handler that logs with
+    # RCLCPP_*, calls fclose(), touches C++ objects, calls the SDK and ends in
+    # exit(). None of that is async-signal-safe: the handler runs on whichever
+    # thread was interrupted, so if that thread holds the logger mutex - or
+    # ControlServer's idle_mutex_ - the handler deadlocks and the process hangs
+    # with no output. That is the likely case, not the unlikely one, because the
+    # whole point is that a worker is busy.
     #
-    # The grace is short (3 s) on purpose: this runs in a signal handler and the
-    # process is going away regardless. beginTeardown() also flips the server to
-    # "refuse new work", so nothing new can start during the rest of teardown.
+    # sigaction() here overrides both registrations with a handler that only
+    # stores a sig_atomic_t and writes one byte to a self-pipe. A normal thread
+    # then drains, and calls signal_handler() itself as an ordinary function -
+    # where every one of those calls is legal again.
     dict(
         file=CPP,
-        name="shutdown-signal",
-        kind="before",
+        name="signal-trampoline",
+        kind="after",
         anchor=(
-            "            #ifdef ROS2\n"
-            '                RCLCPP_INFO(rclcpp::get_logger("signal_handler"), "Closing device...");\n'
+            "    signal(SIGINT, signal_handler);\n"
+            "    signal(SIGTERM, signal_handler);\n"
         ),
         text=(
-            f"            // >>> {MARKER}: drain in-flight control ops before ANY SDK teardown.\n"
-            "            // Guarded: this is common code, but g_control_server only exists\n"
-            "            // under ROS2. A FALSE return is not advisory - continuing would run\n"
-            "            // lidar_stop_stream / lidar_system_deinit / exit() while a worker is\n"
-            "            // still inside an uninterruptible SDK call, so refuse instead.\n"
-            "            #ifdef ROS2\n"
-            "            if (g_control_server &&\n"
-            "                !g_control_server->beginTeardown(std::chrono::seconds(3)))\n"
-            "            {\n"
-            "                // Does not return: skips every SDK call, every destructor and\n"
-            "                // exit() itself, because all three race the running worker.\n"
-            "                g_control_server->emergencyExit(\n"
-            "                    \"SIGINT while an uninterruptible device operation was running\");\n"
-            "            }\n"
-            "            #endif\n"
-            f"            // <<< {MARKER}\n"
+            f"    // >>> {MARKER}: async-signal-safe SIGINT/SIGTERM front end\n"
+            "    #ifdef ROS2\n"
+            "    static odin1_control::SignalShutdownGuard odin1_signal_guard(\n"
+            "        [](std::chrono::milliseconds grace) {\n"
+            "            // Runs on the shutdown thread, so locking and logging are fine.\n"
+            "            return !g_control_server || g_control_server->beginTeardown(grace);\n"
+            "        },\n"
+            "        [](int sig) { signal_handler(sig); },\n"
+            "        std::chrono::seconds(3));\n"
+            "    (void)odin1_signal_guard;\n"
+            "    #endif\n"
+            f"    // <<< {MARKER}\n"
         ),
     ),
     # ---- 5c. tear the control server down before static destruction can ----

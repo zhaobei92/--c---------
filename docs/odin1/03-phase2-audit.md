@@ -9,7 +9,7 @@
 
 ## 1. 结论先行
 
-两轮共 **14 个问题**，其中 **6 个会导致进程崩溃、挂死或编译不过**，
+三轮共 **17 个问题**，其中 **9 个会导致进程崩溃、挂死或编译不过**，
 **3 个会让上层拿到"看起来正常但实际错误"的位姿**。全部已修。
 **最要命的五个都是我自己在前面的阶段引入的**：
 
@@ -21,6 +21,9 @@
 - **A12 / A13**：第一轮加的两个屏障，**失败后调用方照样往下走**。
   屏障只在成功时有用 = 等于没有屏障。
 - **A14**：屏障插在公共代码里，而符号只在 `#ifdef ROS2` 下声明 —— **ROS1 编译直接坏掉**。
+- **A15**：`beginTeardown()` 在**信号处理器**里取 mutex、等 condition_variable、调 ROS logger。
+  而 `~DeviceSession` 在 worker 线程上取同一把锁 —— Ctrl+C 落在那个窗口就**自锁**，
+  恰好是它被加进来要保护的场景。
 
 教训很一致：**加了检查不等于加了约束**。前三轮每一次都是"检查写了、返回值没人看"。
 所以本轮把两个屏障的返回值标成 `[[nodiscard]]`，并把"失败"的唯一合法响应写死在补丁里。
@@ -96,6 +99,55 @@ logger 的锁，从信号处理器里调用它会把处理器直接锁死。
 析构函数同理：`~ControlServer` 用长 grace（180 s，正常退出路径上阻塞是对的）；
 若仍无法 drain，则 `hardExit()` —— 因为把成员释放在活跃 worker 之下没有任何安全做法。
 
+### 2.6 第三轮：信号处理器里那些调用根本不合法
+
+前两轮把 `beginTeardown()` 放进了驱动的 SIGINT 处理器 —— 而**信号处理器里只允许调用
+POSIX async-signal-safe 名单上的函数**。这不是学究规矩：处理器跑在"恰好被打断的那个
+线程"上，如果那个线程已经持有处理器想要的锁，处理器就地死锁，进程永久挂起且无任何输出。
+
+而这里几乎必然发生：`beginTeardown()` 取 `idle_mutex_`、等 `idle_cv_`、还调
+`RCLCPP_WARN`；而 `~DeviceSession` 在 worker 线程上取的正是同一把 `idle_mutex_`。
+**Ctrl+C 落在那个窗口就自锁 —— 恰好是"存图正在跑"这个它被加进来要保护的场景。**
+
+| ID | 问题 | 修复 |
+|---|---|---|
+| **A15** | `beginTeardown()`（mutex + condition_variable + ROS logger）在信号上下文执行 | 移出处理器，改由普通线程执行 |
+| **A16** | `g_control_server.reset()` → `~ControlServer` → mutex/cv/`executor_->cancel()`/`thread::join()`，全在信号上下文 | 同上：现在由 shutdown 线程调用 |
+| **A17** | 厂商处理器本身调 `RCLCPP_*`、`fclose()`、SDK、`exit()`，也全部非法 | **顺带修好了**：不再作为处理器执行，而是由 shutdown 线程当普通函数调用 |
+
+#### trampoline + self-pipe
+
+```
+SIGINT ──► odin1SignalTrampoline(sig)          ← 信号上下文，只做两件事
+              g_signal_number = sig;             (volatile sig_atomic_t 存储)
+              write(self_pipe_w, &byte, 1);      (write(2))
+                    │
+                    ▼  一个字节
+           shutdown 线程 (阻塞在 read(2))        ← 普通线程，锁/日志/SDK 全部合法
+              drain(grace)  ──false──► hardExit(75)   不碰 SDK、不跑析构
+                    │true
+                    ▼
+              signal_handler(sig)                 厂商 teardown，当普通函数调用
+```
+
+`sigaction()` 覆盖厂商的两个 `signal()` 注册。构造顺序是刻意的：**先建管道、再起线程、
+最后装处理器** —— 否则信号可能在接收方存在之前到达。
+
+**第二次 Ctrl+C** 直接在处理器里 `_exit(75)`：`_exit(2)` 本身是 async-signal-safe，
+而且此刻 shutdown 线程正卡在一个不会结束的 drain 上，除此之外没有别的出路。
+
+#### 静态守卫
+
+规则容易说、也容易顺手破坏 —— 因为不安全的调用恰恰就是加诊断时最想写的那几个。
+所以 `test/check_signal_safety.py` 被接进测试套件：解析处理器函数体，
+断言只出现 `write` / `_exit` / `emitRaw`，且不含 mutex、logger、`std::string`、
+`lidar_*`、裸 `exit(` 等。已用注入违规做过反向验证（能抓到）。
+
+#### 注意：重连屏障不在此列
+
+`waitForDeviceIdle()` 由 SDK 的 hotplug 回调调用 —— 那是**普通线程**，不是信号上下文。
+mutex 和日志在那里完全合法，无需改动。
+
 ### 2.5 未修：已知并接受的风险
 
 | 风险 | 为什么不修 |
@@ -166,6 +218,9 @@ colcon test-result --verbose
 | **退出顺序不变式** | 解析打过补丁的驱动源码行号 | `beginTeardown@384 < lidar_stop_stream@399 < lidar_system_deinit@416 < reset@437 < rclcpp::shutdown@441` ✓<br>`notifyDeviceInvalidated@1349 < waitForDeviceIdle@1350 < odinDevice=nullptr@1361 < lidar_create_device@1364` ✓ |
 | **ROS1 编译不被破坏（A14）** | 对打过补丁的源码做预处理条件栈分析 | 11 处 `g_control_server` 引用**全部**在 `#ifdef ROS2` 内 |
 | `[[nodiscard]]` 生效 | 扫描测试与补丁中的屏障调用 | 无未消费返回值 |
+| **信号处理器的 async-signal-safety** | `check_signal_safety.py` 解析处理器函数体；并注入一处 `lock_guard` 做反向验证 | 只出现 `write` / `_exit`；注入违规能被抓到 |
+| **信号退出路径（真跑）** | `hard_exit.cpp` + `signal_shutdown.cpp` 是 ROS-free 的，用 fork/waitpid 的 death-test 外壳编译并执行**真实代码** | `-Wall -Wextra` 零警告，**5/5 通过**：drain 成功→deferred 在普通线程跑（且在里面取锁）；drain 失败→退出码 75 且 deferred **未执行**；第二次信号→立即 75；无信号析构不挂；第二个 guard 拒装 |
+| 处理器内已无阻塞调用 | 解析打过补丁的 `signal_handler` 函数体 | `beginTeardown`/`waitForDeviceIdle`/`emergencyExit` 均不出现 |
 | IDL / C++ 结构 / 头实现一致性 | 静态检查器 | 全通过（ControlServer 27 定义，TfAdapterNode 11 定义） |
 
 **仍未验证**：`control_server.cpp` 与 `tf_adapter_node.cpp` 的编译（需要 rclcpp），

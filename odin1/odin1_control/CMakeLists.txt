@@ -55,7 +55,10 @@ if(NOT ODIN1_SDK_INCLUDE_DIR)
 endif()
 message(STATUS "odin1_control: using Odin1 SDK headers from ${ODIN1_SDK_INCLUDE_DIR}")
 
-add_library(odin1_control STATIC src/control_server.cpp)
+add_library(odin1_control STATIC
+  src/control_server.cpp
+  src/hard_exit.cpp
+  src/signal_shutdown.cpp)
 target_compile_definitions(odin1_control PUBLIC ROS2)
 target_include_directories(odin1_control PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -97,8 +100,16 @@ install(PROGRAMS patch/apply_driver_patch.py DESTINATION lib/${PROJECT_NAME})
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
 
+  # Static guard on the signal handler. Wired into the suite rather than left to
+  # review, because the unsafe calls are exactly the ones you reach for when
+  # adding diagnostics, and the failure mode is a silent deadlock.
+  add_test(NAME check_signal_safety
+    COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/test/check_signal_safety.py
+            ${CMAKE_CURRENT_SOURCE_DIR})
+
   ament_add_gtest(test_control_server
     test/test_control_server.cpp
+    test/test_signal_shutdown.cpp
     test/mock/odin_sdk_mock.cpp
     TIMEOUT 180)
   if(TARGET test_control_server)
