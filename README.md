@@ -19,7 +19,8 @@
 | `server/` | FastAPI 服务端:24 张核心表 schema、分片上传、任务队列、AI 任务状态机、权益服务(usage_ledger 流水)、订单验证框架、管理后台骨架 |
 | `mock_device/` | 模拟设备服务:软件模拟 BLE 状态机 + Wi-Fi 文件服务器(Range 断点续传 + SHA-256 校验),供 App/后端在无真机时开发联调 |
 | `mobile/` | Flutter 工程脚手架:Riverpod + Clean Architecture、zh/en/ar 多语言 + RTL、SQLite、上传队列、Platform Channel 接口、iOS(Swift)/Android(Kotlin) 原生模块骨架 |
-| `.github/workflows/` | CI:服务端与模拟设备的测试、语法检查、Flutter 静态分析(有 SDK 时) |
+| `scripts/` | `demo_up.sh` 一键启动 Demo 环境(基础设施 + API + Worker + 模拟录音机) |
+| `.github/workflows/` | CI:服务端与模拟设备测试、集成测试、compose 从零启动、Flutter analyze/test、Android/iOS 构建 |
 
 ## 快速开始
 
