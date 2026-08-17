@@ -1,5 +1,5 @@
 # 统一验证入口。CI 与本地都以 `make verify` 为准,任何失败都会终止(无忽略)。
-.PHONY: verify verify-server verify-mock verify-flutter verify-integration up down
+.PHONY: verify verify-server verify-mock verify-flutter verify-integration up down demo-up demo-down
 
 verify: verify-server verify-mock verify-flutter
 	@echo "== ALL VERIFICATIONS PASSED =="
@@ -27,6 +27,13 @@ endif
 
 # 仅启动依赖环境(不跑测试),供本地手工联调
 integration-env-up: up
+
+# Demo 环境:基础设施 + API + Worker + 模拟录音机(供人工演示/审核录屏)
+demo-up:
+	scripts/demo_up.sh
+
+demo-down:
+	scripts/demo_up.sh --down
 
 up:
 	docker compose up -d --wait
