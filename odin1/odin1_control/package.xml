@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>odin1_control</name>
+  <version>0.1.0</version>
+  <description>
+    ROS 2 control surface for the Odin1 module. Builds as a static library that is
+    linked into the vendor driver executable (host_sdk_sample), because the USB
+    device handle is process-local: only one process may hold the device.
+    Replaces the driver's /tmp/odin_command.txt file channel with services and
+    actions for save_map, switch_mode, load_map, set_init_pose, reset_algo and
+    get_device_state.
+  </description>
+  <maintainer email="zhaobei92@gmail.com">Odin1 integration</maintainer>
+  <license>Apache-2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>rclcpp_action</depend>
+  <depend>geometry_msgs</depend>
+  <depend>builtin_interfaces</depend>
+  <depend>odin1_interfaces</depend>
+
+  <!-- Header-only build dependency: lidar_api.h comes from the vendor driver
+       checkout. Not declared as <depend> because odin_ros_driver does not export
+       its includes through ament; CMake locates them via ODIN1_SDK_INCLUDE_DIR. -->
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

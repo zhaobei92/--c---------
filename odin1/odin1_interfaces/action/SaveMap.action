@@ -1,0 +1,38 @@
+# Save the current on-device map and pull it back to the host.
+#
+# Backed by lidar_save_map(dev, dest_dir, file_name, gen_timeout_ms), the SDK's
+# one-shot API that internally drives:
+#   1. set custom parameter save_map = 1        (device starts generating)
+#   2. poll save_map until the device resets it to 0
+#   3. pull the file over the file-transfer channel
+#
+# Why an action and not a service: step 2 can take up to gen_timeout_ms (SDK
+# default 120 s). A service call on the driver's 10 Hz single-threaded spin_some
+# loop would freeze every publisher for that entire window.
+#
+# Preconditions:
+#   - map_mode must be MODE_MAPPING (1). In relocalization fallback mode the
+#     device refuses to save.
+#   - Leave >= 5 s between consecutive saves (vendor guidance).
+#   - Only one map transfer at a time; a second goal is rejected while one runs.
+
+string dest_dir                   # "" -> driver default {ws}/src/odin_ros_driver/map/{start_time}/
+string file_name                  # "" -> map_<YYYYmmdd_HHMMSS>.bin
+uint32 gen_timeout_ms 0           # 0 -> SDK default (120000)
+---
+bool success
+int32 rc                          # 0 ok
+                                  # -1 bad args / SDK not initialised
+                                  # -2 device busy with another transfer
+                                  # -3 timed out waiting for map generation
+                                  # -4 transfer stalled or failed
+                                  # -100 driver has not opened the device yet
+string map_path                   # absolute path of the saved file on success
+float32 elapsed_sec
+string message
+---
+string STAGE_TRIGGER=trigger
+string STAGE_SAVING=saving
+string STAGE_DONE=done
+string stage
+float32 elapsed_sec

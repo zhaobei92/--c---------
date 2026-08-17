@@ -1,0 +1,38 @@
+# Query driver + device state in one call.
+#
+# Backed by lidar_get_device_state() (note: that SDK call takes NO device handle,
+# it reports the globally-tracked heartbeat state), lidar_get_version(), plus the
+# driver-side cached LIDAR_DT_DEV_STATUS sample and the control layer's own
+# record of the currently active map_mode.
+---
+bool success
+int32 rc                          # 0 ok; -100 driver has not opened the device yet
+
+bool connected                    # driver holds an open device handle
+
+uint8 STATE_NONE=0
+uint8 STATE_NOT_INITIALIZED=1
+uint8 STATE_INITIALIZED=2
+uint8 STATE_STREAMING=3
+uint8 STATE_STREAM_STOPPED=4
+uint8 initial_state               # lidar_device_initial_state_e
+string state_text
+
+uint8 MODE_ODOMETRY=0
+uint8 MODE_MAPPING=1
+uint8 MODE_RELOCALIZATION=2
+uint8 map_mode                    # last map_mode the control layer applied
+string map_mode_text
+
+bool map_transfer_in_progress     # a SaveMap / LoadMap file transfer is running
+bool mode_switch_in_progress      # a SwitchMode action is running
+string relocalization_map_path    # last map path loaded ("" if none)
+
+string driver_version
+string kernel_version
+string mcu_version
+string soc_version
+string daemon_version
+string slam_version
+
+odin1_interfaces/DeviceStatus status

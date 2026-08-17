@@ -1,0 +1,73 @@
+/**:
+  ros__parameters:
+    # ---- frame naming ----------------------------------------------------
+    # Empty prefix keeps the driver's own frame names (imu / lidar / odom / map /
+    # camera_0), so the messages it publishes resolve without any retagging.
+    # Set a prefix ONLY together with odin1_frame_retag_node, otherwise
+    # cloud_raw (frame "lidar") will point at a frame nobody publishes.
+    frame_prefix: ""
+    map_frame: "map"
+    odom_frame: "odom"
+    base_frame: "base_link"
+    imu_frame: "imu"
+    lidar_frame: "lidar"
+    camera_frame: "camera_0"
+
+    # Names as they appear in the DRIVER's raw TF. Hard-coded in
+    # host_sdk_sample.h; do not prefix these.
+    driver_map_frame: "map"
+    driver_odom_frame: "odom"
+
+    # ---- tree shape ------------------------------------------------------
+    # true  -> map -> odom -> base_link -> imu -> lidar -> camera (REP-105)
+    # false -> map -> odom -> imu -> ...   for robots that already own base_link
+    publish_base_link: true
+
+    # Pose of the Odin1 IMU in the robot base frame: [x y z qx qy qz qw].
+    # Identity means base_link sits exactly at the module's IMU, which is only
+    # right on a bench. MEASURE THIS before driving anything.
+    # The IMU origin relative to the LiDAR is documented as
+    # T^imu_lidar = translation(-0.02663, 0.03447, 0.02174), identity rotation.
+    base_to_imu: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+
+    # imu -> lidar and lidar -> camera, decoded from /odin1/wiwc.
+    publish_extrinsics: true
+    # These are per-device calibration constants. Latching them once onto
+    # /tf_static removes them from the periodic TF traffic; set false if you
+    # would rather see them refreshed continuously.
+    static_extrinsics: false
+
+    # ---- rates -----------------------------------------------------------
+    # 0 = publish odom -> base_link for every odometry message (400 Hz on
+    # odometry_highfreq). This is the point of using the high-rate topic:
+    # vendor FAQ Q4.4 recommends high-frequency TF for fast motion.
+    odom_tf_rate_hz: 0.0
+    # map -> odom changes slowly but must be re-stamped often enough that tf2 -
+    # which does not extrapolate on Jazzy - always has a sample bracketing the
+    # odometry and point-cloud stamps.
+    map_odom_rate_hz: 50.0
+    extrinsics_rate_hz: 10.0
+
+    # ---- relocalization behaviour ----------------------------------------
+    # Seconds without a fresh odom -> map from the driver before the transform
+    # counts as stale.
+    map_odom_timeout_sec: 1.0
+    # identity : publish an identity map -> odom so the tree stays connected and
+    #            RViz/Nav2 keep working (LocalizationStatus.identity_fallback
+    #            tells consumers the map frame is not real yet)
+    # hold     : keep republishing the last correction received
+    # none     : publish nothing; map stays disconnected until relocalization
+    #            succeeds. Safest for autonomy - a planner cannot mistake an
+    #            identity fallback for a real fix.
+    map_odom_fallback: "identity"
+
+    # Poll /odin1/get_device_state so LocalizationStatus can distinguish
+    # "odometry mode, no map expected" from "relocalizing, still searching".
+    # Requires odin1_control in the driver; degrades silently if absent.
+    query_device_state: true
+
+    # ---- inputs ----------------------------------------------------------
+    odom_topic: "/odin1/odometry_highfreq"
+    wiwc_topic: "/odin1/wiwc"
+    # The driver's /tf, remapped away so this node can own the real /tf.
+    raw_tf_topic: "/odin1/tf_raw"

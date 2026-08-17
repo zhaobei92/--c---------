@@ -1,0 +1,29 @@
+# Seed the relocalization search with an initial pose guess.
+#
+# Backed by three device custom parameters (see the official Relocalization Guide):
+#   "init_pos"                 float[7] = [x, y, z, qx, qy, qz, qw]   (metres, normalised quat)
+#   "init_pose_search_radius"  float    metres, recommended <= 10
+#   "init_pose_max_rot_deg"    float    degrees, <= 180
+#
+# TIMING CONTRACT (this is the part that bites people):
+#   The device only consumes init_pos when the algorithm (re)starts, i.e. before
+#   lidar_start_stream(). Calling this service while streaming stores the value on
+#   the device but does NOT trigger a new relocalization attempt.
+#     - applied_immediately == false  -> value staged; call SwitchMode (or restart
+#                                        the driver) to make the algorithm use it.
+#     - applied_immediately == true   -> the stream was not running, so the next
+#                                        start will consume it directly.
+#
+# The pose is expressed in the MAP frame (the world frame at the time the map was
+# built). This service accepts RViz's "2D Pose Estimate" message type directly, so
+# /initialpose can be bridged to it with a one-line relay.
+
+geometry_msgs/PoseWithCovarianceStamped pose
+
+float32 search_radius_m 0.0       # <= 0 -> leave the device parameter unchanged
+float32 max_rot_deg 0.0           # <= 0 -> leave the device parameter unchanged
+---
+bool success
+int32 rc                          # 0 ok; -100 device not open; -2 file transfer busy
+bool applied_immediately
+string message

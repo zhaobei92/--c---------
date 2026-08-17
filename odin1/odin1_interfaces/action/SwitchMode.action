@@ -1,0 +1,53 @@
+# Switch the on-device algorithm mode (odometry / mapping / relocalization) at runtime.
+#
+# WHY THIS IS AN ACTION, AND WHY IT RESTARTS THE STREAM
+# ----------------------------------------------------
+# The vendor documentation is explicit (wiki 6.6): "目前不支持动态切换设备运行模式和
+# 算法运行模式，如需切换请先停止算法，完成相关配置后重新启动算法."
+# There is no single API that changes map_mode on a live stream. The supported
+# sequence, reproduced from wiki 6.4.3 / 6.4.5 / 6.4.7 and from the driver's own
+# device-connect path (host_sdk_sample.cpp:1687-1915), is:
+#
+#   1. lidar_stop_stream(dev, LIDAR_MODE_SLAM)      stop data + algorithm
+#   2. lidar_set_mode(dev, LIDAR_MODE_RAW)          algorithm off (sensor-only)
+#   3. lidar_set_mode(dev, LIDAR_MODE_SLAM)         algorithm on
+#   4. set custom parameter map_mode = <target>
+#   5. mapping:        set custom parameter save_map = 0
+#      relocalization: lidar_set_relocalization_map(path)
+#                      + optional init_pos / init_pose_search_radius / init_pose_max_rot_deg
+#   6. lidar_start_stream(dev, LIDAR_MODE_SLAM, &dtof_subframe_odr)
+#   7. re-apply lidar_activate_stream_type() for every enabled stream
+#
+# Each step is reported as feedback so a failure can be pinpointed on real hardware.
+# The whole sequence is serialised against SaveMap/LoadMap by the control layer.
+#
+# During the switch the data streams stop and restart: expect a gap of a few hundred
+# milliseconds to a few seconds on every topic, and a TF discontinuity. Odometry
+# restarts from the origin unless the device says otherwise, so downstream consumers
+# should treat a completed SwitchMode as a hard reset of the odom frame.
+
+uint8 MODE_ODOMETRY=0
+uint8 MODE_MAPPING=1
+uint8 MODE_RELOCALIZATION=2
+uint8 map_mode
+
+string map_path                   # required for MODE_RELOCALIZATION unless a map is
+                                  # already loaded; absolute path on the driver host
+
+bool use_init_pose false          # MODE_RELOCALIZATION only
+geometry_msgs/Pose init_pose      # in the map frame; quaternion must be normalised
+float32 search_radius_m 0.0       # <= 0 -> leave device parameter unchanged
+float32 max_rot_deg 0.0           # <= 0 -> leave device parameter unchanged
+
+bool restart_stream true          # false -> configure only, do not stop/start the
+                                  # stream. Only useful before the first start.
+---
+bool success
+int32 rc
+uint8 active_map_mode             # mode actually in effect when the action returned
+string failed_stage               # "" on success, else the stage that failed
+string message
+---
+string stage                      # human-readable name of the step in progress
+uint8 step                        # 1-based
+uint8 total_steps

@@ -1,0 +1,21 @@
+# Upload a relocalization map (.bin, MAPV0001) from the HOST filesystem to the device.
+#
+# Backed by lidar_set_relocalization_map(dev, abs_path).
+#
+# IMPORTANT — this only transfers the file. The on-device algorithm picks a map up
+# when the stream (re)starts, so a bare LoadMap while streaming does NOT switch the
+# device into relocalization. To load + activate atomically, use the SwitchMode
+# action with map_mode=MODE_RELOCALIZATION and map_path set; it performs the
+# documented stop -> configure -> start sequence.
+#
+# Blocking: this is a synchronous chunked file transfer. Expect seconds to tens of
+# seconds depending on map size and USB throughput. It runs in the control layer's
+# own reentrant callback group so the driver's data path is not stalled.
+
+string map_path                   # absolute path on the driver host; must exist
+uint8 retries 0                   # extra attempts on failure (driver itself uses 3)
+---
+bool success
+int32 rc                          # 0 ok; -100 device not open; -2 another transfer busy
+bool activated                    # always false: use SwitchMode to activate
+string message

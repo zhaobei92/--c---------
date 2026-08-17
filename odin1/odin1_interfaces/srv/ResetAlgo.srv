@@ -1,0 +1,12 @@
+# Force the on-device SLAM to re-initialise.
+#
+# Equivalent to `./set_param.sh algo_reset 1`, i.e.
+#   lidar_set_custom_parameter(dev, "algo_reset", &one, sizeof(int))
+#
+# Use after a collision or a violent pose jump. Per the official FAQ (Q7.3) this
+# is the sanctioned recovery hook; it does NOT restart the stream and does NOT
+# change map_mode.
+---
+bool success
+int32 rc                          # 0 ok; -100 device not open; -2 file transfer busy
+string message
